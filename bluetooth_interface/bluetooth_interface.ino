@@ -6,54 +6,67 @@ struct process_command_output {
 };
 
 char current_bluetooth_character = 0;
-char* constructed_bluetooth_string = "";
+char* constructed_bluetooth_string = NULL;
 
-void split_string(char* to_split, char delimiter, char** strings) {
-  int delimiters_total = 0;
-  //int string_length = to_split.length();
-  int string_length = strlen(to_split);
-  for(int i = 0; i < string_length; i++) {
-    //char character_at_index = to_split.charAt(i);
-    char character_at_index = to_split[i];
-    if(character_at_index == delimiter) {
-      delimiters_total += 1;
-    }
-  }
-  int delimiter_indexes[delimiters_total];
-  int delimiter_indexes_index = 0;
-  for(int i = 0; i < string_length; i++) {
-    //char character_at_index = to_split.charAt(i);
-    char character_at_index = to_split[i];
-    if(character_at_index == delimiter) {
-      delimiter_indexes[delimiter_indexes_index] = i;
-      delimiter_indexes_index += 1;
-    }
-  }
-  
-  char* split_result[delimiters_total + 1];
-  int previous_index = 0;
-  int next_index = string_length;
-  
-  for (int i = 0; i < delimiters_total; i++) {
-    next_index = delimiter_indexes[i];
-    //char* split_substring;
-    //split_substring = to_split.substring(previous_index, next_index);
-    char split_substring[next_index - previous_index];
-    memcpy(split_substring, &to_split[previous_index], next_index - previous_index - 1);
-    split_substring[next_index - previous_index] = '\0';
-    //Serial.print("Substring: ");
-    //Serial.println(split_substring);
-    //split_result[i] = split_substring;
-    strcpy(split_result[i], split_substring);
-    previous_index = next_index + 1;
-  }
-  //split_substring = to_split.substring(previous_index);
-  char split_substring[next_index - previous_index];
-  memcpy(split_substring, &to_split[previous_index], next_index);
-  //split_result[delimiters_total] = split_substring;
-  strcpy(split_result[0], split_substring);
+int split(const char *str, char c, char ***arr)
+{
+    int count = 1;
+    int token_len = 1;
+    int i = 0;
+    char *p;
+    char *t;
 
-  return split_result;
+    p = str;
+    while (*p != '\0')
+    {
+        if (*p == c)
+            count++;
+        p++;
+    }
+
+    *arr = (char**) malloc(sizeof(char*) * count);
+    if (*arr == NULL)
+        exit(1);
+
+    p = str;
+    while (*p != '\0')
+    {
+        if (*p == c)
+        {
+            (*arr)[i] = (char*) malloc( sizeof(char) * token_len );
+            if ((*arr)[i] == NULL)
+                exit(1);
+
+            token_len = 0;
+            i++;
+        }
+        p++;
+        token_len++;
+    }
+    (*arr)[i] = (char*) malloc( sizeof(char) * token_len );
+    if ((*arr)[i] == NULL)
+        exit(1);
+
+    i = 0;
+    p = str;
+    t = ((*arr)[i]);
+    while (*p != '\0')
+    {
+        if (*p != c && *p != '\0')
+        {
+            *t = *p;
+            t++;
+        }
+        else
+        {
+            *t = '\0';
+            i++;
+            t = ((*arr)[i]);
+        }
+        p++;
+    }
+
+    return count;
 }
 
 struct process_command_output process_command(char* command) {
@@ -66,21 +79,19 @@ struct process_command_output process_command(char* command) {
   bool is_successful;
   int value;
 
-  //String* command_parts = split_string(command, ' ');
-  char** command_parts;
-  split_string(command, ' ', command_parts);
+  char** command_parts = NULL;
+  int command_parts_length = split(command, ' ', &command_parts);
 
-  //command_id = command_parts[0].toInt();
   command_id = atoi(command_parts[0]);
-  if (command_parts[1] == "PINMODE") {
-    //int pin_number = command_parts[2].toInt();
+  if (strcmp(command_parts[1], "PINMODE") == 0) {
+    Serial.println("Found pinMode");
     int pin_number = atoi(command_parts[2]);
-    if (command_parts[3] == "OUTPUT") {
+    if (strcmp(command_parts[3], "OUTPUT") == 0) {
       pinMode(pin_number, OUTPUT);
       is_successful = true;
       value = 0;
     }
-    else if (command_parts[3] == "INPUT") {
+    else if (strcmp(command_parts[3], "INPUT") == 0) {
       pinMode(pin_number, INPUT);
       is_successful = true;
       value = 0;
@@ -90,15 +101,15 @@ struct process_command_output process_command(char* command) {
       value = 0;
     }
   }
-  else if (command_parts[1] == "DIGITALWRITE") {
-    //int pin_number = command_parts[2].toInt();
+  else if (strcmp(command_parts[1], "DIGITALWRITE") == 0) {
+    Serial.println("Found digitalWrite");
     int pin_number = atoi(command_parts[2]);
-    if (command_parts[3] == "LOW") {
+    if (strcmp(command_parts[3], "LOW") == 0) {
       digitalWrite(pin_number, LOW);
       is_successful = true;
       value = 0;
     }
-    else if (command_parts[3] == "HIGH") {
+    else if (strcmp(command_parts[3], "HIGH") == 0) {
       digitalWrite(pin_number, HIGH);
       is_successful = true;
       value = 0;
@@ -108,15 +119,17 @@ struct process_command_output process_command(char* command) {
       value = 0;
     }
   }
-  else if (command_parts[1] == "DELAY") {
-    //int milliseconds = command_parts[2].toInt();
+  else if (strcmp(command_parts[1], "DELAY") == 0) {
+    Serial.println("Found delay");
     int milliseconds = atoi(command_parts[2]);
+    Serial.print("milliseconds: ");
+    Serial.println(milliseconds);
     delay(milliseconds);
     is_successful = true;
     value = 0;
   }
-  else if (command_parts[1] == "ANALOGREAD") {
-    //int pin_number = command_parts[2].toInt();
+  else if (strcmp(command_parts[1], "ANALOGREAD") == 0) {
+    Serial.println("Found analogRead");
     int pin_number = atoi(command_parts[2]);
     is_successful = true;
     value = analogRead(pin_number);
@@ -127,10 +140,9 @@ struct process_command_output process_command(char* command) {
     is_successful = true;
     value = 0;
   }*/
-  else if (command_parts[1] == "ANALOGWRITE") {
-    //int pin_number = command_parts[2].toInt();
+  else if (strcmp(command_parts[1], "ANALOGWRITE") == 0) {
+    Serial.println("Found analogWrite");
     int pin_number = atoi(command_parts[2]);
-    //int pin_value = command_parts[3].toInt();
     int pin_value = atoi(command_parts[3]);
     analogWrite(pin_number, pin_value);
     is_successful = true;
@@ -142,8 +154,8 @@ struct process_command_output process_command(char* command) {
     is_successful = true;
     value = 0;
   }*/
-  else if (command_parts[1] == "DIGITALREAD") {
-    //int pin_number = command_parts[2].toInt();
+  else if (strcmp(command_parts[1], "DIGITALREAD") == 0) {
+    Serial.println("Found digitalRead");
     int pin_number = atoi(command_parts[2]);
     int digital_read_output = digitalRead(pin_number);
     if (digital_read_output == LOW) {
@@ -160,6 +172,7 @@ struct process_command_output process_command(char* command) {
     }
   }
   else {
+    Serial.println("Not found");
     is_successful = false;
     value = 0;
   }
@@ -168,6 +181,7 @@ struct process_command_output process_command(char* command) {
   output.command_id = command_id;
   output.is_successful = is_successful;
   output.value = value;
+  
   return output;
 }
 
@@ -176,31 +190,34 @@ void setup() {
   Serial.begin(9600);
 }
 
-int temp = 0;
+bool shown = false;
 void loop() {
   // put your main code here, to run repeatedly:
+  if (!shown) {
+    Serial.println("started loop");
+    shown = true;
+  }
   if(Serial.available() > 0)
   {
-    current_bluetooth_character = Serial.read();
-    if (current_bluetooth_character != '\n') {
-      Serial.print("Found character: ");
-      Serial.println(current_bluetooth_character);
-      strncat(constructed_bluetooth_string, &current_bluetooth_character, 1);
-    }
-    else {
-      temp++;
-      struct process_command_output output;
-      output = process_command(constructed_bluetooth_string);
-      Serial.print("{ command_id: ");
-      Serial.print(output.command_id);
-      Serial.print(temp);
-      Serial.print(", is_successful: ");
-      Serial.print(output.is_successful);
-      Serial.print(", value: ");
-      Serial.print(output.value);
-      Serial.println(" }");
-      Serial.flush();
-      constructed_bluetooth_string = "";        
-    }
+    Serial.println("inside");
+    String constructed_bluetooth_string = Serial.readString();
+    int constructed_bluetooth_string_length = constructed_bluetooth_string.length();
+    char constructed_bluetooth_chars[constructed_bluetooth_string_length];
+    strncpy(constructed_bluetooth_chars, constructed_bluetooth_string.c_str(), constructed_bluetooth_string_length - 1);
+    constructed_bluetooth_chars[constructed_bluetooth_string_length - 1] = '\0';
+    Serial.print("input: ");
+    Serial.println(constructed_bluetooth_chars);
+    
+    struct process_command_output output;
+    output = process_command(constructed_bluetooth_chars);
+    Serial.print("{ command_id: ");
+    Serial.print(output.command_id);
+    Serial.print(", is_successful: ");
+    Serial.print(output.is_successful);
+    Serial.print(", value: ");
+    Serial.print(output.value);
+    Serial.println(" }");
+    Serial.flush();
+    constructed_bluetooth_string = "";
   }
 }

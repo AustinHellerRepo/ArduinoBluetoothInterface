@@ -65,6 +65,7 @@ int split(const char *str, char c, char ***arr)
         }
         p++;
     }
+    *t = '\0';
 
     return count;
 }
@@ -81,6 +82,13 @@ struct process_command_output process_command(char* command) {
 
   char** command_parts = NULL;
   int command_parts_length = split(command, ' ', &command_parts);
+
+  for (int i = 0; i < command_parts_length; i++) {
+    Serial.print("Part ");
+    Serial.print(i);
+    Serial.print(": ");
+    Serial.println(command_parts[i]);
+  }
 
   command_id = atoi(command_parts[0]);
   if (strcmp(command_parts[1], "PINMODE") == 0) {
@@ -202,10 +210,17 @@ void loop() {
     Serial.println("inside");
     String constructed_bluetooth_string = Serial.readString();
     int constructed_bluetooth_string_length = constructed_bluetooth_string.length();
+    Serial.print("constructed_bluetooth_string_length: ");
+    Serial.println(constructed_bluetooth_string_length);
     char constructed_bluetooth_chars[constructed_bluetooth_string_length];
-    strncpy(constructed_bluetooth_chars, constructed_bluetooth_string.c_str(), constructed_bluetooth_string_length - 1);
+    //strncpy(constructed_bluetooth_chars, constructed_bluetooth_string.c_str(), constructed_bluetooth_string_length);
+    memcpy(constructed_bluetooth_chars, constructed_bluetooth_string.c_str(), constructed_bluetooth_string_length - 1);
     constructed_bluetooth_chars[constructed_bluetooth_string_length - 1] = '\0';
     Serial.print("input: ");
+    for (int i = 0; i < constructed_bluetooth_string_length; i++) {
+      Serial.println(int(constructed_bluetooth_chars[i]));
+    }
+    Serial.println();
     Serial.println(constructed_bluetooth_chars);
     
     struct process_command_output output;
@@ -218,6 +233,6 @@ void loop() {
     Serial.print(output.value);
     Serial.println(" }");
     Serial.flush();
-    constructed_bluetooth_string = "";
+    //constructed_bluetooth_string = NULL;
   }
 }

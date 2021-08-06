@@ -1,74 +1,19 @@
 
+//#include "UUIDGenerator.h"
+#include "helper.h"
+#include "arduino_interface.h"
+
+struct packet {
+  char* message;
+  char* destination_project_guid;
+  char* source_project_guid;
+};
+
 struct process_command_output {
   int command_id;
   bool is_successful;
   int value;
 };
-
-char current_bluetooth_character = 0;
-char* constructed_bluetooth_string = NULL;
-
-int split(const char *str, char c, char ***arr)
-{
-    int count = 1;
-    int token_len = 1;
-    int i = 0;
-    char *p;
-    char *t;
-
-    p = str;
-    while (*p != '\0')
-    {
-        if (*p == c)
-            count++;
-        p++;
-    }
-
-    *arr = (char**) malloc(sizeof(char*) * count);
-    if (*arr == NULL)
-        exit(1);
-
-    p = str;
-    while (*p != '\0')
-    {
-        if (*p == c)
-        {
-            (*arr)[i] = (char*) malloc( sizeof(char) * token_len );
-            if ((*arr)[i] == NULL)
-                exit(1);
-
-            token_len = 0;
-            i++;
-        }
-        p++;
-        token_len++;
-    }
-    (*arr)[i] = (char*) malloc( sizeof(char) * token_len );
-    if ((*arr)[i] == NULL)
-        exit(1);
-
-    i = 0;
-    p = str;
-    t = ((*arr)[i]);
-    while (*p != '\0')
-    {
-        if (*p != c && *p != '\0')
-        {
-            *t = *p;
-            t++;
-        }
-        else
-        {
-            *t = '\0';
-            i++;
-            t = ((*arr)[i]);
-        }
-        p++;
-    }
-    *t = '\0';
-
-    return count;
-}
 
 struct process_command_output process_command(char* command) {
 
@@ -204,7 +149,26 @@ void loop() {
   if (!shown) {
     Serial.println("started loop");
     shown = true;
+  
+    char* project_guid_0 = "first";
+    char* project_guid_1 = "second";
+  
+    ArduinoInterface arduino;
+    Serial.println("Starting 0");
+    arduino.attach_fresh_project(1, project_guid_0, 2);
+    arduino.display_attached_projects();
+    Serial.println("Starting 1");
+    arduino.attach_fresh_project(3, project_guid_1, 4);
+    arduino.display_attached_projects();
+    Serial.println("Starting 2");
+    arduino.detach_expired_project(project_guid_1);
+    arduino.display_attached_projects();
+    Serial.println("Starting 3");
+    arduino.detach_expired_project(project_guid_0);
+    arduino.display_attached_projects();
+    Serial.println("Starting 4");
   }
+  
   if(Serial.available() > 0)
   {
     Serial.println("inside");
@@ -213,7 +177,6 @@ void loop() {
     Serial.print("constructed_bluetooth_string_length: ");
     Serial.println(constructed_bluetooth_string_length);
     char constructed_bluetooth_chars[constructed_bluetooth_string_length];
-    //strncpy(constructed_bluetooth_chars, constructed_bluetooth_string.c_str(), constructed_bluetooth_string_length);
     memcpy(constructed_bluetooth_chars, constructed_bluetooth_string.c_str(), constructed_bluetooth_string_length - 1);
     constructed_bluetooth_chars[constructed_bluetooth_string_length - 1] = '\0';
     Serial.print("input: ");
@@ -233,6 +196,5 @@ void loop() {
     Serial.print(output.value);
     Serial.println(" }");
     Serial.flush();
-    //constructed_bluetooth_string = NULL;
   }
 }

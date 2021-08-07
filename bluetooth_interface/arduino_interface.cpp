@@ -2,112 +2,150 @@
 #include <string.h>
 #include "arduino_interface.h"
 #include <Arduino.h>
+#include "helper.h"
 
 ArduinoInterface::ArduinoInterface() {
-  this->project_guids_total = 0;
-  this->project_guids = (char**)malloc(sizeof(char*) * this->project_guids_total);
-
-  //Serial.println("Initializing semaphore.");
-  
-  this->project_guids_semaphore = xSemaphoreCreateMutex();
-
-  if (this->project_guids_semaphore == NULL) {
-    Serial.println("Failed to initialize project_guids_semaphore.");
-  }
+  this->last_interrupt_message = NULL;
 }
 
-void ArduinoInterface::lock_project_guids() {
+/*void ArduinoInterface::set_project_message_callback(void(*send_message_to_project)(char*)) {
+  this->send_message_to_project = (*send_message_to_project);
+}*/
 
-  bool is_locked = false;
-  while (!is_locked) {
-    if (xSemaphoreTake(this->project_guids_semaphore, portMAX_DELAY) == pdPASS) {
-      is_locked = true;
+void ArduinoInterface::on_interrupt(VoidCallback callback) {
+  this->on_interrupt_callback = callback;
+}
+
+void ArduinoInterface::send_message(char* message) {
+
+  this->send_message_to_project(message);
+}
+
+struct process_command_output ArduinoInterface::receive_message(char* message) {
+
+  struct process_command_output output = this->process_command(message);
+  return output;
+}
+
+struct process_command_output process_command(char* command) {
+
+  Serial.print("Processing command: ");
+  Serial.println(command);
+  Serial.flush();
+
+  int command_id;
+  bool is_successful;
+  int value;
+
+  char** command_parts = NULL;
+  int command_parts_length = split(command, ' ', &command_parts);
+
+  for (int i = 0; i < command_parts_length; i++) {
+    Serial.print("Part ");
+    Serial.print(i);
+    Serial.print(": ");
+    Serial.println(command_parts[i]);
+  }
+
+  command_id = atoi(command_parts[0]);
+  if (strcmp(command_parts[1], "PINMODE") == 0) {
+    Serial.println("Found pinMode");
+    int pin_number = atoi(command_parts[2]);
+    if (strcmp(command_parts[3], "OUTPUT") == 0) {
+      pinMode(pin_number, OUTPUT);
+      is_successful = true;
+      value = 0;
+    }
+    else if (strcmp(command_parts[3], "INPUT") == 0) {
+      pinMode(pin_number, INPUT);
+      is_successful = true;
+      value = 0;
+    }
+    else {
+      is_successful = false;
+      value = 0;
     }
   }
-}
-
-void ArduinoInterface::unlock_project_guids() {
-
-  xSemaphoreGiveFromISR(this->project_guids_semaphore, NULL);
-}
-
-void ArduinoInterface::send_message_to_project(char* message, char* project_guid) {
-
-  this->host.send_message(message, project_guid);
-}
-
-void ArduinoInterface::receive_message_from_project(char* message, char* project_guid) {
-
-  Serial.println("Error: receive_message_from_project must be implemented by child class.");
-}
-
-int* ArduinoInterface::get_attachable_project_type_ids() {
-
-  Serial.println("Error: get_attachable_project_type_ids must be implemented by child class.");
-}
-
-void ArduinoInterface::attach_fresh_project(int project_type_id, char* project_guid, int response_version) {
-
-  this->lock_project_guids();
-
-  char** project_guids = new char*[this->project_guids_total + 1];
-  for (int i = 0; i < this->project_guids_total; i++) {
-    project_guids[i] = this->project_guids[i];
-  }
-  
-  project_guids[this->project_guids_total] = project_guid;
-  this->project_guids_total++;
-
-  delete this->project_guids;
-  this->project_guids = project_guids;
-  
-  this->unlock_project_guids();
-}
-
-void ArduinoInterface::detach_expired_project(char* project_guid) {
-
-  this->lock_project_guids();
-
-  int project_guid_index = -1;
-  for (int i = 0; i < this->project_guids_total; i++) {
-    if (strcmp(this->project_guids[i], project_guid) == 0) {
-      project_guid_index = i;
-      break;
+  else if (strcmp(command_parts[1], "DIGITALWRITE") == 0) {
+    Serial.println("Found digitalWrite");
+    int pin_number = atoi(command_parts[2]);
+    if (strcmp(command_parts[3], "LOW") == 0) {
+      digitalWrite(pin_number, LOW);
+      is_successful = true;
+      value = 0;
+    }
+    else if (strcmp(command_parts[3], "HIGH") == 0) {
+      digitalWrite(pin_number, HIGH);
+      is_successful = true;
+      value = 0;
+    }
+    else {
+      is_successful = false;
+      value = 0;
     }
   }
-
-  if (project_guid_index == -1) {
-    Serial.print("Failed to find expired project \"");
-    Serial.print(project_guid);
-    Serial.println("\".");
+  else if (strcmp(command_parts[1], "DELAY") == 0) {
+    Serial.println("Found delay");
+    int milliseconds = atoi(command_parts[2]);
+    Serial.print("milliseconds: ");
+    Serial.println(milliseconds);
+    delay(milliseconds);
+    is_successful = true;
+    value = 0;
+  }
+  else if (strcmp(command_parts[1], "ANALOGREAD") == 0) {
+    Serial.println("Found analogRead");
+    int pin_number = atoi(command_parts[2]);
+    is_successful = true;
+    value = analogRead(pin_number);
+  }
+  /*else if (command_parts[1] == "ANALOGREADRESOLUTION") {
+    int bits_total = command_parts[2].toInt();
+    analogReadResolution(bits_total);
+    is_successful = true;
+    value = 0;
+  }*/
+  else if (strcmp(command_parts[1], "ANALOGWRITE") == 0) {
+    Serial.println("Found analogWrite");
+    int pin_number = atoi(command_parts[2]);
+    int pin_value = atoi(command_parts[3]);
+    analogWrite(pin_number, pin_value);
+    is_successful = true;
+    value = 0;
+  }
+  /*else if (command_parts[1] == "ANALOGWRITERESOLUTION") {
+    int bits_total = command_parts[2].toInt();
+    analogWriteResolution(bits_total)
+    is_successful = true;
+    value = 0;
+  }*/
+  else if (strcmp(command_parts[1], "DIGITALREAD") == 0) {
+    Serial.println("Found digitalRead");
+    int pin_number = atoi(command_parts[2]);
+    int digital_read_output = digitalRead(pin_number);
+    if (digital_read_output == LOW) {
+      is_successful = true;
+      value = 0;
+    }
+    else if (digital_read_output == HIGH) {
+      is_successful = true;
+      value = 1;
+    }
+    else {
+      is_successful = false;
+      value = 0;
+    }
   }
   else {
-    char** project_guids = new char*[this->project_guids_total - 1];
-    int project_guids_index = 0;
-    for (int i = 0; i < this->project_guids_total; i++) {
-      if (i != project_guid_index) {
-        project_guids[project_guids_index] = this->project_guids[i];
-      }
-    }
-
-    this->project_guids_total--;
-    
-    delete this->project_guids;
-    this->project_guids = project_guids;
+    Serial.println("Not found");
+    is_successful = false;
+    value = 0;
   }
 
-  this->unlock_project_guids();
-}
-
-struct HostConnectionResult try_connect_to_network() {
-
-  Serial.println("Error: try_connect_to_network must be implemented by child class.");
-}
-
-void ArduinoInterface::display_attached_projects() {
-
-  for (int i = 0; i < this->project_guids_total; i++) {
-    Serial.print("project: ");
-    Serial.println(this->project_guids[i]);
-  }
+  struct process_command_output output;
+  output.command_id = command_id;
+  output.is_successful = is_successful;
+  output.value = value;
+  
+  return output;
 }

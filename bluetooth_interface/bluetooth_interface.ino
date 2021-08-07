@@ -1,7 +1,7 @@
 
 //#include "UUIDGenerator.h"
 #include "helper.h"
-#include "arduino_interface.h"
+#include "project_interface.h"
 
 struct packet {
   char* message;
@@ -9,139 +9,26 @@ struct packet {
   char* source_project_guid;
 };
 
-struct process_command_output {
-  int command_id;
-  bool is_successful;
-  int value;
-};
 
-struct process_command_output process_command(char* command) {
-
-  Serial.print("Processing command: ");
-  Serial.println(command);
-  Serial.flush();
-
-  int command_id;
-  bool is_successful;
-  int value;
-
-  char** command_parts = NULL;
-  int command_parts_length = split(command, ' ', &command_parts);
-
-  for (int i = 0; i < command_parts_length; i++) {
-    Serial.print("Part ");
-    Serial.print(i);
-    Serial.print(": ");
-    Serial.println(command_parts[i]);
-  }
-
-  command_id = atoi(command_parts[0]);
-  if (strcmp(command_parts[1], "PINMODE") == 0) {
-    Serial.println("Found pinMode");
-    int pin_number = atoi(command_parts[2]);
-    if (strcmp(command_parts[3], "OUTPUT") == 0) {
-      pinMode(pin_number, OUTPUT);
-      is_successful = true;
-      value = 0;
-    }
-    else if (strcmp(command_parts[3], "INPUT") == 0) {
-      pinMode(pin_number, INPUT);
-      is_successful = true;
-      value = 0;
-    }
-    else {
-      is_successful = false;
-      value = 0;
-    }
-  }
-  else if (strcmp(command_parts[1], "DIGITALWRITE") == 0) {
-    Serial.println("Found digitalWrite");
-    int pin_number = atoi(command_parts[2]);
-    if (strcmp(command_parts[3], "LOW") == 0) {
-      digitalWrite(pin_number, LOW);
-      is_successful = true;
-      value = 0;
-    }
-    else if (strcmp(command_parts[3], "HIGH") == 0) {
-      digitalWrite(pin_number, HIGH);
-      is_successful = true;
-      value = 0;
-    }
-    else {
-      is_successful = false;
-      value = 0;
-    }
-  }
-  else if (strcmp(command_parts[1], "DELAY") == 0) {
-    Serial.println("Found delay");
-    int milliseconds = atoi(command_parts[2]);
-    Serial.print("milliseconds: ");
-    Serial.println(milliseconds);
-    delay(milliseconds);
-    is_successful = true;
-    value = 0;
-  }
-  else if (strcmp(command_parts[1], "ANALOGREAD") == 0) {
-    Serial.println("Found analogRead");
-    int pin_number = atoi(command_parts[2]);
-    is_successful = true;
-    value = analogRead(pin_number);
-  }
-  /*else if (command_parts[1] == "ANALOGREADRESOLUTION") {
-    int bits_total = command_parts[2].toInt();
-    analogReadResolution(bits_total);
-    is_successful = true;
-    value = 0;
-  }*/
-  else if (strcmp(command_parts[1], "ANALOGWRITE") == 0) {
-    Serial.println("Found analogWrite");
-    int pin_number = atoi(command_parts[2]);
-    int pin_value = atoi(command_parts[3]);
-    analogWrite(pin_number, pin_value);
-    is_successful = true;
-    value = 0;
-  }
-  /*else if (command_parts[1] == "ANALOGWRITERESOLUTION") {
-    int bits_total = command_parts[2].toInt();
-    analogWriteResolution(bits_total)
-    is_successful = true;
-    value = 0;
-  }*/
-  else if (strcmp(command_parts[1], "DIGITALREAD") == 0) {
-    Serial.println("Found digitalRead");
-    int pin_number = atoi(command_parts[2]);
-    int digital_read_output = digitalRead(pin_number);
-    if (digital_read_output == LOW) {
-      is_successful = true;
-      value = 0;
-    }
-    else if (digital_read_output == HIGH) {
-      is_successful = true;
-      value = 1;
-    }
-    else {
-      is_successful = false;
-      value = 0;
-    }
-  }
-  else {
-    Serial.println("Not found");
-    is_successful = false;
-    value = 0;
-  }
-
-  struct process_command_output output;
-  output.command_id = command_id;
-  output.is_successful = is_successful;
-  output.value = value;
-  
-  return output;
-}
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
+
+  // initialize random seed
+  int current_seed_offset = 0;
+  for (int i = 0; i < 10; i++) {
+    randomSeed(analogRead(0) + current_seed_offset);
+    current_seed_offset += random();
+  }
 }
+
+void example(char* msg) {
+  Serial.print("Found message: ");
+  Serial.println(msg);
+}
+
+ProjectInterface* project = new ProjectInterface(new ArduinoInterface(), generate_guid(), 1, 1);
 
 bool shown = false;
 void loop() {
@@ -150,22 +37,27 @@ void loop() {
     Serial.println("started loop");
     shown = true;
   
-    char* project_guid_0 = "first";
-    char* project_guid_1 = "second";
-  
-    ArduinoInterface arduino;
+    const char* project_guid_0 = "first";
+    const char* project_guid_1 = "second";
+
+    ArduinoInterface* arduino = new ArduinoInterface();
+
+    ProjectInterface* project_0 = new ProjectInterface(arduino, generate_guid(), 1, 2);
+    ProjectInterface* project_1 = new ProjectInterface(NULL, generate_guid(), 3, 4);
+    ProjectInterface* project_2 = new ProjectInterface(NULL, generate_guid(), 5, 6);
+ 
     Serial.println("Starting 0");
-    arduino.attach_fresh_project(1, project_guid_0, 2);
-    arduino.display_attached_projects();
+    project_0->attach_fresh_project(project_1);
+    project_0->display_remote_projects();
     Serial.println("Starting 1");
-    arduino.attach_fresh_project(3, project_guid_1, 4);
-    arduino.display_attached_projects();
+    project_0->attach_fresh_project(project_2);
+    project_0->display_remote_projects();
     Serial.println("Starting 2");
-    arduino.detach_expired_project(project_guid_1);
-    arduino.display_attached_projects();
+    project_0->detach_expired_project(project_2);
+    project_0->display_remote_projects();
     Serial.println("Starting 3");
-    arduino.detach_expired_project(project_guid_0);
-    arduino.display_attached_projects();
+    project_0->detach_expired_project(project_1);
+    project_0->display_remote_projects();
     Serial.println("Starting 4");
   }
   
@@ -187,7 +79,8 @@ void loop() {
     Serial.println(constructed_bluetooth_chars);
     
     struct process_command_output output;
-    output = process_command(constructed_bluetooth_chars);
+    //output = process_command(constructed_bluetooth_chars);
+    output = project->send_message(constructed_bluetooth_chars);
     Serial.print("{ command_id: ");
     Serial.print(output.command_id);
     Serial.print(", is_successful: ");

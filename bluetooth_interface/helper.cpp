@@ -83,6 +83,7 @@ char* generate_guid() {
 
     if (i == 8 || i == 13 || i == 18 || i == 23) {
       guid[guid_index] = '-';
+      guid_index++;
     }
   }
 

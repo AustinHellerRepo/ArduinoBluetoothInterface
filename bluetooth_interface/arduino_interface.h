@@ -1,28 +1,31 @@
-
 #include "host_interface.h"
 #include <Arduino_FreeRTOS.h>
 #include <semphr.h>
+#include "void_callback.h"
 
 struct HostConnectionResult {
   bool is_successful;
   HostInterface host;
 };
 
+struct process_command_output {
+  int command_id;
+  bool is_successful;
+  int value;
+};
+
 class ArduinoInterface {
   private:
-    char** project_guids;
-    SemaphoreHandle_t project_guids_semaphore;
-    int project_guids_total;
-    HostInterface host;
-    void lock_project_guids();
-    void unlock_project_guids();
+    void(*send_message_to_project)(char*);
+    struct process_command_output process_command(char* command);
+    VoidCallback on_interrupt_callback;
+    char* last_interrupt_message;
   public:
     ArduinoInterface();
-    void send_message_to_project(char* message, char* project_guid);
-    void receive_message_from_project(char* message, char* project_guid);
-    int* get_attachable_project_type_ids();
-    void attach_fresh_project(int project_type_id, char* project_guid, int response_version);
-    void detach_expired_project(char* project_guid);
-    struct HostConnectionResult try_connect_to_network();
-    void display_attached_projects();
+    void send_message(char* message);
+    char* get_last_interrupt_message();
+    struct process_command_output receive_message(char* message);
+    //void set_project_message_callback(void(*send_message_to_project)(char*));
+    //Event<char*> internal_message_generated;
+    void on_interrupt(VoidCallback callback);
 };

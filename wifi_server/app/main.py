@@ -1,8 +1,3 @@
-import sys
-import os
-
-sys.path.append(os.getcwd())
-
 from fastapi import FastAPI, Request
 from app.database import Database
 import traceback

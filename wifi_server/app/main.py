@@ -116,3 +116,37 @@ def dequeue_next_transmission(request: Request):
 		"response": _response_json,
 		"error": _error_message
 	}
+
+@app.post("/complete")
+def complete_transmission(transmission_guid: str, request: Request):
+
+	_is_successful = False
+	_response_json = None
+	_error_message = None
+
+	try:
+		_database = get_database()
+		_client = _database.insert_client(
+			ip_address=request.client.host
+		)
+		_transmission = _database.transmission_completed(
+			client_guid=_client.get_client_guid(),
+			transmission_guid=transmission_guid
+		)
+		if _transmission is None:
+			_transmission_json = None
+		else:
+			_transmission_json = _transmission.to_json()
+		_response_json = {
+			"transmission": _transmission_json
+		}
+		_is_successful = True
+	except Exception as ex:
+		_error_message = str(ex)
+		traceback.print_exc()
+
+	return {
+		"is_successful": _is_successful,
+		"response": _response_json,
+		"error": _error_message
+	}

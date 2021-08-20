@@ -236,6 +236,7 @@ class Database():
 
 		#self.__connection = sqlite3.connect(":memory:;foreign keys=true;")
 		self.__connection = sqlite3.connect(":memory:")
+		self.__connection.isolation_level = None
 
 		self.__drop_tables_if_exist = False
 
@@ -668,12 +669,11 @@ class Database():
 				if _transmission_dequeue.get_transmission().get_is_retry_ready():
 					_update_cursor = self.__connection.cursor()
 					_update_cursor.execute('''
-						UPDATE t
+						UPDATE transmission
 						SET
-							t.is_retry_ready = NULL
-						FROM transmission AS t
+							is_retry_ready = NULL
 						WHERE
-							t.transmission_guid = ?
+							transmission_guid = ?
 					''', (_transmission_dequeue.get_transmission_guid(),))
 
 		return _transmission_dequeue
@@ -876,6 +876,9 @@ class Database():
 
 		_insert_cursor = self.__connection.cursor()
 		_insert_cursor.execute('''
+			BEGIN
+		''')
+		_insert_cursor.execute('''
 			INSERT INTO transmission_dequeue_error_transmission_complete
 			(
 				transmission_dequeue_error_transmission_complete_guid,
@@ -884,25 +887,31 @@ class Database():
 				is_retry_requested,
 				row_created_datetime
 			)
-			VALUES (?, ?, ?, ?, ?);
-			
-			UPDATE t
+			VALUES (?, ?, ?, ?, ?)
+		''', (_transmission_dequeue_error_transmission_complete_guid, transmission_dequeue_error_transmission_dequeue_guid, client_guid, is_retry_requested, _row_created_datetime))
+		_insert_cursor.execute('''
+			UPDATE transmission
 			SET
-				t.is_retry_ready = 0
-			FROM transmission AS t
-			INNER JOIN transmission_dequeue AS td
-			ON
-				td.transmission_guid = t.transmission_guid
-			INNER JOIN transmission_dequeue_error_transmission AS tdet
-			ON
-				tdet.transmission_dequeue_guid = td.transmission_dequeue_guid
-			INNER JOIN transmission_dequeue_error_transmission_dequeue tdetd
-			ON
-				tdetd.transmission_dequeue_error_transmission_guid = tdet.transmission_dequeue_error_transmission_guid
+				is_retry_ready = 0
 			WHERE
-				tdetd.transmission_dequeue_error_transmission_dequeue_guid = ?
-				AND ? = 1
-		''', (_transmission_dequeue_error_transmission_complete_guid, transmission_dequeue_error_transmission_dequeue_guid, client_guid, is_retry_requested, _row_created_datetime, transmission_dequeue_error_transmission_dequeue_guid, is_retry_requested))
+				? = 1
+				AND EXISTS (
+					SELECT 1
+					FROM transmission_dequeue AS td
+					INNER JOIN transmission_dequeue_error_transmission AS tdet
+					ON
+						tdet.transmission_dequeue_guid = td.transmission_dequeue_guid
+					INNER JOIN transmission_dequeue_error_transmission_dequeue tdetd
+					ON
+						tdetd.transmission_dequeue_error_transmission_guid = tdet.transmission_dequeue_error_transmission_guid
+					WHERE
+						td.transmission_guid = transmission.transmission_guid
+						AND tdetd.transmission_dequeue_error_transmission_dequeue_guid = ?
+				)
+		''', (is_retry_requested, transmission_dequeue_error_transmission_dequeue_guid))
+		_insert_cursor.execute('''
+			COMMIT
+		''')
 
 	def failed_transmission_failed(self, *, client_guid: str, transmission_dequeue_error_transmission_dequeue_guid: str):
 

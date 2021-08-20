@@ -883,7 +883,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			self.assertIsNotNone(_failed_transmission_dequeue)
 			self.assertEqual(_failed_transmission_dequeue.get_transmission_dequeue_error_transmission().get_transmission_dequeue_guid(), _get_next_transmission_dequeue.get_transmission_dequeue_guid())
-			
+
 
 if __name__ == "__main__":
 	unittest.main()

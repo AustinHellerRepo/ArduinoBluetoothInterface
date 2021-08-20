@@ -21,7 +21,7 @@ def test_root():
 
 
 @app.post("/announce")
-def receive_device_announcement(device_guid: str, purpose_id: int, request: Request):
+def receive_device_announcement(device_guid: str, purpose_guid: str, request: Request):
 
 	_is_successful = False
 	_response_json = None
@@ -34,15 +34,17 @@ def receive_device_announcement(device_guid: str, purpose_id: int, request: Requ
 		)
 		_device = _database.insert_device(
 			device_guid=device_guid,
-			purpose_id=purpose_id
+			client_guid=_client.get_client_guid(),
+			purpose_guid=purpose_guid
 		)
 		_response_json = {
 			"device": _device.to_json()
 		}
 		_is_successful = True
 	except Exception as ex:
-		_error_message = str(ex)
-		traceback.print_exc()
+		#_error_message = str(ex)
+		#traceback.print_exc()
+		_error_message = traceback.format_exc()
 
 	return {
 		"is_successful": _is_successful,
@@ -96,15 +98,15 @@ def dequeue_next_transmission(request: Request):
 		_client = _database.insert_client(
 			ip_address=request.client.host
 		)
-		_transmission = _database.get_next_transmission(
+		_transmission_dequeue = _database.get_next_transmission(
 			client_guid=_client.get_client_guid()
 		)
-		if _transmission is None:
-			_transmission_json = None
+		if _transmission_dequeue is None:
+			_transmission_dequeue_json = None
 		else:
-			_transmission_json = _transmission.to_json()
+			_transmission_dequeue_json = _transmission_dequeue.to_json()
 		_response_json = {
-			"transmission": _transmission_json
+			"transmission_dequeue": _transmission_dequeue_json
 		}
 		_is_successful = True
 	except Exception as ex:
@@ -117,8 +119,9 @@ def dequeue_next_transmission(request: Request):
 		"error": _error_message
 	}
 
+
 @app.post("/complete")
-def complete_transmission(transmission_guid: str, request: Request):
+def complete_transmission(transmission_dequeue_guid: str, request: Request):
 
 	_is_successful = False
 	_response_json = None
@@ -131,7 +134,7 @@ def complete_transmission(transmission_guid: str, request: Request):
 		)
 		_transmission = _database.transmission_completed(
 			client_guid=_client.get_client_guid(),
-			transmission_guid=transmission_guid
+			transmission_dequeue_guid=transmission_dequeue_guid
 		)
 		if _transmission is None:
 			_transmission_json = None

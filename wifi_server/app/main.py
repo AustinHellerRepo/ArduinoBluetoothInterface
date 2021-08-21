@@ -17,7 +17,14 @@ def get_database() -> Database:
 
 @app.get("/")
 def test_root():
-	return {"is_successful": True}
+	_is_successful = True
+	_response_json = None
+	_error_message = None
+	return {
+		"is_successful": _is_successful,
+		"response": _response_json,
+		"error": _error_message
+	}
 
 
 @app.post("/v1/device/announce")

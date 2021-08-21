@@ -98,7 +98,7 @@ def dequeue_next_transmission(request: Request):
 		_client = _database.insert_client(
 			ip_address=request.client.host
 		)
-		_transmission_dequeue = _database.get_next_transmission(
+		_transmission_dequeue = _database.get_next_transmission_dequeue(
 			client_guid=_client.get_client_guid()
 		)
 		if _transmission_dequeue is None:

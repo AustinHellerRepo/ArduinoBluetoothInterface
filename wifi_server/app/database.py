@@ -329,8 +329,8 @@ class Database():
 			CREATE TABLE transmission_dequeue_error_transmission
 			(
 				transmission_dequeue_error_transmission_guid GUID PRIMARY KEY,
-				request_client_guid GUID,
 				transmission_dequeue_guid GUID,
+				request_client_guid GUID,
 				error_message_json_string TEXT,
 				row_created_datetime TIMESTAMP,
 				is_retry_ready INTEGER,
@@ -613,6 +613,9 @@ class Database():
 
 		_insert_cursor = self.__connection.cursor()
 		_insert_cursor.execute('''
+			BEGIN
+		''')
+		_insert_cursor.execute('''
 			INSERT INTO transmission_dequeue
 			(
 				transmission_dequeue_guid,
@@ -642,6 +645,41 @@ class Database():
 					OR
 					(
 						t.is_retry_ready = 1
+					)
+				)
+				AND
+				(
+					NOT EXISTS (
+						SELECT 1
+						FROM transmission AS t_earlier
+						WHERE
+							t_earlier.destination_device_guid = t.destination_device_guid
+							AND t_earlier.row_created_datetime < t.row_created_datetime
+							AND NOT EXISTS (
+								SELECT 1
+								FROM transmission_dequeue AS td_earlier
+								INNER JOIN transmission_complete AS tc_earlier
+								ON
+									tc_earlier.transmission_dequeue_guid = td_earlier.transmission_dequeue_guid
+								WHERE
+									td_earlier.transmission_guid = t_earlier.transmission_guid
+							)
+							AND NOT EXISTS (
+								SELECT 1
+								FROM transmission_dequeue AS td_earlier
+								INNER JOIN transmission_dequeue_error_transmission AS tdet_earlier
+								ON
+									tdet_earlier.transmission_dequeue_guid = td_earlier.transmission_dequeue_guid
+								INNER JOIN transmission_dequeue_error_transmission_dequeue AS tdetd_earlier
+								ON
+									tdetd_earlier.transmission_dequeue_error_transmission_guid = tdet_earlier.transmission_dequeue_error_transmission_guid
+								INNER JOIN transmission_dequeue_error_transmission_complete AS tdetc_earlier
+								ON
+									tdetc_earlier.transmission_dequeue_error_transmission_dequeue_guid = tdetd_earlier.transmission_dequeue_error_transmission_dequeue_guid
+								WHERE
+									td_earlier.transmission_guid = t_earlier.transmission_guid
+									AND tdetc_earlier.is_retry_requested = 0
+							)
 					)
 				)
 			ORDER BY
@@ -675,6 +713,10 @@ class Database():
 						WHERE
 							transmission_guid = ?
 					''', (_transmission_dequeue.get_transmission_guid(),))
+
+		_insert_cursor.execute('''
+			COMMIT
+		''')
 
 		return _transmission_dequeue
 
@@ -939,3 +981,24 @@ class Database():
 			WHERE
 				tdetd.transmission_dequeue_error_transmission_dequeue_guid = ?
 		''', (_transmission_dequeue_error_transmission_error_guid, transmission_dequeue_error_transmission_dequeue_guid, client_guid, _row_created_datetime, transmission_dequeue_error_transmission_dequeue_guid))
+
+	def get_devices_by_purpose(self, *, purpose_guid: str) -> List[Device]:
+
+		_get_cursor = self.__connection.cursor()
+		_get_result = _get_cursor.execute('''
+			SELECT
+				d.device_guid,
+				d.purpose_guid
+			FROM device AS d
+			WHERE
+				d.purpose_guid = ?
+		''', (purpose_guid,))
+		_devices = []  # type: List[Device]
+		_rows = _get_result.fetchall()
+		for _row in _rows:
+			_device = Device(
+				device_guid=_row[0],
+				purpose_guid=_row[1]
+			)
+			_devices.append(_device)
+		return _devices

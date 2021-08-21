@@ -1578,6 +1578,85 @@ class DatabaseTest(unittest.TestCase):
 			)
 			self.assertIsNone(_empty_transmission_dequeue)
 
+	def test_failed_transmission_failed_0(self):
+		# failed transmission failed and then able to send to client
+		with Database() as _database:
+			_source_client = _database.insert_client(
+				ip_address="127.0.0.1"
+			)
+			_source_device = _database.insert_device(
+				device_guid="C65EDB87-1F38-402E-A166-90411841AA29",
+				client_guid=_source_client.get_client_guid(),
+				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7"
+			)
+			_destination_client = _database.insert_client(
+				ip_address="127.0.0.2"
+			)
+			_destination_device = _database.insert_device(
+				device_guid="3E1AF46C-6D1E-4349-B6EC-00557DA6C47F",
+				client_guid=_destination_client.get_client_guid(),
+				purpose_guid="7B3316A1-89F4-49A0-A6B3-351CC5FE6D63"
+			)
+
+			_transmission = _database.insert_transmission(
+				source_device_guid=_source_device.get_device_guid(),
+				client_guid=_source_client.get_client_guid(),
+				transmission_json_string="{ \"first\": true }",
+				destination_device_guid=_destination_device.get_device_guid()
+			)
+
+			_get_next_client = _database.insert_client(
+				ip_address="127.0.0.3"
+			)
+			_transmission_dequeue = _database.get_next_transmission_dequeue(
+				client_guid=_get_next_client.get_client_guid()
+			)
+
+			_database.transmission_failed(
+				client_guid=_get_next_client.get_client_guid(),
+				transmission_dequeue_guid=_transmission_dequeue.get_transmission_dequeue_guid(),
+				error_message_json_string="{ \"error\": true }"
+			)
+
+			_failure_client = _database.insert_client(
+				ip_address="127.0.0.4"
+			)
+			_failure_dequeue = _database.get_next_failed_transmission_dequeue(
+				client_guid=_failure_client.get_client_guid()
+			)
+
+			_database.failed_transmission_failed(
+				client_guid=_failure_client.get_client_guid(),
+				transmission_dequeue_error_transmission_dequeue_guid=_failure_dequeue.get_transmission_dequeue_error_transmission_dequeue_guid(),
+				error_message_json_string="{ \"error\": \"failed to find source device\" }"
+			)
+
+			_empty_failure_dequeue = _database.get_next_failed_transmission_dequeue(
+				client_guid=_failure_client.get_client_guid()
+			)
+			self.assertIsNone(_empty_failure_dequeue)
+
+			_reconnect_source_client = _database.insert_client(
+				ip_address="127.0.0.5"
+			)
+			_reconnect_source_device = _database.insert_device(
+				device_guid="C65EDB87-1F38-402E-A166-90411841AA29",
+				client_guid=_reconnect_source_client.get_client_guid(),
+				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7"
+			)
+
+			_retry_failure_dequeue = _database.get_next_failed_transmission_dequeue(
+				client_guid=_failure_client.get_client_guid()
+			)
+			self.assertIsNotNone(_retry_failure_dequeue)
+			self.assertEqual(_retry_failure_dequeue.get_transmission_dequeue_error_transmission_guid(), _failure_dequeue.get_transmission_dequeue_error_transmission_guid())
+
+			_database.failed_transmission_failed(
+				client_guid=_failure_client.get_client_guid(),
+				transmission_dequeue_error_transmission_dequeue_guid=_retry_failure_dequeue.get_transmission_dequeue_error_transmission_dequeue_guid(),
+				error_message_json_string="{ \"again\": true }"
+			)
+
 
 if __name__ == "__main__":
 	unittest.main()

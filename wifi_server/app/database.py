@@ -229,6 +229,13 @@ class TransmissionDequeueErrorTransmissionDequeue():
 	def get_transmission_dequeue_error_transmission(self) -> TransmissionDequeueErrorTransmission:
 		return self.__transmission_dequeue_error_transmission
 
+	def to_json(self) -> object:
+		return {
+			"transmission_dequeue_error_transmission_dequeue_guid": self.__transmission_dequeue_error_transmission_dequeue_guid,
+			"destination_client_guid": self.__destination_client_guid,
+			"row_created_datetime": self.__row_created_datetime
+		}
+
 
 class Database():
 
@@ -375,6 +382,7 @@ class Database():
 				transmission_dequeue_error_transmission_error_guid GUID PRIMARY KEY,
 				transmission_dequeue_error_transmission_dequeue_guid GUID,
 				request_client_guid GUID,
+				error_message_json_string TEXT,
 				row_created_datetime TIMESTAMP,
 				FOREIGN KEY (transmission_dequeue_error_transmission_dequeue_guid) REFERENCES transmission_dequeue_error_transmission_dequeue(transmission_dequeue_error_transmission_dequeue_guid),
 				FOREIGN KEY (request_client_guid) REFERENCES client(client_guid)
@@ -955,32 +963,42 @@ class Database():
 			COMMIT
 		''')
 
-	def failed_transmission_failed(self, *, client_guid: str, transmission_dequeue_error_transmission_dequeue_guid: str):
+	def failed_transmission_failed(self, *, client_guid: str, transmission_dequeue_error_transmission_dequeue_guid: str, error_message_json_string: str):
 
 		_transmission_dequeue_error_transmission_error_guid = str(uuid.uuid4()).upper()
 		_row_created_datetime = datetime.utcnow()
 
 		_insert_cursor = self.__connection.cursor()
 		_insert_cursor.execute('''
+			BEGIN
+		''')
+		_insert_cursor.execute('''
 			INSERT INTO transmission_dequeue_error_transmission_error
 			(
 				transmission_dequeue_error_transmission_error_guid,
 				transmission_dequeue_error_transmission_dequeue_guid,
 				request_client_guid,
+				error_message_json_string,
 				row_created_datetime
 			)
-			VALUES (?, ?, ?, ?);
-			
-			UPDATE tdet
+			VALUES (?, ?, ?, ?, ?);
+		''', (_transmission_dequeue_error_transmission_error_guid, transmission_dequeue_error_transmission_dequeue_guid, client_guid, error_message_json_string, _row_created_datetime))
+		_insert_cursor.execute('''
+			UPDATE transmission_dequeue_error_transmission
 			SET 
-				tdet.is_retry_ready = 0
-			FROM transmission_dequeue_error_transmission AS tdet
-			JOIN transmission_dequeue_error_transmission_dequeue tdetd
-			ON
-				tdetd.transmission_dequeue_error_transmission_guid = tdet.transmission_dequeue_error_transmission_guid
+				is_retry_ready = 0
 			WHERE
-				tdetd.transmission_dequeue_error_transmission_dequeue_guid = ?
-		''', (_transmission_dequeue_error_transmission_error_guid, transmission_dequeue_error_transmission_dequeue_guid, client_guid, _row_created_datetime, transmission_dequeue_error_transmission_dequeue_guid))
+				EXISTS (
+					SELECT 1
+					FROM transmission_dequeue_error_transmission_dequeue tdetd
+					WHERE
+						tdetd.transmission_dequeue_error_transmission_guid = transmission_dequeue_error_transmission.transmission_dequeue_error_transmission_guid
+						AND tdetd.transmission_dequeue_error_transmission_dequeue_guid = ?
+				)
+		''', (transmission_dequeue_error_transmission_dequeue_guid,))
+		_insert_cursor.execute('''
+			COMMIT
+		''')
 
 	def get_devices_by_purpose(self, *, purpose_guid: str) -> List[Device]:
 

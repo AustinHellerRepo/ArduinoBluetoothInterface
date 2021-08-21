@@ -1657,6 +1657,222 @@ class DatabaseTest(unittest.TestCase):
 				error_message_json_string="{ \"again\": true }"
 			)
 
+	def test_multiple_failed_transmissions_back_to_source_0(self):
+		# source sends two transmissions to different devices and both fail and are returned to source
+		with Database() as _database:
+			_source_client = _database.insert_client(
+				ip_address="127.0.0.1"
+			)
+			_source_device = _database.insert_device(
+				device_guid="C65EDB87-1F38-402E-A166-90411841AA29",
+				client_guid=_source_client.get_client_guid(),
+				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7"
+			)
+			_first_destination_client = _database.insert_client(
+				ip_address="127.0.0.2"
+			)
+			_first_destination_device = _database.insert_device(
+				device_guid="3E1AF46C-6D1E-4349-B6EC-00557DA6C47F",
+				client_guid=_first_destination_client.get_client_guid(),
+				purpose_guid="7B3316A1-89F4-49A0-A6B3-351CC5FE6D63"
+			)
+			_second_destination_client = _database.insert_client(
+				ip_address="127.0.0.3"
+			)
+			_second_destination_device = _database.insert_device(
+				device_guid="0FC3A82A-7225-4BFA-B5E8-F3066E752839",
+				client_guid=_second_destination_client.get_client_guid(),
+				purpose_guid="7EAC6F9D-3958-4DF4-9577-BFEB8C4106F8"
+			)
+
+			_first_transmission = _database.insert_transmission(
+				source_device_guid=_source_device.get_device_guid(),
+				client_guid=_source_client.get_client_guid(),
+				transmission_json_string="{ \"test\": \"first\" }",
+				destination_device_guid=_first_destination_device.get_device_guid()
+			)
+
+			_second_transmission = _database.insert_transmission(
+				source_device_guid=_source_device.get_device_guid(),
+				client_guid=_source_client.get_client_guid(),
+				transmission_json_string="{ \"test\": \"second\" }",
+				destination_device_guid=_second_destination_device.get_device_guid()
+			)
+
+			_dequeue_client = _database.insert_client(
+				ip_address="127.0.0.4"
+			)
+
+			_first_transmission_dequeue = _database.get_next_transmission_dequeue(
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertEqual(_first_transmission.get_transmission_guid(), _first_transmission_dequeue.get_transmission_guid())
+
+			_second_transmission_dequeue = _database.get_next_transmission_dequeue(
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertEqual(_second_transmission.get_transmission_guid(), _second_transmission_dequeue.get_transmission_guid())
+
+			_database.transmission_failed(
+				client_guid=_dequeue_client.get_client_guid(),
+				transmission_dequeue_guid=_first_transmission_dequeue.get_transmission_dequeue_guid(),
+				error_message_json_string="{ }"
+			)
+
+			_database.transmission_failed(
+				client_guid=_dequeue_client.get_client_guid(),
+				transmission_dequeue_guid=_second_transmission_dequeue.get_transmission_dequeue_guid(),
+				error_message_json_string=None
+			)
+
+			_failure_dequeue_client = _database.insert_client(
+				ip_address="127.0.0.5"
+			)
+
+			_first_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				client_guid=_failure_dequeue_client.get_client_guid(),
+			)
+			self.assertIsNotNone(_first_failed_transmission_dequeue)
+			self.assertEqual(_first_transmission_dequeue.get_transmission_dequeue_guid(), _first_failed_transmission_dequeue.get_transmission_dequeue_error_transmission().get_transmission_dequeue_guid())
+
+			_second_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				client_guid=_failure_dequeue_client.get_client_guid()
+			)
+			self.assertIsNone(_second_failed_transmission_dequeue)
+
+			_database.failed_transmission_completed(
+				client_guid=_failure_dequeue_client.get_client_guid(),
+				transmission_dequeue_error_transmission_dequeue_guid=_first_failed_transmission_dequeue.get_transmission_dequeue_error_transmission_dequeue_guid(),
+				is_retry_requested=False
+			)
+
+			_second_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				client_guid=_failure_dequeue_client.get_client_guid()
+			)
+			self.assertIsNotNone(_second_failed_transmission_dequeue)
+			self.assertEqual(_second_transmission_dequeue.get_transmission_dequeue_guid(), _second_failed_transmission_dequeue.get_transmission_dequeue_error_transmission().get_transmission_dequeue_guid())
+
+	def test_multiple_failed_transmissions_back_to_source_1(self):
+		# source sends two transmissions to different devices and both fail and are returned to source but source fails at first
+		with Database() as _database:
+			_source_client = _database.insert_client(
+				ip_address="127.0.0.1"
+			)
+			_source_device = _database.insert_device(
+				device_guid="C65EDB87-1F38-402E-A166-90411841AA29",
+				client_guid=_source_client.get_client_guid(),
+				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7"
+			)
+			_first_destination_client = _database.insert_client(
+				ip_address="127.0.0.2"
+			)
+			_first_destination_device = _database.insert_device(
+				device_guid="3E1AF46C-6D1E-4349-B6EC-00557DA6C47F",
+				client_guid=_first_destination_client.get_client_guid(),
+				purpose_guid="7B3316A1-89F4-49A0-A6B3-351CC5FE6D63"
+			)
+			_second_destination_client = _database.insert_client(
+				ip_address="127.0.0.3"
+			)
+			_second_destination_device = _database.insert_device(
+				device_guid="0FC3A82A-7225-4BFA-B5E8-F3066E752839",
+				client_guid=_second_destination_client.get_client_guid(),
+				purpose_guid="7EAC6F9D-3958-4DF4-9577-BFEB8C4106F8"
+			)
+
+			_first_transmission = _database.insert_transmission(
+				source_device_guid=_source_device.get_device_guid(),
+				client_guid=_source_client.get_client_guid(),
+				transmission_json_string="{ \"test\": \"first\" }",
+				destination_device_guid=_first_destination_device.get_device_guid()
+			)
+
+			_second_transmission = _database.insert_transmission(
+				source_device_guid=_source_device.get_device_guid(),
+				client_guid=_source_client.get_client_guid(),
+				transmission_json_string="{ \"test\": \"second\" }",
+				destination_device_guid=_second_destination_device.get_device_guid()
+			)
+
+			_dequeue_client = _database.insert_client(
+				ip_address="127.0.0.4"
+			)
+
+			_first_transmission_dequeue = _database.get_next_transmission_dequeue(
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertEqual(_first_transmission.get_transmission_guid(), _first_transmission_dequeue.get_transmission_guid())
+
+			_second_transmission_dequeue = _database.get_next_transmission_dequeue(
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertEqual(_second_transmission.get_transmission_guid(), _second_transmission_dequeue.get_transmission_guid())
+
+			_database.transmission_failed(
+				client_guid=_dequeue_client.get_client_guid(),
+				transmission_dequeue_guid=_first_transmission_dequeue.get_transmission_dequeue_guid(),
+				error_message_json_string="{ }"
+			)
+
+			_database.transmission_failed(
+				client_guid=_dequeue_client.get_client_guid(),
+				transmission_dequeue_guid=_second_transmission_dequeue.get_transmission_dequeue_guid(),
+				error_message_json_string=None
+			)
+
+			_failure_dequeue_client = _database.insert_client(
+				ip_address="127.0.0.5"
+			)
+
+			_first_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				client_guid=_failure_dequeue_client.get_client_guid(),
+			)
+			self.assertIsNotNone(_first_failed_transmission_dequeue)
+			self.assertEqual(_first_transmission_dequeue.get_transmission_dequeue_guid(), _first_failed_transmission_dequeue.get_transmission_dequeue_error_transmission().get_transmission_dequeue_guid())
+
+			_second_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				client_guid=_failure_dequeue_client.get_client_guid()
+			)
+			self.assertIsNone(_second_failed_transmission_dequeue)
+
+			_database.failed_transmission_failed(
+				client_guid=_failure_dequeue_client.get_client_guid(),
+				transmission_dequeue_error_transmission_dequeue_guid=_first_failed_transmission_dequeue.get_transmission_dequeue_error_transmission_dequeue_guid(),
+				error_message_json_string="{ \"some_kind\": \"of error\" }"
+			)
+
+			_second_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				client_guid=_failure_dequeue_client.get_client_guid()
+			)
+			self.assertIsNone(_second_failed_transmission_dequeue)
+
+			_reconnected_source_client = _database.insert_client(
+				ip_address="127.0.0.6"
+			)
+			_reconnected_source_device = _database.insert_device(
+				device_guid="C65EDB87-1F38-402E-A166-90411841AA29",
+				client_guid=_reconnected_source_client.get_client_guid(),
+				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7"
+			)
+
+			_first_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				client_guid=_failure_dequeue_client.get_client_guid(),
+			)
+			self.assertIsNotNone(_first_failed_transmission_dequeue)
+			self.assertEqual(_first_transmission_dequeue.get_transmission_dequeue_guid(), _first_failed_transmission_dequeue.get_transmission_dequeue_error_transmission().get_transmission_dequeue_guid())
+
+			_database.failed_transmission_completed(
+				client_guid=_failure_dequeue_client.get_client_guid(),
+				transmission_dequeue_error_transmission_dequeue_guid=_first_failed_transmission_dequeue.get_transmission_dequeue_error_transmission_dequeue_guid(),
+				is_retry_requested=False
+			)
+
+			_second_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				client_guid=_failure_dequeue_client.get_client_guid()
+			)
+			self.assertIsNotNone(_second_failed_transmission_dequeue)
+			self.assertEqual(_second_transmission_dequeue.get_transmission_dequeue_guid(), _second_failed_transmission_dequeue.get_transmission_dequeue_error_transmission().get_transmission_dequeue_guid())
+
 
 if __name__ == "__main__":
 	unittest.main()

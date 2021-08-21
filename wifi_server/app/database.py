@@ -688,6 +688,7 @@ class Database():
 									td_earlier.transmission_guid = t_earlier.transmission_guid
 									AND tdetc_earlier.is_retry_requested = 0
 							)
+							-- entries in the transmission_dequeue_error_transmission_error table are not valid ternimal conditions because the transmissions may need to be received sequentially via a retry
 					)
 				)
 			ORDER BY
@@ -712,9 +713,8 @@ class Database():
 					transmission=_transmission
 				)
 
-				if _transmission_dequeue.get_transmission().get_is_retry_ready():
-					_update_cursor = self.__connection.cursor()
-					_update_cursor.execute('''
+				if _transmission.get_is_retry_ready():
+					_insert_cursor.execute('''
 						UPDATE transmission
 						SET
 							is_retry_ready = NULL
@@ -834,6 +834,11 @@ class Database():
 		_row_created_datetime = datetime.utcnow()
 
 		_insert_cursor = self.__connection.cursor()
+
+		_insert_cursor.execute('''
+			BEGIN
+		''')
+
 		_insert_cursor.execute('''
 			INSERT INTO transmission_dequeue_error_transmission_dequeue
 			(
@@ -870,6 +875,31 @@ class Database():
 					OR
 					(
 						tdet.is_retry_ready = 1
+					)
+				)
+				AND
+				(
+					NOT EXISTS (
+						SELECT 1
+						FROM transmission_dequeue_error_transmission AS tdet_earlier
+						INNER JOIN transmission_dequeue AS td_earlier
+						ON
+							td_earlier.transmission_dequeue_guid = tdet_earlier.transmission_dequeue_guid
+						INNER JOIN transmission AS t_earlier
+						ON
+							t_earlier.transmission_guid = td_earlier.transmission_guid
+						WHERE
+							t_earlier.source_device_guid = t.source_device_guid
+							AND tdet_earlier.row_created_datetime < tdet.row_created_datetime
+							AND NOT EXISTS (
+								SELECT 1
+								FROM transmission_dequeue_error_transmission_dequeue AS tdetd_earlier
+								INNER JOIN transmission_dequeue_error_transmission_complete AS tdetc_earlier
+								ON
+									tdetc_earlier.transmission_dequeue_error_transmission_dequeue_guid = tdetd_earlier.transmission_dequeue_error_transmission_dequeue_guid
+								WHERE
+									tdetd_earlier.transmission_dequeue_error_transmission_guid = tdet_earlier.transmission_dequeue_error_transmission_guid
+							)
 					)
 				)
 			ORDER BY
@@ -916,6 +946,19 @@ class Database():
 						_transmission_dequeue.set_transmission(
 							transmission=_transmission
 						)
+
+						if _transmission_dequeue_error_transmission.get_is_retry_ready():
+							_insert_cursor.execute('''
+								UPDATE transmission_dequeue_error_transmission
+								SET
+									is_retry_ready = NULL
+								WHERE
+									transmission_dequeue_error_transmission_guid = ?
+							''', (_transmission_dequeue_error_transmission_dequeue.get_transmission_dequeue_error_transmission_guid(),))
+
+		_insert_cursor.execute('''
+			COMMIT
+		''')
 
 		return _transmission_dequeue_error_transmission_dequeue
 

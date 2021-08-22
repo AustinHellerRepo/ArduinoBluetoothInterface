@@ -2073,6 +2073,59 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_second_failed_transmission_dequeue)
 			self.assertEqual(_second_transmission_dequeue.get_transmission_dequeue_guid(), _second_failed_transmission_dequeue.get_transmission_dequeue_error_transmission().get_transmission_dequeue_guid())
 
+	def test_dequeuer_dequeue_after_dequeue_0(self):
+		# dequeuer pulls twice, returning the same transmission_dequeue
+		with Database() as _database:
+			_source_client = _database.insert_client(
+				ip_address="127.0.0.1"
+			)
+			self.assertIsNotNone(_source_client)
+			_source_device = _database.insert_device(
+				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
+				client_guid=_source_client.get_client_guid(),
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+			)
+			self.assertIsNotNone(_source_device)
+			_destination_client = _database.insert_client(
+				ip_address="127.0.0.2"
+			)
+			self.assertIsNotNone(_destination_client)
+			_destination_device = _database.insert_device(
+				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
+				client_guid=_destination_client.get_client_guid(),
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+			)
+			self.assertIsNotNone(_destination_device)
+			_transmission_client = _database.insert_client(
+				ip_address="127.0.0.3"
+			)
+			self.assertIsNotNone(_transmission_client)
+			_transmission = _database.insert_transmission(
+				source_device_guid=_source_device.get_device_guid(),
+				client_guid=_transmission_client.get_client_guid(),
+				transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid()
+			)
+			self.assertIsNotNone(_transmission)
+			_dequeue_client = _database.insert_client(
+				ip_address="127.0.0.4"
+			)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="136B7D8A-573E-45D3-B075-567ADBFE1DDE",
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			_first_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertIsNotNone(_first_transmission_dequeue)
+			_second_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertIsNotNone(_second_transmission_dequeue)
+			self.assertEqual(_first_transmission_dequeue.get_transmission_dequeue_guid(), _second_transmission_dequeue.get_transmission_dequeue_guid())
+
 
 if __name__ == "__main__":
 	unittest.main()

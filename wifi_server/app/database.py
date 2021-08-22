@@ -46,6 +46,36 @@ class Device():
 		}
 
 
+class Dequeuer():
+
+	def __init__(self, *, dequeuer_guid: str):
+
+		self.__dequeuer_guid = dequeuer_guid
+
+	def get_dequeuer_guid(self) -> str:
+		return self.__dequeuer_guid
+
+	def to_json(self) -> object:
+		return {
+			"dequeuer_guid": self.__dequeuer_guid
+		}
+
+
+class Reporter():
+
+	def __init__(self, *, reporter_guid: str):
+
+		self.__reporter_guid = reporter_guid
+
+	def get_reporter_guid(self) -> str:
+		return self.__reporter_guid
+
+	def to_json(self) -> object:
+		return {
+			"reporter_guid": self.__reporter_guid
+		}
+
+
 class Transmission():
 
 	def __init__(self, *,
@@ -286,6 +316,30 @@ class Database():
 			)
 		''')
 		if self.__drop_tables_if_exist:
+			_cursor.execute("DROP TABLE IF EXISTS dequeuer;")
+		_cursor.execute('''
+			CREATE TABLE dequeuer
+			(
+				dequeuer_guid GUID PRIMARY KEY,
+				last_known_client_guid GUID,
+				last_known_datetime TIMESTAMP,
+				row_created_datetime TIMESTAMP,
+				FOREIGN KEY (last_known_client_guid) REFERENCES client(client_guid)
+			)
+		''')
+		if self.__drop_tables_if_exist:
+			_cursor.execute("DROP TABLE IF EXISTS reporter;")
+		_cursor.execute('''
+			CREATE TABLE reporter
+			(
+				reporter_guid GUID PRIMARY KEY,
+				last_known_client_guid GUID,
+				last_known_datetime TIMESTAMP,
+				row_created_datetime TIMESTAMP,
+				FOREIGN KEY (last_known_client_guid) REFERENCES client(client_guid)
+			)
+		''')
+		if self.__drop_tables_if_exist:
 			_cursor.execute("DROP TABLE IF EXISTS transmission;")
 		_cursor.execute('''
 			CREATE TABLE transmission
@@ -308,10 +362,12 @@ class Database():
 			CREATE TABLE transmission_dequeue
 			(
 				transmission_dequeue_guid GUID PRIMARY KEY,
+				dequeuer_guid GUID,
 				transmission_guid GUID,
 				request_client_guid GUID,
 				destination_client_guid GUID,
 				row_created_datetime TIMESTAMP,
+				FOREIGN KEY (dequeuer_guid) REFERENCES dequeuer(dequeuer_guid),
 				FOREIGN KEY (transmission_guid) REFERENCES transmission(transmission_guid),
 				FOREIGN KEY (request_client_guid) REFERENCES client(client_guid),
 				FOREIGN KEY (destination_client_guid) REFERENCES client(client_guid)
@@ -351,10 +407,12 @@ class Database():
 			CREATE TABLE transmission_dequeue_error_transmission_dequeue
 			(
 				transmission_dequeue_error_transmission_dequeue_guid GUID PRIMARY KEY,
+				reporter_guid GUID,
 				transmission_dequeue_error_transmission_guid GUID,
 				request_client_guid GUID,
 				destination_client_guid GUID,
 				row_created_datetime TIMESTAMP,
+				FOREIGN KEY (reporter_guid) REFERENCES reporter(reporter_guid),
 				FOREIGN KEY (transmission_dequeue_error_transmission_guid) REFERENCES transmission_dequeue_error_transmission(transmission_dequeue_error_transmission_guid),
 				FOREIGN KEY (request_client_guid) REFERENCES client(client_guid),
 				FOREIGN KEY (destination_client_guid) REFERENCES client(client_guid)
@@ -481,6 +539,96 @@ class Database():
 			purpose_guid=purpose_guid
 		)
 		return _device
+
+	def insert_dequeuer(self, *, dequeuer_guid: str, client_guid: str):
+
+		_insert_cursor = self.__connection.cursor()
+		_insert_cursor.execute('''
+			INSERT OR IGNORE INTO dequeuer
+			(
+				dequeuer_guid,
+				last_known_client_guid,
+				last_known_datetime
+			)
+			VALUES (?, ?, ?)
+		''', (dequeuer_guid, client_guid, datetime.utcnow()))
+
+		_is_successful, _dequeuer = self.try_get_dequeuer(
+			dequeuer_guid=dequeuer_guid
+		)
+
+		if not _is_successful:
+			raise Exception(f"Failed to insert dequeuer with guid: \"{dequeuer_guid}\".")
+
+		return _dequeuer
+
+	def try_get_dequeuer(self, *, dequeuer_guid: str) -> Tuple[bool, Dequeuer]:
+
+		_get_cursor = self.__connection.cursor()
+		_get_result = _get_cursor.execute('''
+			SELECT
+				d.dequeuer_guid
+			FROM dequeuer AS d
+			WHERE
+				d.dequeuer_guid = ?
+		''', (dequeuer_guid,))
+
+		_rows = _get_result.fetchall()
+		if len(_rows) == 0:
+			_dequeuer = None
+		else:
+			_row = _rows[0]
+
+			_dequeuer = Dequeuer(
+				dequeuer_guid=_row[0]
+			)
+
+		return _dequeuer is not None, _dequeuer
+
+	def insert_reporter(self, *, reporter_guid: str, client_guid: str):
+
+		_insert_cursor = self.__connection.cursor()
+		_insert_cursor.execute('''
+			INSERT OR IGNORE INTO reporter
+			(
+				reporter_guid,
+				last_known_client_guid,
+				last_known_datetime
+			)
+			VALUES (?, ?, ?)
+		''', (reporter_guid, client_guid, datetime.utcnow()))
+
+		_is_successful, _reporter = self.try_get_reporter(
+			reporter_guid=reporter_guid
+		)
+
+		if not _is_successful:
+			raise Exception(f"Failed to insert reporter with guid: \"{reporter_guid}\".")
+
+		return _reporter
+
+	def try_get_reporter(self, *, reporter_guid: str) -> Tuple[bool, Reporter]:
+
+		_get_cursor = self.__connection.cursor()
+		_get_result = _get_cursor.execute('''
+			SELECT
+				r.reporter_guid
+			FROM reporter AS r
+			WHERE
+				r.reporter_guid = ?
+		''', (reporter_guid,))
+
+		_rows = _get_result.fetchall()
+		if len(_rows) == 0:
+			_reporter = None
+		else:
+			_row = _rows[0]
+
+			_reporter = Reporter(
+				reporter_guid=_row[0]
+			)
+
+		return _reporter is not None, _reporter
 
 	def get_all_devices(self) -> List[Device]:
 		_get_cursor = self.__connection.cursor()
@@ -614,7 +762,7 @@ class Database():
 
 		return _transmission_dequeue is not None, _transmission_dequeue
 
-	def get_next_transmission_dequeue(self, *, client_guid: str) -> TransmissionDequeue:
+	def get_next_transmission_dequeue(self, *, dequeuer_guid: str, client_guid: str) -> TransmissionDequeue:
 
 		_transmission_dequeue_guid = str(uuid.uuid4()).upper()
 		_row_created_datetime = datetime.utcnow()
@@ -626,6 +774,7 @@ class Database():
 		_insert_cursor.execute('''
 			INSERT INTO transmission_dequeue
 			(
+				dequeuer_guid,
 				transmission_dequeue_guid,
 				transmission_guid,
 				request_client_guid,
@@ -633,6 +782,7 @@ class Database():
 				row_created_datetime
 			)
 			SELECT
+				?,
 				?,
 				t.transmission_guid,
 				?,
@@ -694,7 +844,7 @@ class Database():
 			ORDER BY
 				t.row_created_datetime
 			LIMIT 1
-		''', (_transmission_dequeue_guid, client_guid, _row_created_datetime))
+		''', (dequeuer_guid, _transmission_dequeue_guid, client_guid, _row_created_datetime))
 
 		_is_successful, _transmission_dequeue = self.try_get_transmission_dequeue(
 			transmission_dequeue_guid=_transmission_dequeue_guid
@@ -828,7 +978,7 @@ class Database():
 
 		return _transmission_dequeue_error_transmission is not None, _transmission_dequeue_error_transmission
 
-	def get_next_failed_transmission_dequeue(self, *, client_guid: str) -> TransmissionDequeueErrorTransmissionDequeue:
+	def get_next_failed_transmission_dequeue(self, *, reporter_guid: str, client_guid: str) -> TransmissionDequeueErrorTransmissionDequeue:
 
 		_transmission_dequeue_error_transmission_dequeue_guid = str(uuid.uuid4()).upper()
 		_row_created_datetime = datetime.utcnow()
@@ -842,6 +992,7 @@ class Database():
 		_insert_cursor.execute('''
 			INSERT INTO transmission_dequeue_error_transmission_dequeue
 			(
+				reporter_guid,
 				transmission_dequeue_error_transmission_dequeue_guid,
 				transmission_dequeue_error_transmission_guid,
 				request_client_guid,
@@ -849,6 +1000,7 @@ class Database():
 				row_created_datetime
 			)
 			SELECT
+				?,
 				?,
 				tdet.transmission_dequeue_error_transmission_guid,
 				?,
@@ -905,7 +1057,7 @@ class Database():
 			ORDER BY
 				t.row_created_datetime
 			LIMIT 1
-		''', (_transmission_dequeue_error_transmission_dequeue_guid, client_guid, _row_created_datetime))
+		''', (reporter_guid, _transmission_dequeue_error_transmission_dequeue_guid, client_guid, _row_created_datetime))
 
 		_is_successful, _transmission_dequeue_error_transmission_dequeue = self.try_get_transmission_dequeue_error_transmission_dequeue(
 			transmission_dequeue_error_transmission_dequeue_guid=_transmission_dequeue_error_transmission_dequeue_guid

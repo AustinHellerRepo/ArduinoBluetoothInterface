@@ -368,7 +368,13 @@ class DatabaseTest(unittest.TestCase):
 				ip_address="127.0.0.4"
 			)
 			self.assertIsNotNone(_get_next_client)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="C03DEC02-79C5-494F-BCA8-0FFA2E2F2ABB",
+				client_guid=_get_next_client.get_client_guid()
+			)
+			self.assertIsNotNone(_dequeuer)
 			_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_get_next_transmission_dequeue)
@@ -419,7 +425,13 @@ class DatabaseTest(unittest.TestCase):
 				ip_address="127.0.0.4"
 			)
 			self.assertIsNotNone(_get_next_client)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="8A38F5A8-0F3F-42C2-A4E8-8FF6F8FA4AD9",
+				client_guid=_get_next_client.get_client_guid()
+			)
+			self.assertIsNotNone(_dequeuer)
 			_first_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_first_get_next_transmission_dequeue)
@@ -435,6 +447,7 @@ class DatabaseTest(unittest.TestCase):
 			# dequeue second transmission
 
 			_second_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_second_get_next_transmission_dequeue)
@@ -481,31 +494,41 @@ class DatabaseTest(unittest.TestCase):
 				destination_device_guid=_destination_device.get_device_guid()
 			)
 			self.assertIsNotNone(_second_transmission)
-			_get_next_client_first = _database.insert_client(
+			_first_get_next_client = _database.insert_client(
 				ip_address="127.0.0.4"
 			)
-			self.assertIsNotNone(_get_next_client_first)
+			self.assertIsNotNone(_first_get_next_client)
+			_first_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="A97C06B8-3C61-48AA-AE2F-82E242A2C878",
+				client_guid=_first_get_next_client.get_client_guid()
+			)
 			_first_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
-				client_guid=_get_next_client_first.get_client_guid()
+				dequeuer_guid=_first_dequeuer.get_dequeuer_guid(),
+				client_guid=_first_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_first_get_next_transmission_dequeue)
 			self.assertEqual(_first_transmission.get_transmission_guid(), _first_get_next_transmission_dequeue.get_transmission_guid())
-			_get_next_client_second = _database.insert_client(
+			_second_get_next_client = _database.insert_client(
 				ip_address="127.0.0.5"
 			)
-			self.assertIsNotNone(_get_next_client_second)
+			self.assertIsNotNone(_second_get_next_client)
+			_second_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="37399BE8-1EAA-497D-BA5D-E6581E560466",
+				client_guid=_second_get_next_client.get_client_guid()
+			)
 
 			# transmission completed
 
 			_database.transmission_completed(
-				client_guid=_get_next_client_first.get_client_guid(),
+				client_guid=_first_get_next_client.get_client_guid(),
 				transmission_dequeue_guid=_first_get_next_transmission_dequeue.get_transmission_dequeue_guid()
 			)
 
 			# dequeue second transmission
 
 			_second_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
-				client_guid=_get_next_client_second.get_client_guid()
+				dequeuer_guid=_second_dequeuer.get_dequeuer_guid(),
+				client_guid=_second_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_second_get_next_transmission_dequeue)
 			self.assertEqual(_second_transmission.get_transmission_guid(), _second_get_next_transmission_dequeue.get_transmission_guid())
@@ -555,7 +578,12 @@ class DatabaseTest(unittest.TestCase):
 				ip_address="127.0.0.4"
 			)
 			self.assertIsNotNone(_get_next_client)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="4E3F7F3D-B82F-4434-83C4-DDCF43283F9B",
+				client_guid=_get_next_client.get_client_guid()
+			)
 			_first_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_first_get_next_transmission_dequeue)
@@ -564,6 +592,7 @@ class DatabaseTest(unittest.TestCase):
 			# dequeue second transmission
 
 			_second_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNone(_second_get_next_transmission_dequeue)
@@ -606,7 +635,12 @@ class DatabaseTest(unittest.TestCase):
 				ip_address="127.0.0.4"
 			)
 			self.assertIsNotNone(_get_next_client)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="97009FE3-10C9-4B39-A472-373C6CAD4126",
+				client_guid=_get_next_client.get_client_guid()
+			)
 			_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_get_next_transmission_dequeue)
@@ -654,7 +688,12 @@ class DatabaseTest(unittest.TestCase):
 				ip_address="127.0.0.4"
 			)
 			self.assertIsNotNone(_get_next_client)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="8C19940C-DA62-43CA-93ED-AC9C0BFDD707",
+				client_guid=_get_next_client.get_client_guid()
+			)
 			_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_get_next_transmission_dequeue)
@@ -706,7 +745,12 @@ class DatabaseTest(unittest.TestCase):
 				ip_address="127.0.0.4"
 			)
 			self.assertIsNotNone(_get_next_client)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="F9652133-3FFB-4EFF-ADB2-26320E7E0FA6",
+				client_guid=_get_next_client.get_client_guid()
+			)
 			_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_get_next_transmission_dequeue)
@@ -755,7 +799,12 @@ class DatabaseTest(unittest.TestCase):
 				ip_address="127.0.0.4"
 			)
 			self.assertIsNotNone(_get_next_client)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="DEFE4C38-0106-4072-AC7F-E9EC43EDD60E",
+				client_guid=_get_next_client.get_client_guid()
+			)
 			_first_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_first_get_next_transmission_dequeue)
@@ -772,6 +821,7 @@ class DatabaseTest(unittest.TestCase):
 				destination_device_guid=_destination_device.get_device_guid()
 			)
 			_second_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNone(_second_get_next_transmission_dequeue)
@@ -814,7 +864,12 @@ class DatabaseTest(unittest.TestCase):
 				ip_address="127.0.0.4"
 			)
 			self.assertIsNotNone(_get_next_client)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="AB8E2EE3-A1E6-4189-971E-E778ED43808F",
+				client_guid=_get_next_client.get_client_guid()
+			)
 			_first_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_first_get_next_transmission_dequeue)
@@ -834,7 +889,13 @@ class DatabaseTest(unittest.TestCase):
 			_failed_dequeue_client = _database.insert_client(
 				ip_address="127.0.0.5"
 			)
+			_reporter = _database.insert_reporter(
+				reporter_guid="70FAC0CB-EA93-404D-8F83-D9B25FAF70B0",
+				client_guid=_failed_dequeue_client.get_client_guid()
+			)
+
 			_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_reporter.get_reporter_guid(),
 				client_guid=_failed_dequeue_client.get_client_guid()
 			)
 			self.assertIsNotNone(_failed_transmission_dequeue)
@@ -846,6 +907,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 
 			_second_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_second_get_next_transmission_dequeue)
@@ -899,7 +961,12 @@ class DatabaseTest(unittest.TestCase):
 				ip_address="127.0.0.4"
 			)
 			self.assertIsNotNone(_get_next_client)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="ECCD5319-92C6-43A4-BC08-1B984BA6C910",
+				client_guid=_get_next_client.get_client_guid()
+			)
 			_first_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_first_get_next_transmission_dequeue)
@@ -913,7 +980,13 @@ class DatabaseTest(unittest.TestCase):
 			_failed_dequeue_client = _database.insert_client(
 				ip_address="127.0.0.5"
 			)
+			_reporter = _database.insert_reporter(
+				reporter_guid="6D44AA09-F6DE-4A98-893F-DBA0FAA2F78F",
+				client_guid=_failed_dequeue_client.get_client_guid()
+			)
+
 			_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_reporter.get_reporter_guid(),
 				client_guid=_failed_dequeue_client.get_client_guid()
 			)
 			self.assertIsNotNone(_failed_transmission_dequeue)
@@ -925,6 +998,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 
 			_second_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertEqual(_second_transmission.get_transmission_guid(), _second_get_next_transmission_dequeue.get_transmission_guid())
@@ -971,7 +1045,12 @@ class DatabaseTest(unittest.TestCase):
 				ip_address="127.0.0.4"
 			)
 			self.assertIsNotNone(_get_next_client)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="D84352F4-5E26-4C72-B348-F3B7464E1374",
+				client_guid=_get_next_client.get_client_guid()
+			)
 			_first_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_first_get_next_transmission_dequeue)
@@ -985,7 +1064,13 @@ class DatabaseTest(unittest.TestCase):
 			_failed_dequeue_client = _database.insert_client(
 				ip_address="127.0.0.5"
 			)
+			_reporter = _database.insert_reporter(
+				reporter_guid="17CA30BC-76E0-453A-8C62-F9E1F5672F11",
+				client_guid=_failed_dequeue_client.get_client_guid()
+			)
+
 			_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_reporter.get_reporter_guid(),
 				client_guid=_failed_dequeue_client.get_client_guid()
 			)
 			self.assertIsNotNone(_failed_transmission_dequeue)
@@ -1003,6 +1088,7 @@ class DatabaseTest(unittest.TestCase):
 				destination_device_guid=_destination_device.get_device_guid()
 			)
 			_second_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_second_get_next_transmission_dequeue)
@@ -1050,7 +1136,13 @@ class DatabaseTest(unittest.TestCase):
 				ip_address="127.0.0.4"
 			)
 			self.assertIsNotNone(_get_next_client)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="82A7FB93-A228-4632-937F-68F1CB1A26F6",
+				client_guid=_get_next_client.get_client_guid()
+			)
+
 			_first_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_first_get_next_transmission_dequeue)
@@ -1064,7 +1156,13 @@ class DatabaseTest(unittest.TestCase):
 			_failed_dequeue_client = _database.insert_client(
 				ip_address="127.0.0.5"
 			)
+			_reporter = _database.insert_reporter(
+				reporter_guid="37D4AC01-23A0-4625-BBBB-1F08A82DE4C1",
+				client_guid=_failed_dequeue_client.get_client_guid()
+			)
+
 			_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_reporter.get_reporter_guid(),
 				client_guid=_failed_dequeue_client.get_client_guid()
 			)
 			self.assertIsNotNone(_failed_transmission_dequeue)
@@ -1082,6 +1180,7 @@ class DatabaseTest(unittest.TestCase):
 				destination_device_guid=_destination_device.get_device_guid()
 			)
 			_second_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNone(_second_get_next_transmission_dequeue)
@@ -1124,7 +1223,12 @@ class DatabaseTest(unittest.TestCase):
 				ip_address="127.0.0.4"
 			)
 			self.assertIsNotNone(_get_next_client)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="B5B999F4-B39F-4CDF-A287-FA658F138430",
+				client_guid=_get_next_client.get_client_guid()
+			)
 			_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_get_next_transmission_dequeue)
@@ -1138,7 +1242,13 @@ class DatabaseTest(unittest.TestCase):
 				ip_address="127.0.0.5"
 			)
 			self.assertIsNotNone(_failed_client)
+			_reporter = _database.insert_reporter(
+				reporter_guid="978CEC80-A01D-4BE0-BE85-725C64D62F07",
+				client_guid=_failed_client.get_client_guid()
+			)
+
 			_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_reporter.get_reporter_guid(),
 				client_guid=_failed_client.get_client_guid()
 			)
 			self.assertIsNotNone(_failed_transmission_dequeue)
@@ -1164,6 +1274,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertEqual(_destination_device.to_json(), _same_device.to_json())
 
 			_second_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNone(_second_get_next_transmission_dequeue)
@@ -1206,7 +1317,12 @@ class DatabaseTest(unittest.TestCase):
 				ip_address="127.0.0.4"
 			)
 			self.assertIsNotNone(_get_next_client)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="A949C1CD-2466-4919-BAEC-92BF1CE1B5A4",
+				client_guid=_get_next_client.get_client_guid()
+			)
 			_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_get_next_transmission_dequeue)
@@ -1220,7 +1336,13 @@ class DatabaseTest(unittest.TestCase):
 				ip_address="127.0.0.5"
 			)
 			self.assertIsNotNone(_failed_client)
+			_reporter = _database.insert_reporter(
+				reporter_guid="FCF1D55C-08AE-45CC-AD0E-139F62B48B9A",
+				client_guid=_failed_client.get_client_guid()
+			)
+
 			_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_reporter.get_reporter_guid(),
 				client_guid=_failed_client.get_client_guid()
 			)
 			self.assertIsNotNone(_failed_transmission_dequeue)
@@ -1246,6 +1368,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertEqual(_destination_device.to_json(), _same_device.to_json())
 
 			_second_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_second_get_next_transmission_dequeue)
@@ -1289,7 +1412,13 @@ class DatabaseTest(unittest.TestCase):
 				ip_address="127.0.0.4"
 			)
 			self.assertIsNotNone(_get_next_client)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="099D4BA3-CCA9-4834-9E83-4D4BE60DCB29",
+				client_guid=_get_next_client.get_client_guid()
+			)
+
 			_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_get_next_transmission_dequeue)
@@ -1303,7 +1432,13 @@ class DatabaseTest(unittest.TestCase):
 				ip_address="127.0.0.5"
 			)
 			self.assertIsNotNone(_failed_client)
+			_reporter = _database.insert_reporter(
+				reporter_guid="764C68C1-D6CE-4207-B9A7-E4E6FC4844C5",
+				client_guid=_failed_client.get_client_guid()
+			)
+
 			_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_reporter.get_reporter_guid(),
 				client_guid=_failed_client.get_client_guid()
 			)
 			self.assertIsNotNone(_failed_transmission_dequeue)
@@ -1322,6 +1457,7 @@ class DatabaseTest(unittest.TestCase):
 			# dequeuing the second transmission should fail because the destination has a failed transmission
 
 			_first_attempt_second_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNone(_first_attempt_second_transmission_dequeue)
@@ -1346,6 +1482,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertEqual(_destination_device.to_json(), _same_device.to_json())
 
 			_second_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_second_get_next_transmission_dequeue)
@@ -1361,6 +1498,7 @@ class DatabaseTest(unittest.TestCase):
 			# now the second transmission can be dequeued
 
 			_second_attempt_second_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_second_attempt_second_transmission_dequeue)
@@ -1396,8 +1534,13 @@ class DatabaseTest(unittest.TestCase):
 			_dequeue_client = _database.insert_client(
 				ip_address="127.0.1.1"
 			)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="735282F3-16E9-4CB0-A24E-443A72884B1E",
+				client_guid=_dequeue_client.get_client_guid()
+			)
 			for _transmission_index in range(len(_transmissions)):
 				_transmission_dequeue = _database.get_next_transmission_dequeue(
+					dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 					client_guid=_dequeue_client.get_client_guid()
 				)
 				self.assertEqual(_transmissions[_transmission_index].get_transmission_guid(), _transmission_dequeue.get_transmission_guid())
@@ -1528,11 +1671,22 @@ class DatabaseTest(unittest.TestCase):
 			_dequeue_client = _database.insert_client(
 				ip_address="127.0.0.3"
 			)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="E27BE734-F26C-409F-A598-160342452FA1",
+				client_guid=_dequeue_client.get_client_guid()
+			)
+
 			_failure_dequeue_client = _database.insert_client(
 				ip_address="127.0.0.4"
 			)
+			_reporter = _database.insert_reporter(
+				reporter_guid="829F8BD5-5A2A-4502-8DAB-6FBAB7F05C6F",
+				client_guid=_failure_dequeue_client.get_client_guid()
+			)
+
 			for _index in range(10):
 				_transmission_dequeue = _database.get_next_transmission_dequeue(
+					dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 					client_guid=_dequeue_client.get_client_guid()
 				)
 				self.assertEqual(_first_transmission.get_transmission_guid(), _transmission_dequeue.get_transmission_guid())
@@ -1543,6 +1697,7 @@ class DatabaseTest(unittest.TestCase):
 				)
 
 				_failure_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+					reporter_guid=_reporter.get_reporter_guid(),
 					client_guid=_failure_dequeue_client.get_client_guid()
 				)
 				_database.failed_transmission_completed(
@@ -1556,6 +1711,7 @@ class DatabaseTest(unittest.TestCase):
 					purpose_guid="7B3316A1-89F4-49A0-A6B3-351CC5FE6D63"
 				)
 			_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_dequeue_client.get_client_guid()
 			)
 			self.assertEqual(_first_transmission.get_transmission_guid(), _transmission_dequeue.get_transmission_guid())
@@ -1565,6 +1721,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 
 			_second_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_dequeue_client.get_client_guid()
 			)
 			self.assertEqual(_second_transmission.get_transmission_guid(), _second_transmission_dequeue.get_transmission_guid())
@@ -1574,6 +1731,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 
 			_empty_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_dequeue_client.get_client_guid()
 			)
 			self.assertIsNone(_empty_transmission_dequeue)
@@ -1608,7 +1766,13 @@ class DatabaseTest(unittest.TestCase):
 			_get_next_client = _database.insert_client(
 				ip_address="127.0.0.3"
 			)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="3CF492A0-AEFA-4916-9E20-9925268A5D53",
+				client_guid=_get_next_client.get_client_guid()
+			)
+
 			_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_get_next_client.get_client_guid()
 			)
 
@@ -1621,7 +1785,13 @@ class DatabaseTest(unittest.TestCase):
 			_failure_client = _database.insert_client(
 				ip_address="127.0.0.4"
 			)
+			_reporter = _database.insert_reporter(
+				reporter_guid="82615F5D-E860-4686-9A70-230B2E7F0D7D",
+				client_guid=_failure_client.get_client_guid()
+			)
+
 			_failure_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_reporter.get_reporter_guid(),
 				client_guid=_failure_client.get_client_guid()
 			)
 
@@ -1632,6 +1802,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 
 			_empty_failure_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_reporter.get_reporter_guid(),
 				client_guid=_failure_client.get_client_guid()
 			)
 			self.assertIsNone(_empty_failure_dequeue)
@@ -1646,6 +1817,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 
 			_retry_failure_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_reporter.get_reporter_guid(),
 				client_guid=_failure_client.get_client_guid()
 			)
 			self.assertIsNotNone(_retry_failure_dequeue)
@@ -1702,13 +1874,19 @@ class DatabaseTest(unittest.TestCase):
 			_dequeue_client = _database.insert_client(
 				ip_address="127.0.0.4"
 			)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="0A2E9940-C338-427F-804D-5DB4E2A1EC2B",
+				client_guid=_dequeue_client.get_client_guid()
+			)
 
 			_first_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_dequeue_client.get_client_guid()
 			)
 			self.assertEqual(_first_transmission.get_transmission_guid(), _first_transmission_dequeue.get_transmission_guid())
 
 			_second_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_dequeue_client.get_client_guid()
 			)
 			self.assertEqual(_second_transmission.get_transmission_guid(), _second_transmission_dequeue.get_transmission_guid())
@@ -1728,14 +1906,20 @@ class DatabaseTest(unittest.TestCase):
 			_failure_dequeue_client = _database.insert_client(
 				ip_address="127.0.0.5"
 			)
+			_reporter = _database.insert_reporter(
+				reporter_guid="9CBFF852-247C-49E6-854A-CB649A42ED79",
+				client_guid=_failure_dequeue_client.get_client_guid()
+			)
 
 			_first_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_reporter.get_reporter_guid(),
 				client_guid=_failure_dequeue_client.get_client_guid(),
 			)
 			self.assertIsNotNone(_first_failed_transmission_dequeue)
 			self.assertEqual(_first_transmission_dequeue.get_transmission_dequeue_guid(), _first_failed_transmission_dequeue.get_transmission_dequeue_error_transmission().get_transmission_dequeue_guid())
 
 			_second_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_reporter.get_reporter_guid(),
 				client_guid=_failure_dequeue_client.get_client_guid()
 			)
 			self.assertIsNone(_second_failed_transmission_dequeue)
@@ -1747,6 +1931,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 
 			_second_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_reporter.get_reporter_guid(),
 				client_guid=_failure_dequeue_client.get_client_guid()
 			)
 			self.assertIsNotNone(_second_failed_transmission_dequeue)
@@ -1797,13 +1982,19 @@ class DatabaseTest(unittest.TestCase):
 			_dequeue_client = _database.insert_client(
 				ip_address="127.0.0.4"
 			)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="5BB17692-26E2-4D2A-B637-15F09A01D73E",
+				client_guid=_dequeue_client.get_client_guid()
+			)
 
 			_first_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_dequeue_client.get_client_guid()
 			)
 			self.assertEqual(_first_transmission.get_transmission_guid(), _first_transmission_dequeue.get_transmission_guid())
 
 			_second_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
 				client_guid=_dequeue_client.get_client_guid()
 			)
 			self.assertEqual(_second_transmission.get_transmission_guid(), _second_transmission_dequeue.get_transmission_guid())
@@ -1823,14 +2014,20 @@ class DatabaseTest(unittest.TestCase):
 			_failure_dequeue_client = _database.insert_client(
 				ip_address="127.0.0.5"
 			)
+			_reporter = _database.insert_reporter(
+				reporter_guid="CB779604-68FA-452C-B0B2-4A7B8578F245",
+				client_guid=_failure_dequeue_client.get_client_guid()
+			)
 
 			_first_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_reporter.get_reporter_guid(),
 				client_guid=_failure_dequeue_client.get_client_guid(),
 			)
 			self.assertIsNotNone(_first_failed_transmission_dequeue)
 			self.assertEqual(_first_transmission_dequeue.get_transmission_dequeue_guid(), _first_failed_transmission_dequeue.get_transmission_dequeue_error_transmission().get_transmission_dequeue_guid())
 
 			_second_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_reporter.get_reporter_guid(),
 				client_guid=_failure_dequeue_client.get_client_guid()
 			)
 			self.assertIsNone(_second_failed_transmission_dequeue)
@@ -1842,6 +2039,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 
 			_second_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_reporter.get_reporter_guid(),
 				client_guid=_failure_dequeue_client.get_client_guid()
 			)
 			self.assertIsNone(_second_failed_transmission_dequeue)
@@ -1856,6 +2054,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 
 			_first_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_reporter.get_reporter_guid(),
 				client_guid=_failure_dequeue_client.get_client_guid(),
 			)
 			self.assertIsNotNone(_first_failed_transmission_dequeue)
@@ -1868,6 +2067,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 
 			_second_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_reporter.get_reporter_guid(),
 				client_guid=_failure_dequeue_client.get_client_guid()
 			)
 			self.assertIsNotNone(_second_failed_transmission_dequeue)

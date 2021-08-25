@@ -574,26 +574,35 @@ class DatabaseTest(unittest.TestCase):
 				destination_device_guid=_destination_device.get_device_guid()
 			)
 			self.assertIsNotNone(_second_transmission)
-			_get_next_client = _database.insert_client(
+			_first_get_next_client = _database.insert_client(
 				ip_address="127.0.0.4"
 			)
-			self.assertIsNotNone(_get_next_client)
-			_dequeuer = _database.insert_dequeuer(
+			self.assertIsNotNone(_first_get_next_client)
+			_first_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="4E3F7F3D-B82F-4434-83C4-DDCF43283F9B",
-				client_guid=_get_next_client.get_client_guid()
+				client_guid=_first_get_next_client.get_client_guid()
 			)
 			_first_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
-				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
-				client_guid=_get_next_client.get_client_guid()
+				dequeuer_guid=_first_dequeuer.get_dequeuer_guid(),
+				client_guid=_first_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_first_get_next_transmission_dequeue)
 			self.assertEqual(_first_transmission.get_transmission_guid(), _first_get_next_transmission_dequeue.get_transmission_guid())
 
 			# dequeue second transmission
 
+			_second_get_next_client = _database.insert_client(
+				ip_address="127.0.0.5"
+			)
+			self.assertIsNotNone(_second_get_next_client)
+			_second_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="1CE1A72D-C103-4B14-A81A-DA09F412E337",
+				client_guid=_second_get_next_client.get_client_guid()
+			)
+
 			_second_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
-				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
-				client_guid=_get_next_client.get_client_guid()
+				dequeuer_guid=_second_dequeuer.get_dequeuer_guid(),
+				client_guid=_second_get_next_client.get_client_guid()
 			)
 			self.assertIsNone(_second_get_next_transmission_dequeue)
 
@@ -1885,17 +1894,17 @@ class DatabaseTest(unittest.TestCase):
 			)
 			self.assertEqual(_first_transmission.get_transmission_guid(), _first_transmission_dequeue.get_transmission_guid())
 
-			_second_transmission_dequeue = _database.get_next_transmission_dequeue(
-				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
-				client_guid=_dequeue_client.get_client_guid()
-			)
-			self.assertEqual(_second_transmission.get_transmission_guid(), _second_transmission_dequeue.get_transmission_guid())
-
 			_database.transmission_failed(
 				client_guid=_dequeue_client.get_client_guid(),
 				transmission_dequeue_guid=_first_transmission_dequeue.get_transmission_dequeue_guid(),
 				error_message_json_string="{ }"
 			)
+
+			_second_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertEqual(_second_transmission.get_transmission_guid(), _second_transmission_dequeue.get_transmission_guid())
 
 			_database.transmission_failed(
 				client_guid=_dequeue_client.get_client_guid(),
@@ -1993,17 +2002,17 @@ class DatabaseTest(unittest.TestCase):
 			)
 			self.assertEqual(_first_transmission.get_transmission_guid(), _first_transmission_dequeue.get_transmission_guid())
 
-			_second_transmission_dequeue = _database.get_next_transmission_dequeue(
-				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
-				client_guid=_dequeue_client.get_client_guid()
-			)
-			self.assertEqual(_second_transmission.get_transmission_guid(), _second_transmission_dequeue.get_transmission_guid())
-
 			_database.transmission_failed(
 				client_guid=_dequeue_client.get_client_guid(),
 				transmission_dequeue_guid=_first_transmission_dequeue.get_transmission_dequeue_guid(),
 				error_message_json_string="{ }"
 			)
+
+			_second_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertEqual(_second_transmission.get_transmission_guid(), _second_transmission_dequeue.get_transmission_guid())
 
 			_database.transmission_failed(
 				client_guid=_dequeue_client.get_client_guid(),

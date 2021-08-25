@@ -25,6 +25,12 @@ class Client():
 	def get_ip_address(self) -> str:
 		return self.__ip_address
 
+	@staticmethod
+	def parse_row(*, row: Dict) -> Client:
+		return Client(
+			client_guid=row[0],
+			ip_address=row[1]
+		)
 
 class Device():
 
@@ -45,35 +51,66 @@ class Device():
 			"purpose_guid": self.__purpose_guid
 		}
 
+	@staticmethod
+	def parse_row(*, row: Dict) -> Device:
+		return Device(
+			device_guid=row[0],
+			purpose_guid=row[1]
+		)
+
 
 class Dequeuer():
 
-	def __init__(self, *, dequeuer_guid: str):
+	def __init__(self, *, dequeuer_guid: str, is_responsive: bool):
 
 		self.__dequeuer_guid = dequeuer_guid
+		self.__is_responsive = is_responsive
 
 	def get_dequeuer_guid(self) -> str:
 		return self.__dequeuer_guid
 
+	def get_is_responsive(self) -> bool:
+		return self.__is_responsive
+
 	def to_json(self) -> object:
 		return {
-			"dequeuer_guid": self.__dequeuer_guid
+			"dequeuer_guid": self.__dequeuer_guid,
+			"is_responsive": self.__is_responsive
 		}
+
+	@staticmethod
+	def parse_row(*, row: Dict) -> Dequeuer:
+		return Dequeuer(
+			dequeuer_guid=row[0],
+			is_responsive=row[1]
+		)
 
 
 class Reporter():
 
-	def __init__(self, *, reporter_guid: str):
+	def __init__(self, *, reporter_guid: str, is_responsive: bool):
 
 		self.__reporter_guid = reporter_guid
+		self.__is_responsive = is_responsive
 
 	def get_reporter_guid(self) -> str:
 		return self.__reporter_guid
 
+	def get_is_responsive(self) -> bool:
+		return self.__is_responsive
+
 	def to_json(self) -> object:
 		return {
-			"reporter_guid": self.__reporter_guid
+			"reporter_guid": self.__reporter_guid,
+			"is_responsive": self.__is_responsive
 		}
+
+	@staticmethod
+	def parse_row(*, row: Dict) -> Reporter:
+		return Reporter(
+			reporter_guid=row[0],
+			is_responsive=row[1]
+		)
 
 
 class Transmission():
@@ -127,6 +164,18 @@ class Transmission():
 			"is_retry_ready": self.__is_retry_ready
 		}
 
+	@staticmethod
+	def parse_row(*, row: Dict) -> Transmission:
+		return Transmission(
+			transmission_guid=row[0],
+			source_device_guid=row[1],
+			request_client_guid=row[2],
+			transmission_json_string=row[3],
+			destination_device_guid=row[4],
+			row_created_datetime=datetime.strptime(row[5], "%Y-%m-%d %H:%M:%S.%f"),
+			is_retry_ready=row[6]
+		)
+
 
 class TransmissionDequeue():
 
@@ -176,6 +225,16 @@ class TransmissionDequeue():
 			"transmission": None if self.__transmission is None else self.__transmission.to_json()
 		}
 
+	@staticmethod
+	def parse_row(*, row: Dict) -> TransmissionDequeue:
+		return TransmissionDequeue(
+			transmission_dequeue_guid=row[0],
+			transmission_guid=row[1],
+			request_client_guid=row[2],
+			destination_client_guid=row[3],
+			row_created_datetime=datetime.strptime(row[4], "%Y-%m-%d %H:%M:%S.%f")
+		)
+
 
 class TransmissionDequeueErrorTransmission():
 
@@ -219,6 +278,17 @@ class TransmissionDequeueErrorTransmission():
 
 	def get_transmission_dequeue(self) -> TransmissionDequeue:
 		return self.__transmission_dequeue
+
+	@staticmethod
+	def parse_row(*, row: Dict) -> TransmissionDequeueErrorTransmission:
+		return TransmissionDequeueErrorTransmission(
+			transmission_dequeue_error_transmission_guid=row[0],
+			request_client_guid=row[1],
+			transmission_dequeue_guid=row[2],
+			error_message_json_string=row[3],
+			row_created_datetime=datetime.strptime(row[4], "%Y-%m-%d %H:%M:%S.%f"),
+			is_retry_ready=row[5]
+		)
 
 
 class TransmissionDequeueErrorTransmissionDequeue():
@@ -265,6 +335,16 @@ class TransmissionDequeueErrorTransmissionDequeue():
 			"destination_client_guid": self.__destination_client_guid,
 			"row_created_datetime": self.__row_created_datetime
 		}
+
+	@staticmethod
+	def parse_row(*, row: Dict) -> TransmissionDequeueErrorTransmissionDequeue:
+		return TransmissionDequeueErrorTransmissionDequeue(
+			transmission_dequeue_error_transmission_dequeue_guid=row[0],
+			transmission_dequeue_error_transmission_guid=row[1],
+			request_client_guid=row[2],
+			destination_client_guid=row[3],
+			row_created_datetime=datetime.strptime(row[4], "%Y-%m-%d %H:%M:%S.%f")
+		)
 
 
 class Database():
@@ -321,6 +401,7 @@ class Database():
 			CREATE TABLE dequeuer
 			(
 				dequeuer_guid GUID PRIMARY KEY,
+				is_responsive BIT,
 				last_known_client_guid GUID,
 				last_known_datetime TIMESTAMP,
 				row_created_datetime TIMESTAMP,
@@ -333,6 +414,7 @@ class Database():
 			CREATE TABLE reporter
 			(
 				reporter_guid GUID PRIMARY KEY,
+				is_responsive BIT,
 				last_known_client_guid GUID,
 				last_known_datetime TIMESTAMP,
 				row_created_datetime TIMESTAMP,
@@ -467,18 +549,21 @@ class Database():
 		_get_guid_cursor = self.__connection.cursor()
 		_get_guid_result = _get_guid_cursor.execute('''
 			SELECT
-				client_guid
-			FROM client
+				c.client_guid,
+				c.ip_address
+			FROM client AS c
 			WHERE
 				ip_address = ?
 		''', (ip_address, ))
 
-		_saved_guid = _get_guid_result.fetchall()[0][0]
+		_rows = _get_guid_result.fetchall()
+		if len(_rows) != 1:
+			raise Exception(f"Unexpected number of rows. Expected 1, found {len(_rows)}.")
+		else:
+			_client = Client.parse_row(
+				row=_rows[0]
+			)
 
-		_client = Client(
-			client_guid=_saved_guid,
-			ip_address=ip_address
-		)
 		return _client
 
 	def insert_device(self, *, device_guid: str, client_guid: str, purpose_guid: str) -> Device:
@@ -534,24 +619,39 @@ class Database():
 			AND is_retry_ready = 0
 		''', (device_guid,))
 
-		_device = Device(
-			device_guid=device_guid,
-			purpose_guid=purpose_guid
+		_device = self.get_device(
+			device_guid=device_guid
 		)
+
 		return _device
 
-	def insert_dequeuer(self, *, dequeuer_guid: str, client_guid: str):
+	def insert_dequeuer(self, *, dequeuer_guid: str, client_guid: str) -> Dequeuer:
 
 		_insert_cursor = self.__connection.cursor()
+
+		_insert_cursor.execute('''
+			BEGIN
+		''')
 		_insert_cursor.execute('''
 			INSERT OR IGNORE INTO dequeuer
 			(
 				dequeuer_guid,
+				is_responsive,
 				last_known_client_guid,
 				last_known_datetime
 			)
-			VALUES (?, ?, ?)
-		''', (dequeuer_guid, client_guid, datetime.utcnow()))
+			VALUES (?, ?, ?, ?)
+		''', (dequeuer_guid, True, client_guid, datetime.utcnow()))
+		_insert_cursor.execute('''
+			UPDATE dequeuer
+			SET
+				is_responsive = 1
+			WHERE
+				dequeuer_guid = ?
+		''', (dequeuer_guid,))
+		_insert_cursor.execute('''
+			COMMIT
+		''')
 
 		_is_successful, _dequeuer = self.try_get_dequeuer(
 			dequeuer_guid=dequeuer_guid
@@ -567,7 +667,8 @@ class Database():
 		_get_cursor = self.__connection.cursor()
 		_get_result = _get_cursor.execute('''
 			SELECT
-				d.dequeuer_guid
+				d.dequeuer_guid,
+				d.is_responsive
 			FROM dequeuer AS d
 			WHERE
 				d.dequeuer_guid = ?
@@ -576,27 +677,65 @@ class Database():
 		_rows = _get_result.fetchall()
 		if len(_rows) == 0:
 			_dequeuer = None
+		elif len(_rows) > 1:
+			raise Exception(f"Unexpected number of rows. Expected 0 or 1, found {len(_rows)}.")
 		else:
 			_row = _rows[0]
 
-			_dequeuer = Dequeuer(
-				dequeuer_guid=_row[0]
+			_dequeuer = Dequeuer.parse_row(
+				row=_row
 			)
 
 		return _dequeuer is not None, _dequeuer
 
-	def insert_reporter(self, *, reporter_guid: str, client_guid: str):
+	def get_all_dequeuers(self) -> List[Dequeuer]:
+
+		_get_cursor = self.__connection.cursor()
+		_get_result = _get_cursor.execute('''
+			SELECT
+				d.dequeuer_guid,
+				d.is_responsive
+			FROM dequeuer AS d
+			WHERE
+				d.is_responsive = 1
+		''')
+
+		_dequeuers = []  # type: List[Dequeuer]
+		_rows = _get_result.fetchall()
+		for _row in _rows:
+			_dequeuer = Dequeuer.parse_row(
+				row=_row
+			)
+			_dequeuers.append(_dequeuer)
+		return _dequeuers
+
+	def insert_reporter(self, *, reporter_guid: str, client_guid: str) -> Reporter:
 
 		_insert_cursor = self.__connection.cursor()
+
+		_insert_cursor.execute('''
+			BEGIN
+		''')
 		_insert_cursor.execute('''
 			INSERT OR IGNORE INTO reporter
 			(
 				reporter_guid,
+				is_responsive,
 				last_known_client_guid,
 				last_known_datetime
 			)
-			VALUES (?, ?, ?)
-		''', (reporter_guid, client_guid, datetime.utcnow()))
+			VALUES (?, ?, ?, ?)
+		''', (reporter_guid, True, client_guid, datetime.utcnow()))
+		_insert_cursor.execute('''
+			UPDATE reporter
+			SET
+				is_responsive = 1
+			WHERE
+				reporter_guid = ?
+		''', (reporter_guid,))
+		_insert_cursor.execute('''
+			COMMIT
+		''')
 
 		_is_successful, _reporter = self.try_get_reporter(
 			reporter_guid=reporter_guid
@@ -612,7 +751,8 @@ class Database():
 		_get_cursor = self.__connection.cursor()
 		_get_result = _get_cursor.execute('''
 			SELECT
-				r.reporter_guid
+				r.reporter_guid,
+				r.is_responsive
 			FROM reporter AS r
 			WHERE
 				r.reporter_guid = ?
@@ -621,11 +761,13 @@ class Database():
 		_rows = _get_result.fetchall()
 		if len(_rows) == 0:
 			_reporter = None
+		elif len(_rows) > 1:
+			raise Exception(f"Unexpected number of rows. Expected 0 or 1, found {len(_rows)}.")
 		else:
 			_row = _rows[0]
 
-			_reporter = Reporter(
-				reporter_guid=_row[0]
+			_reporter = Reporter.parse_row(
+				row=_row
 			)
 
 		return _reporter is not None, _reporter
@@ -641,9 +783,8 @@ class Database():
 		_devices = []  # type: List[Device]
 		_rows = _get_result.fetchall()
 		for _row in _rows:
-			_device = Device(
-				device_guid=_row[0],
-				purpose_guid=_row[1]
+			_device = Device.parse_row(
+				row=_row
 			)
 			_devices.append(_device)
 		return _devices
@@ -662,9 +803,8 @@ class Database():
 		if len(_rows) != 1:
 			raise Exception(f"Unexpected number of devices with guid: {len(_rows)} for guid \"{device_guid}\".")
 		_row = _rows[0]
-		_device = Device(
-			device_guid=_row[0],
-			purpose_guid=_row[1]
+		_device = Device.parse_row(
+			row=_row
 		)
 		return _device
 
@@ -716,20 +856,56 @@ class Database():
 		_rows = _get_result.fetchall()
 		if len(_rows) == 0:
 			_transmission = None
+		elif len(_rows) > 1:
+			raise Exception(f"Unexpected number of rows. Expected 0 or 1, found {len(_rows)}.")
 		else:
 			_row = _rows[0]
 
-			_transmission = Transmission(
-				transmission_guid=_row[0],
-				source_device_guid=_row[1],
-				request_client_guid=_row[2],
-				transmission_json_string=_row[3],
-				destination_device_guid=_row[4],
-				row_created_datetime=datetime.strptime(_row[5], "%Y-%m-%d %H:%M:%S.%f"),
-				is_retry_ready=_row[6]
+			_transmission = Transmission.parse_row(
+				row=_row
 			)
 
 		return _transmission is not None, _transmission
+
+	def try_get_transmission_dequeue_by_dequeuer(self, *, dequeuer_guid: str) -> Tuple[bool, TransmissionDequeue]:
+
+		_get_cursor = self.__connection.cursor()
+		_get_result = _get_cursor.execute('''
+			SELECT
+				td.transmission_dequeue_guid,
+				td.transmission_guid,
+				td.request_client_guid,
+				td.destination_client_guid,
+				td.row_created_datetime
+			FROM transmission_dequeue AS td
+			WHERE
+				td.dequeuer_guid = ?
+				AND NOT EXISTS (
+					SELECT 1
+					FROM transmission_complete AS tc_inner
+					WHERE
+						tc_inner.transmission_dequeue_guid = td.transmission_dequeue_guid
+				)
+				AND NOT EXISTS (
+					SELECT 1
+					FROM transmission_dequeue_error_transmission AS tdet_inner
+					WHERE
+						tdet_inner.transmission_dequeue_guid = td.transmission_dequeue_guid
+				)
+		''', (dequeuer_guid,))
+
+		_rows = _get_result.fetchall()
+		if len(_rows) == 0:
+			_transmission_dequeue = None
+		elif len(_rows) > 1:
+			raise Exception(f"Unexpected number of rows. Expected 0 or 1, found {len(_rows)}.")
+		else:
+			_row = _rows[0]
+			_transmission_dequeue = TransmissionDequeue.parse_row(
+				row=_row
+			)
+
+		return _transmission_dequeue is not None, _transmission_dequeue
 
 	def try_get_transmission_dequeue(self, *, transmission_dequeue_guid: str) -> Tuple[bool, TransmissionDequeue]:
 
@@ -749,15 +925,13 @@ class Database():
 		_rows = _get_result.fetchall()
 		if len(_rows) == 0:
 			_transmission_dequeue = None
+		elif len(_rows) > 1:
+			raise Exception(f"Unexpected number of rows. Expected 0 or 1, found {len(_rows)}.")
 		else:
 			_row = _rows[0]
 
-			_transmission_dequeue = TransmissionDequeue(
-				transmission_dequeue_guid=_row[0],
-				transmission_guid=_row[1],
-				request_client_guid=_row[2],
-				destination_client_guid=_row[3],
-				row_created_datetime=datetime.strptime(_row[4], "%Y-%m-%d %H:%M:%S.%f")
+			_transmission_dequeue = TransmissionDequeue.parse_row(
+				row=_row
 			)
 
 		return _transmission_dequeue is not None, _transmission_dequeue
@@ -801,57 +975,89 @@ class Database():
 							td_inner.transmission_guid = t.transmission_guid
 					)
 					OR
-					(
+					( -- or this specific transmission needs to be retransmitted
 						t.is_retry_ready = 1
 					)
 				)
 				AND
-				(
+				( -- there does not exist an earlier transmission that is not yet in a terminal state
 					NOT EXISTS (
 						SELECT 1
 						FROM transmission AS t_earlier
 						WHERE
 							t_earlier.destination_device_guid = t.destination_device_guid
 							AND t_earlier.row_created_datetime < t.row_created_datetime
-							AND NOT EXISTS (
-								SELECT 1
-								FROM transmission_dequeue AS td_earlier
-								INNER JOIN transmission_complete AS tc_earlier
-								ON
-									tc_earlier.transmission_dequeue_guid = td_earlier.transmission_dequeue_guid
-								WHERE
-									td_earlier.transmission_guid = t_earlier.transmission_guid
+							AND
+							(
+								( -- the transmission is not in a terminal state
+									NOT EXISTS (
+										SELECT 1
+										FROM transmission_dequeue AS td_earlier
+										INNER JOIN transmission_complete AS tc_earlier
+										ON
+											tc_earlier.transmission_dequeue_guid = td_earlier.transmission_dequeue_guid
+										WHERE
+											td_earlier.transmission_guid = t_earlier.transmission_guid
+									)
+									AND NOT EXISTS (
+										SELECT 1
+										FROM transmission_dequeue AS td_earlier
+										INNER JOIN transmission_dequeue_error_transmission AS tdet_earlier
+										ON
+											tdet_earlier.transmission_dequeue_guid = td_earlier.transmission_dequeue_guid
+										INNER JOIN transmission_dequeue_error_transmission_dequeue AS tdetd_earlier
+										ON
+											tdetd_earlier.transmission_dequeue_error_transmission_guid = tdet_earlier.transmission_dequeue_error_transmission_guid
+										INNER JOIN transmission_dequeue_error_transmission_complete AS tdetc_earlier
+										ON
+											tdetc_earlier.transmission_dequeue_error_transmission_dequeue_guid = tdetd_earlier.transmission_dequeue_error_transmission_dequeue_guid
+										WHERE
+											td_earlier.transmission_guid = t_earlier.transmission_guid
+											AND tdetc_earlier.is_retry_requested = 0
+									)
+								)
 							)
-							AND NOT EXISTS (
-								SELECT 1
-								FROM transmission_dequeue AS td_earlier
-								INNER JOIN transmission_dequeue_error_transmission AS tdet_earlier
-								ON
-									tdet_earlier.transmission_dequeue_guid = td_earlier.transmission_dequeue_guid
-								INNER JOIN transmission_dequeue_error_transmission_dequeue AS tdetd_earlier
-								ON
-									tdetd_earlier.transmission_dequeue_error_transmission_guid = tdet_earlier.transmission_dequeue_error_transmission_guid
-								INNER JOIN transmission_dequeue_error_transmission_complete AS tdetc_earlier
-								ON
-									tdetc_earlier.transmission_dequeue_error_transmission_dequeue_guid = tdetd_earlier.transmission_dequeue_error_transmission_dequeue_guid
-								WHERE
-									td_earlier.transmission_guid = t_earlier.transmission_guid
-									AND tdetc_earlier.is_retry_requested = 0
+							-- entries in the transmission_dequeue_error_transmission_error table are not valid terminal conditions because the transmissions may need to be received sequentially via a retry
+					)
+				)
+				AND -- dequeuer doesn't already have an entry dequeued
+				(
+					NOT EXISTS (
+						SELECT 1
+						FROM transmission_dequeue AS td_same
+						WHERE
+							td_same.dequeuer_guid = ?
+							AND
+							( -- transmission is not in a state post-dequeuer
+								NOT EXISTS (
+									SELECT 1
+									FROM transmission_complete AS tc_same
+									WHERE
+										tc_same.transmission_dequeue_guid = td_same.transmission_dequeue_guid
+								)
+								AND NOT EXISTS (
+									SELECT 1
+									FROM transmission_dequeue_error_transmission AS tdet_same
+									WHERE
+										tdet_same.transmission_dequeue_guid = td_same.transmission_dequeue_guid
+								)
 							)
-							-- entries in the transmission_dequeue_error_transmission_error table are not valid ternimal conditions because the transmissions may need to be received sequentially via a retry
 					)
 				)
 			ORDER BY
 				t.row_created_datetime
 			LIMIT 1
-		''', (dequeuer_guid, _transmission_dequeue_guid, client_guid, _row_created_datetime))
+		''', (dequeuer_guid, _transmission_dequeue_guid, client_guid, _row_created_datetime, dequeuer_guid))
 
-		_is_successful, _transmission_dequeue = self.try_get_transmission_dequeue(
-			transmission_dequeue_guid=_transmission_dequeue_guid
+		#_is_successful, _transmission_dequeue = self.try_get_transmission_dequeue(
+		#	transmission_dequeue_guid=_transmission_dequeue_guid
+		#)
+
+		_is_successful, _transmission_dequeue = self.try_get_transmission_dequeue_by_dequeuer(
+			dequeuer_guid=dequeuer_guid
 		)
 
 		if _is_successful:
-
 			_is_successful, _transmission = self.try_get_transmission(
 				transmission_guid=_transmission_dequeue.get_transmission_guid()
 			)
@@ -932,15 +1138,13 @@ class Database():
 		_rows = _get_result.fetchall()
 		if len(_rows) == 0:
 			_transmission_dequeue_error_transmission_dequeue = None
+		elif len(_rows) > 1:
+			raise Exception(f"Unexpected number of rows. Expected 0 or 1, found {len(_rows)}.")
 		else:
 			_row = _rows[0]
 
-			_transmission_dequeue_error_transmission_dequeue = TransmissionDequeueErrorTransmissionDequeue(
-				transmission_dequeue_error_transmission_dequeue_guid=_row[0],
-				transmission_dequeue_error_transmission_guid=_row[1],
-				request_client_guid=_row[2],
-				destination_client_guid=_row[3],
-				row_created_datetime=datetime.strptime(_row[4], "%Y-%m-%d %H:%M:%S.%f")
+			_transmission_dequeue_error_transmission_dequeue = TransmissionDequeueErrorTransmissionDequeue.parse_row(
+				row=_row
 			)
 
 		return _transmission_dequeue_error_transmission_dequeue is not None, _transmission_dequeue_error_transmission_dequeue
@@ -964,16 +1168,13 @@ class Database():
 		_rows = _get_result.fetchall()
 		if len(_rows) == 0:
 			_transmission_dequeue_error_transmission = None
+		elif len(_rows) > 1:
+			raise Exception(f"Unexpected number of rows. Expected 0 or 1, found {len(_rows)}.")
 		else:
 			_row = _rows[0]
 
-			_transmission_dequeue_error_transmission = TransmissionDequeueErrorTransmission(
-				transmission_dequeue_error_transmission_guid=_row[0],
-				request_client_guid=_row[1],
-				transmission_dequeue_guid=_row[2],
-				error_message_json_string=_row[3],
-				row_created_datetime=datetime.strptime(_row[4], "%Y-%m-%d %H:%M:%S.%f"),
-				is_retry_ready=_row[5]
+			_transmission_dequeue_error_transmission = TransmissionDequeueErrorTransmission.parse_row(
+				row=_row
 			)
 
 		return _transmission_dequeue_error_transmission is not None, _transmission_dequeue_error_transmission
@@ -1209,9 +1410,8 @@ class Database():
 		_devices = []  # type: List[Device]
 		_rows = _get_result.fetchall()
 		for _row in _rows:
-			_device = Device(
-				device_guid=_row[0],
-				purpose_guid=_row[1]
+			_device = Device.parse_row(
+				row=_row
 			)
 			_devices.append(_device)
 		return _devices

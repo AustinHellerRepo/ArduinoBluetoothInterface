@@ -2135,6 +2135,180 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_second_transmission_dequeue)
 			self.assertEqual(_first_transmission_dequeue.get_transmission_dequeue_guid(), _second_transmission_dequeue.get_transmission_dequeue_guid())
 
+	def test_dequeuer_unresponsive_0(self):
+		# dequeuer pulls transmission dequeue, completes transmission, marked unresponsive, and reconnects
+		with Database() as _database:
+			_source_client = _database.insert_client(
+				ip_address="127.0.0.1"
+			)
+			self.assertIsNotNone(_source_client)
+			_source_device = _database.insert_device(
+				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
+				client_guid=_source_client.get_client_guid(),
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+			)
+			self.assertIsNotNone(_source_device)
+			_destination_client = _database.insert_client(
+				ip_address="127.0.0.2"
+			)
+			self.assertIsNotNone(_destination_client)
+			_destination_device = _database.insert_device(
+				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
+				client_guid=_destination_client.get_client_guid(),
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+			)
+			self.assertIsNotNone(_destination_device)
+			_transmission_client = _database.insert_client(
+				ip_address="127.0.0.3"
+			)
+			self.assertIsNotNone(_transmission_client)
+			_transmission = _database.insert_transmission(
+				source_device_guid=_source_device.get_device_guid(),
+				client_guid=_transmission_client.get_client_guid(),
+				transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid()
+			)
+			self.assertIsNotNone(_transmission)
+			_dequeue_client = _database.insert_client(
+				ip_address="127.0.0.4"
+			)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="136B7D8A-573E-45D3-B075-567ADBFE1DDE",
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			_first_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertIsNotNone(_first_transmission_dequeue)
+			_database.transmission_completed(
+				client_guid=_dequeue_client.get_client_guid(),
+				transmission_dequeue_guid=_first_transmission_dequeue.get_transmission_dequeue_guid()
+			)
+			_first_responsive_dequeuers = _database.get_all_responsive_dequeuers()
+			self.assertEqual(1, len(_first_responsive_dequeuers))
+			_database.set_dequeuer_unresponsive(
+				dequeuer_guid="136B7D8A-573E-45D3-B075-567ADBFE1DDE"
+			)
+			_second_responsive_dequeuers = _database.get_all_responsive_dequeuers()
+			self.assertEqual(0, len(_second_responsive_dequeuers))
+			_same_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="136B7D8A-573E-45D3-B075-567ADBFE1DDE",
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			_third_responsive_dequeuers = _database.get_all_responsive_dequeuers()
+			self.assertEqual(1, len(_third_responsive_dequeuers))
+
+	def test_reporter_unresponsive_0(self):
+		# dequeuer pulls transmission dequeue, fails transmission, reporter pulls failed transmission, reporter completes, marked unresponsive, and reconnects
+		with Database() as _database:
+			_source_client = _database.insert_client(
+				ip_address="127.0.0.1"
+			)
+			self.assertIsNotNone(_source_client)
+			_source_device = _database.insert_device(
+				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
+				client_guid=_source_client.get_client_guid(),
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+			)
+			self.assertIsNotNone(_source_device)
+			_destination_client = _database.insert_client(
+				ip_address="127.0.0.2"
+			)
+			self.assertIsNotNone(_destination_client)
+			_destination_device = _database.insert_device(
+				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
+				client_guid=_destination_client.get_client_guid(),
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+			)
+			self.assertIsNotNone(_destination_device)
+			_transmission_client = _database.insert_client(
+				ip_address="127.0.0.3"
+			)
+			self.assertIsNotNone(_transmission_client)
+			_transmission = _database.insert_transmission(
+				source_device_guid=_source_device.get_device_guid(),
+				client_guid=_transmission_client.get_client_guid(),
+				transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid()
+			)
+			self.assertIsNotNone(_transmission)
+			_dequeue_client = _database.insert_client(
+				ip_address="127.0.0.4"
+			)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="136B7D8A-573E-45D3-B075-567ADBFE1DDE",
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertIsNotNone(_transmission_dequeue)
+			_database.transmission_failed(
+				client_guid=_dequeue_client.get_client_guid(),
+				transmission_dequeue_guid=_transmission_dequeue.get_transmission_dequeue_guid(),
+				error_message_json_string="{ \"full\": \"empty\" }"
+			)
+			_reporter_client = _database.insert_client(
+				ip_address="127.0.0.5"
+			)
+			_reporter = _database.insert_reporter(
+				reporter_guid="297E5526-EF3F-4506-A431-C6854CD66FA8",
+				client_guid=_reporter_client.get_client_guid()
+			)
+			_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_reporter.get_reporter_guid(),
+				client_guid=_reporter_client.get_client_guid()
+			)
+			_database.failed_transmission_completed(
+				client_guid=_reporter_client.get_client_guid(),
+				transmission_dequeue_error_transmission_dequeue_guid=_failed_transmission_dequeue.get_transmission_dequeue_error_transmission_dequeue_guid(),
+				is_retry_requested=False
+			)
+			_first_responsive_reporters = _database.get_all_responsive_reporters()
+			self.assertEqual(1, len(_first_responsive_reporters))
+			_database.set_reporter_unresponsive(
+				reporter_guid="297E5526-EF3F-4506-A431-C6854CD66FA8"
+			)
+			_second_responsive_reporters = _database.get_all_responsive_reporters()
+			self.assertEqual(0, len(_second_responsive_reporters))
+			_same_reporter = _database.insert_reporter(
+				reporter_guid="297E5526-EF3F-4506-A431-C6854CD66FA8",
+				client_guid=_reporter_client.get_client_guid()
+			)
+			_third_responsive_reporters = _database.get_all_responsive_reporters()
+			self.assertEqual(1, len(_third_responsive_reporters))
+
+	def test_reporter_unresponsive_1(self):
+		# reporter guid exists
+		with Database() as _database:
+			_reporter_client = _database.insert_client(
+				ip_address="127.0.0.5"
+			)
+			_reporter = _database.insert_reporter(
+				reporter_guid="297E5526-EF3F-4506-A431-C6854CD66FA8",
+				client_guid=_reporter_client.get_client_guid()
+			)
+			_database.set_reporter_unresponsive(
+				reporter_guid="297E5526-EF3F-4506-A431-C6854CD66FA8"
+			)
+
+	def test_reporter_unresponsive_2(self):
+		# reporter guid not exists
+		with Database() as _database:
+			_reporter_client = _database.insert_client(
+				ip_address="127.0.0.5"
+			)
+			_reporter = _database.insert_reporter(
+				reporter_guid="297E5526-EF3F-4506-A431-C6854CD66FA8",
+				client_guid=_reporter_client.get_client_guid()
+			)
+			with self.assertRaises(NotImplementedError):
+				_database.set_reporter_unresponsive(
+					reporter_guid="1CEBE505-4DC3-4885-8C9D-8862CEC771B7"
+				)
+
 
 if __name__ == "__main__":
 	unittest.main()

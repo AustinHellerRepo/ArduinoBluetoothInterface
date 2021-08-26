@@ -6,6 +6,14 @@ from datetime import datetime
 from typing import Tuple, List, Dict
 
 
+class DequeuerNotFoundException(Exception):
+	pass
+
+
+class ReporterNotFoundException(Exception):
+	pass
+
+
 class Purpose(IntEnum):
 
 	DoorLight = 1,
@@ -61,10 +69,11 @@ class Device():
 
 class Dequeuer():
 
-	def __init__(self, *, dequeuer_guid: str, is_responsive: bool):
+	def __init__(self, *, dequeuer_guid: str, is_responsive: bool, responsive_update_datetime: datetime):
 
 		self.__dequeuer_guid = dequeuer_guid
 		self.__is_responsive = is_responsive
+		self.__responsive_update_datetime = responsive_update_datetime
 
 	def get_dequeuer_guid(self) -> str:
 		return self.__dequeuer_guid
@@ -72,26 +81,32 @@ class Dequeuer():
 	def get_is_responsive(self) -> bool:
 		return self.__is_responsive
 
+	def get_responsive_update_datetime(self) -> datetime:
+		return self.__responsive_update_datetime
+
 	def to_json(self) -> object:
 		return {
 			"dequeuer_guid": self.__dequeuer_guid,
-			"is_responsive": self.__is_responsive
+			"is_responsive": self.__is_responsive,
+			"responsive_update_datetime": self.__responsive_update_datetime
 		}
 
 	@staticmethod
 	def parse_row(*, row: Dict) -> Dequeuer:
 		return Dequeuer(
 			dequeuer_guid=row[0],
-			is_responsive=row[1]
+			is_responsive=row[1],
+			responsive_update_datetime=row[2]
 		)
 
 
 class Reporter():
 
-	def __init__(self, *, reporter_guid: str, is_responsive: bool):
+	def __init__(self, *, reporter_guid: str, is_responsive: bool, responsive_update_datetime: datetime):
 
 		self.__reporter_guid = reporter_guid
 		self.__is_responsive = is_responsive
+		self.__responsive_update_datetime = responsive_update_datetime
 
 	def get_reporter_guid(self) -> str:
 		return self.__reporter_guid
@@ -99,17 +114,22 @@ class Reporter():
 	def get_is_responsive(self) -> bool:
 		return self.__is_responsive
 
+	def get_responsive_update_datetime(self) -> datetime:
+		return self.__responsive_update_datetime
+
 	def to_json(self) -> object:
 		return {
 			"reporter_guid": self.__reporter_guid,
-			"is_responsive": self.__is_responsive
+			"is_responsive": self.__is_responsive,
+			"responsive_update_datetime": self.__responsive_update_datetime
 		}
 
 	@staticmethod
 	def parse_row(*, row: Dict) -> Reporter:
 		return Reporter(
 			reporter_guid=row[0],
-			is_responsive=row[1]
+			is_responsive=row[1],
+			responsive_update_datetime=row[2]
 		)
 
 
@@ -402,6 +422,7 @@ class Database():
 			(
 				dequeuer_guid GUID PRIMARY KEY,
 				is_responsive BIT,
+				responsive_update_datetime TIMESTAMP,
 				last_known_client_guid GUID,
 				last_known_datetime TIMESTAMP,
 				row_created_datetime TIMESTAMP,
@@ -415,6 +436,7 @@ class Database():
 			(
 				reporter_guid GUID PRIMARY KEY,
 				is_responsive BIT,
+				responsive_update_datetime TIMESTAMP,
 				last_known_client_guid GUID,
 				last_known_datetime TIMESTAMP,
 				row_created_datetime TIMESTAMP,
@@ -627,6 +649,8 @@ class Database():
 
 	def insert_dequeuer(self, *, dequeuer_guid: str, client_guid: str) -> Dequeuer:
 
+		_responsive_update_datetime = datetime.utcnow()
+
 		_insert_cursor = self.__connection.cursor()
 
 		_insert_cursor.execute('''
@@ -637,18 +661,21 @@ class Database():
 			(
 				dequeuer_guid,
 				is_responsive,
+				responsive_update_datetime,
 				last_known_client_guid,
 				last_known_datetime
 			)
-			VALUES (?, ?, ?, ?)
-		''', (dequeuer_guid, True, client_guid, datetime.utcnow()))
+			VALUES (?, ?, ?, ?, ?)
+		''', (dequeuer_guid, True, _responsive_update_datetime, client_guid, datetime.utcnow()))
 		_insert_cursor.execute('''
 			UPDATE dequeuer
 			SET
-				is_responsive = 1
+				is_responsive = 1,
+				responsive_update_datetime = ?
 			WHERE
 				dequeuer_guid = ?
-		''', (dequeuer_guid,))
+				AND is_responsive != 1
+		''', (_responsive_update_datetime, dequeuer_guid))
 		_insert_cursor.execute('''
 			COMMIT
 		''')
@@ -668,7 +695,8 @@ class Database():
 		_get_result = _get_cursor.execute('''
 			SELECT
 				d.dequeuer_guid,
-				d.is_responsive
+				d.is_responsive,
+				d.responsive_update_datetime
 			FROM dequeuer AS d
 			WHERE
 				d.dequeuer_guid = ?
@@ -688,13 +716,14 @@ class Database():
 
 		return _dequeuer is not None, _dequeuer
 
-	def get_all_dequeuers(self) -> List[Dequeuer]:
+	def get_all_responsive_dequeuers(self) -> List[Dequeuer]:
 
 		_get_cursor = self.__connection.cursor()
 		_get_result = _get_cursor.execute('''
 			SELECT
 				d.dequeuer_guid,
-				d.is_responsive
+				d.is_responsive,
+				d.responsive_update_datetime
 			FROM dequeuer AS d
 			WHERE
 				d.is_responsive = 1
@@ -709,7 +738,31 @@ class Database():
 			_dequeuers.append(_dequeuer)
 		return _dequeuers
 
+	def get_all_responsive_reporters(self) -> List[Reporter]:
+
+		_get_cursor = self.__connection.cursor()
+		_get_result = _get_cursor.execute('''
+			SELECT
+				r.reporter_guid,
+				r.is_responsive,
+				r.responsive_update_datetime
+			FROM reporter AS r
+			WHERE
+				r.is_responsive = 1
+		''')
+
+		_reporters = []  # type: List[Reporter]
+		_rows = _get_result.fetchall()
+		for _row in _rows:
+			_reporter = Reporter.parse_row(
+				row=_row
+			)
+			_reporters.append(_reporter)
+		return _reporters
+
 	def insert_reporter(self, *, reporter_guid: str, client_guid: str) -> Reporter:
+
+		_responsive_update_datetime = datetime.utcnow()
 
 		_insert_cursor = self.__connection.cursor()
 
@@ -721,18 +774,21 @@ class Database():
 			(
 				reporter_guid,
 				is_responsive,
+				responsive_update_datetime,
 				last_known_client_guid,
 				last_known_datetime
 			)
-			VALUES (?, ?, ?, ?)
-		''', (reporter_guid, True, client_guid, datetime.utcnow()))
+			VALUES (?, ?, ?, ?, ?)
+		''', (reporter_guid, True, _responsive_update_datetime, client_guid, datetime.utcnow()))
 		_insert_cursor.execute('''
 			UPDATE reporter
 			SET
-				is_responsive = 1
+				is_responsive = 1,
+				responsive_update_datetime = ?
 			WHERE
 				reporter_guid = ?
-		''', (reporter_guid,))
+				AND is_responsive != 1
+		''', (_responsive_update_datetime, reporter_guid))
 		_insert_cursor.execute('''
 			COMMIT
 		''')
@@ -752,7 +808,8 @@ class Database():
 		_get_result = _get_cursor.execute('''
 			SELECT
 				r.reporter_guid,
-				r.is_responsive
+				r.is_responsive,
+				r.responsive_update_datetime
 			FROM reporter AS r
 			WHERE
 				r.reporter_guid = ?
@@ -1415,3 +1472,44 @@ class Database():
 			)
 			_devices.append(_device)
 		return _devices
+
+	def set_dequeuer_unresponsive(self, *, dequeuer_guid: str):
+
+		_responsive_update_datetime = datetime.utcnow()
+
+		_update_cursor = self.__connection.cursor()
+		_update_cursor.execute('''
+			UPDATE dequeuer
+			SET
+				is_responsive = 0,
+				responsive_update_datetime = ?
+			WHERE
+				dequeuer_guid = ?
+		''', (_responsive_update_datetime, dequeuer_guid))
+
+	def set_reporter_unresponsive(self, *, reporter_guid: str):
+
+		_responsive_update_datetime = datetime.utcnow()
+
+		_update_cursor = self.__connection.cursor()
+
+		_update_cursor.execute('''
+			BEGIN
+		''')
+		_update_result = _update_cursor.execute('''
+			UPDATE reporter
+			SET
+				is_responsive = 0,
+				responsive_update_datetime = ?
+			WHERE
+				reporter_guid = ?
+		''', (_responsive_update_datetime, reporter_guid))
+		_update_cursor.execute('''
+			COMMIT
+		''')
+
+		_rows = _update_result.fetchall()
+		print(f"rows: {_rows}")
+
+		if _update_result.fetchall()[0][0] == 0:
+			raise ReporterNotFoundException(f"Failed to find reporter with guid: \"{reporter_guid}\".")

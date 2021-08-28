@@ -24,4 +24,3 @@ class MainTest(unittest.TestCase):
 		self.assertIsNotNone(_response_json["response"]["device"])
 		self.assertEqual("2061BABC-9CCE-4E48-9C7C-C09D92342678", _response_json["response"]["device"]["device_guid"])
 		self.assertEqual("866FB619-E643-46CB-B508-1377EF43CEBC", _response_json["response"]["device"]["purpose_guid"])
-

@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Request
-from app.database import Database
+from app.database import Database, ApiEntrypoint
 import traceback
+from typing import List, Tuple, Dict
+import json
 
 app = FastAPI()
 
@@ -15,8 +17,48 @@ def get_database() -> Database:
 	return __singleton_database
 
 
+def log_api_entrypoint(*, api_entrypoint: ApiEntrypoint, args_json: Dict, request: Request):
+	try:
+		args_json["request"] = {
+			"method": request.method,
+			"url": {
+				"query": request.url.query,
+				"path": request.url.path,
+				"hostname": request.url.hostname,
+				"is_secure": request.url.is_secure,
+				"scheme": request.url.scheme,
+				"port": request.url.port
+			},
+			"client": {
+				"host": request.client.host,
+				"port": request.client.port
+			},
+			"headers": request.headers.items()
+		}
+
+		_database = get_database()
+		_client = _database.insert_client(
+			ip_address=request.client.host
+		)
+		_database.insert_api_entrypoint_log(
+			client_guid=_client.get_client_guid(),
+			api_entrypoint=api_entrypoint,
+			input_json_string=json.dumps(args_json)
+		)
+	except Exception as ex:
+		_error_message = str(ex)
+		traceback.print_exc()
+
+
 @app.get("/")
-def test_root():
+def test_root(request: Request):
+
+	log_api_entrypoint(
+		api_entrypoint=ApiEntrypoint.TestRoot,
+		args_json={},
+		request=request
+	)
+
 	_is_successful = True
 	_response_json = None
 	_error_message = None
@@ -28,7 +70,16 @@ def test_root():
 
 
 @app.post("/v1/device/announce")
-def receive_device_announcement(device_guid: str, purpose_guid: str, request: Request):
+def v1_receive_device_announcement(device_guid: str, purpose_guid: str, request: Request):
+
+	log_api_entrypoint(
+		api_entrypoint=ApiEntrypoint.V1ReceiveDeviceAnnouncement,
+		args_json={
+			"device_guid": device_guid,
+			"purpose_guid": purpose_guid,
+		},
+		request=request
+	)
 
 	_is_successful = False
 	_response_json = None
@@ -61,7 +112,17 @@ def receive_device_announcement(device_guid: str, purpose_guid: str, request: Re
 
 
 @app.post("/v1/transmission/enqueue")
-def receive_device_transmission(source_device_guid: str, transmission_json_string: str, destination_device_guid: str, request: Request):
+def v1_receive_device_transmission(source_device_guid: str, transmission_json_string: str, destination_device_guid: str, request: Request):
+
+	log_api_entrypoint(
+		api_entrypoint=ApiEntrypoint.V1ReceiveDeviceTransmission,
+		args_json={
+			"source_device_guid": source_device_guid,
+			"transmission_json_string": transmission_json_string,
+			"destination_device_guid": destination_device_guid
+		},
+		request=request
+	)
 
 	_is_successful = False
 	_response_json = None
@@ -94,7 +155,13 @@ def receive_device_transmission(source_device_guid: str, transmission_json_strin
 
 
 @app.post("/v1/transmission/dequeue")
-def dequeue_next_transmission(request: Request):
+def v1_dequeue_next_transmission(request: Request):
+
+	log_api_entrypoint(
+		api_entrypoint=ApiEntrypoint.V1DequeueNextTransmission,
+		args_json={},
+		request=request
+	)
 
 	_is_successful = False
 	_response_json = None
@@ -128,7 +195,15 @@ def dequeue_next_transmission(request: Request):
 
 
 @app.post("/v1/transmission/complete")
-def complete_transmission(transmission_dequeue_guid: str, request: Request):
+def v1_complete_transmission(transmission_dequeue_guid: str, request: Request):
+
+	log_api_entrypoint(
+		api_entrypoint=ApiEntrypoint.V1CompleteTransmission,
+		args_json={
+			"transmission_dequeue_guid": transmission_dequeue_guid
+		},
+		request=request
+	)
 
 	_is_successful = False
 	_response_json = None
@@ -163,7 +238,16 @@ def complete_transmission(transmission_dequeue_guid: str, request: Request):
 
 
 @app.post("/v1/transmission/failure")
-def failed_transmission(transmission_dequeue_guid: str, error_message_json_string: str, request: Request):
+def v1_failed_transmission(transmission_dequeue_guid: str, error_message_json_string: str, request: Request):
+
+	log_api_entrypoint(
+		api_entrypoint=ApiEntrypoint.V1FailedTransmission,
+		args_json={
+			"transmission_dequeue_guid": transmission_dequeue_guid,
+			"error_message_json_string": error_message_json_string
+		},
+		request=request
+	)
 
 	_is_successful = False
 	_response_json = None
@@ -192,7 +276,13 @@ def failed_transmission(transmission_dequeue_guid: str, error_message_json_strin
 
 
 @app.post("/v1/failure/dequeue")
-def dequeue_failure_transmission(request: Request):
+def v1_dequeue_failure_transmission(request: Request):
+
+	log_api_entrypoint(
+		api_entrypoint=ApiEntrypoint.V1DequeueFailureTransmission,
+		args_json={},
+		request=request
+	)
 
 	_is_successful = False
 	_response_json = None
@@ -226,7 +316,16 @@ def dequeue_failure_transmission(request: Request):
 
 
 @app.post("/v1/failure/complete")
-def complete_failure_transmission(transmission_dequeue_error_transmission_dequeue_guid: str, is_retry_requested: bool, request: Request):
+def v1_complete_failure_transmission(transmission_dequeue_error_transmission_dequeue_guid: str, is_retry_requested: bool, request: Request):
+
+	log_api_entrypoint(
+		api_entrypoint=ApiEntrypoint.V1CompleteFailureTransmission,
+		args_json={
+			"transmission_dequeue_error_transmission_dequeue_guid": transmission_dequeue_error_transmission_dequeue_guid,
+			"is_retry_requested": is_retry_requested
+		},
+		request=request
+	)
 
 	_is_successful = False
 	_response_json = None
@@ -255,7 +354,16 @@ def complete_failure_transmission(transmission_dequeue_error_transmission_dequeu
 
 
 @app.post("/v1/failure/failure")
-def failed_failure_transmission(transmission_dequeue_error_transmission_dequeue_guid: str, error_message_json_string: str, request: Request):
+def v1_failed_failure_transmission(transmission_dequeue_error_transmission_dequeue_guid: str, error_message_json_string: str, request: Request):
+
+	log_api_entrypoint(
+		api_entrypoint=ApiEntrypoint.V1FailedFailureTransmission,
+		args_json={
+			"transmission_dequeue_error_transmission_dequeue_guid": transmission_dequeue_error_transmission_dequeue_guid,
+			"error_message_json_string": error_message_json_string
+		},
+		request=request
+	)
 
 	_is_successful = False
 	_response_json = None

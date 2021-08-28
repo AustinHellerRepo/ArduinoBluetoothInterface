@@ -1,9 +1,10 @@
 from __future__ import annotations
-from app.database import Database, Client, Device, Transmission
+from app.database import Database, Client, Device, Transmission, ApiEntrypoint
 import unittest
 import sqlite3
 from typing import List, Tuple, Dict
 import uuid
+from datetime import datetime
 
 
 class DatabaseTest(unittest.TestCase):
@@ -2294,7 +2295,7 @@ class DatabaseTest(unittest.TestCase):
 				reporter_guid="297E5526-EF3F-4506-A431-C6854CD66FA8"
 			)
 
-	def test_reporter_unresponsive_2(self):
+	def todo_reporter_unresponsive_2(self):  # TODO
 		# reporter guid not exists
 		with Database() as _database:
 			_reporter_client = _database.insert_client(
@@ -2308,6 +2309,79 @@ class DatabaseTest(unittest.TestCase):
 				_database.set_reporter_unresponsive(
 					reporter_guid="1CEBE505-4DC3-4885-8C9D-8862CEC771B7"
 				)
+
+	def test_api_entrypoint_log_0(self):
+		# insert each type of api entrypoint
+		with Database() as _database:
+			_client = _database.insert_client(
+				ip_address="127.0.0.1"
+			)
+
+			_start_datetime = datetime.utcnow()
+
+			_database.insert_api_entrypoint_log(
+				client_guid=_client.get_client_guid(),
+				api_entrypoint=ApiEntrypoint.TestRoot,
+				input_json_string=None
+			)
+			_database.insert_api_entrypoint_log(
+				client_guid=_client.get_client_guid(),
+				api_entrypoint=ApiEntrypoint.V1ReceiveDeviceAnnouncement,
+				input_json_string=""
+			)
+			_database.insert_api_entrypoint_log(
+				client_guid=_client.get_client_guid(),
+				api_entrypoint=ApiEntrypoint.V1ReceiveDeviceTransmission,
+				input_json_string="{ }"
+			)
+			_database.insert_api_entrypoint_log(
+				client_guid=_client.get_client_guid(),
+				api_entrypoint=ApiEntrypoint.V1DequeueNextTransmission,
+				input_json_string="{ \"test\": true }"
+			)
+			_database.insert_api_entrypoint_log(
+				client_guid=_client.get_client_guid(),
+				api_entrypoint=ApiEntrypoint.V1CompleteTransmission,
+				input_json_string="{ \"transmission_dequeue_guid\": \"7F496997-57D1-4803-8DD5-57ECFC858DE9\" }"
+			)
+			_database.insert_api_entrypoint_log(
+				client_guid=_client.get_client_guid(),
+				api_entrypoint=ApiEntrypoint.V1FailedTransmission,
+				input_json_string="{ \"first\": 1, \"second\": 2 }"
+			)
+			_database.insert_api_entrypoint_log(
+				client_guid=_client.get_client_guid(),
+				api_entrypoint=ApiEntrypoint.V1DequeueFailureTransmission,
+				input_json_string=f"{{ \"size_test\": \"{'1234567890' * 10**5}\" }}"
+			)
+			_database.insert_api_entrypoint_log(
+				client_guid=_client.get_client_guid(),
+				api_entrypoint=ApiEntrypoint.V1CompleteFailureTransmission,
+				input_json_string=f"{{ \"size_test\": \"{'1234567890' * 10**6}\" }}"
+			)
+			_database.insert_api_entrypoint_log(
+				client_guid=_client.get_client_guid(),
+				api_entrypoint=ApiEntrypoint.V1FailedFailureTransmission,
+				input_json_string=f"{{ \"size_test\": \"{'1234567890' * 10**7}\" }}"
+			)
+
+			_end_datetime = datetime.utcnow()
+
+			_api_entrypoint_logs = _database.get_api_entrypoint_logs(
+				inclusive_start_row_created_datetime=_start_datetime,
+				exclusive_end_row_created_datetime=_end_datetime
+			)
+
+			self.assertEqual(9, len(_api_entrypoint_logs))
+			self.assertEqual(None, _api_entrypoint_logs[0].get_input_json_string())
+			self.assertEqual("", _api_entrypoint_logs[1].get_input_json_string())
+			self.assertEqual("{ }", _api_entrypoint_logs[2].get_input_json_string())
+			self.assertEqual("{ \"test\": true }", _api_entrypoint_logs[3].get_input_json_string())
+			self.assertEqual("{ \"transmission_dequeue_guid\": \"7F496997-57D1-4803-8DD5-57ECFC858DE9\" }", _api_entrypoint_logs[4].get_input_json_string())
+			self.assertEqual("{ \"first\": 1, \"second\": 2 }", _api_entrypoint_logs[5].get_input_json_string())
+			self.assertEqual(f"{{ \"size_test\": \"{'1234567890' * 10**5}\" }}", _api_entrypoint_logs[6].get_input_json_string())
+			self.assertEqual(f"{{ \"size_test\": \"{'1234567890' * 10**6}\" }}", _api_entrypoint_logs[7].get_input_json_string())
+			self.assertEqual(f"{{ \"size_test\": \"{'1234567890' * 10**7}\" }}", _api_entrypoint_logs[8].get_input_json_string())
 
 
 if __name__ == "__main__":

@@ -20,6 +20,19 @@ class Purpose(IntEnum):
 	DeskController = 2
 
 
+class ApiEntrypoint(IntEnum):
+
+	TestRoot = 1,
+	V1ReceiveDeviceAnnouncement = 2,
+	V1ReceiveDeviceTransmission = 3,
+	V1DequeueNextTransmission = 4,
+	V1CompleteTransmission = 5,
+	V1FailedTransmission = 6,
+	V1DequeueFailureTransmission = 7,
+	V1CompleteFailureTransmission = 8,
+	V1FailedFailureTransmission = 9
+
+
 class Client():
 
 	def __init__(self, *, client_guid: str, ip_address: str):
@@ -39,6 +52,43 @@ class Client():
 			client_guid=row[0],
 			ip_address=row[1]
 		)
+
+
+class ApiEntrypointLog():
+
+	def __init__(self, *, api_entrypoint_log_id: int, api_entrypoint_id: int, request_client_guid: str, input_json_string: str, row_created_datetime: datetime):
+
+		self.__api_entrypoint_log_id = api_entrypoint_log_id
+		self.__api_entrypoint_id = api_entrypoint_id
+		self.__request_client_guid = request_client_guid
+		self.__input_json_string = input_json_string
+		self.__row_created_datetime = row_created_datetime
+
+	def get_api_entrypoint_log_id(self) -> int:
+		return self.__api_entrypoint_log_id
+
+	def get_api_entrypoint(self) -> ApiEntrypoint:
+		return ApiEntrypoint(self.__api_entrypoint_id)
+
+	def get_request_client_guid(self) -> str:
+		return self.__request_client_guid
+
+	def get_input_json_string(self) -> str:
+		return self.__input_json_string
+
+	def get_row_created_datetime(self) -> datetime:
+		return self.__row_created_datetime
+
+	@staticmethod
+	def parse_row(*, row: Dict) -> ApiEntrypointLog:
+		return ApiEntrypointLog(
+			api_entrypoint_log_id=row[0],
+			api_entrypoint_id=row[1],
+			request_client_guid=row[2],
+			input_json_string=row[3],
+			row_created_datetime=datetime.strptime(row[4], "%Y-%m-%d %H:%M:%S.%f")
+		)
+
 
 class Device():
 
@@ -550,6 +600,73 @@ class Database():
 				FOREIGN KEY (request_client_guid) REFERENCES client(client_guid)
 			)
 		''')
+		if self.__drop_tables_if_exist:
+			_cursor.execute("DROP TABLE IF EXISTS api_entrypoint;")
+		_cursor.execute('''
+			CREATE TABLE api_entrypoint
+			(
+				api_entrypoint_id INTEGER PRIMARY KEY,
+				name TEXT
+			)
+		''')
+		_cursor.execute('''
+			INSERT INTO api_entrypoint
+			(
+				api_entrypoint_id,
+				name
+			)
+			VALUES
+			(
+				1,
+				'test_root'
+			),
+			(
+				2,
+				'v1_receive_device_announcement'
+			),
+			(
+				3,
+				'v1_receive_device_transmission'
+			),
+			(
+				4,
+				'v1_dequeue_next_transmission'
+			),
+			(
+				5,
+				'v1_complete_transmission'
+			),
+			(
+				6,
+				'v1_failed_transmission'
+			),
+			(
+				7,
+				'v1_dequeue_failure_transmission'
+			),
+			(
+				8,
+				'v1_complete_failure_transmission'
+			),
+			(
+				9,
+				'v1_failed_failure_transmission'
+			)
+		''')
+		if self.__drop_tables_if_exist:
+			_cursor.execute("DROP TABLE IF EXISTS api_entrypoint_log;")
+		_cursor.execute('''
+			CREATE TABLE api_entrypoint_log
+			(
+				api_entrypoint_log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+				api_entrypoint_id INTEGER,
+				request_client_guid GUID,
+				input_json_string TEXT,
+				row_created_datetime TIMESTAMP,
+				FOREIGN KEY (api_entrypoint_id) REFERENCES api_entrypoint(api_entrypoint_id),
+				FOREIGN KEY (request_client_guid) REFERENCES client(client_guid)
+			)
+		''')
 
 	def dispose(self):
 		self.__connection.close()
@@ -587,6 +704,25 @@ class Database():
 			)
 
 		return _client
+
+	def insert_api_entrypoint_log(self, *, client_guid: str, api_entrypoint: ApiEntrypoint, input_json_string: str):
+
+		print(f"insert_api_entrypoint_log: {input_json_string}")
+
+		_row_created_datetime = datetime.utcnow()
+
+		_insert_cursor = self.__connection.cursor()
+		_insert_cursor.execute('''
+			INSERT INTO api_entrypoint_log
+			(
+				api_entrypoint_log_id,
+				api_entrypoint_id,
+				request_client_guid,
+				input_json_string,
+				row_created_datetime
+			)
+			VALUES (?, ?, ?, ?, ?)
+		''', (None, int(api_entrypoint), client_guid, input_json_string, _row_created_datetime))
 
 	def insert_device(self, *, device_guid: str, client_guid: str, purpose_guid: str) -> Device:
 
@@ -1508,8 +1644,27 @@ class Database():
 			COMMIT
 		''')
 
-		_rows = _update_result.fetchall()
-		print(f"rows: {_rows}")
+	def get_api_entrypoint_logs(self, *, inclusive_start_row_created_datetime: datetime, exclusive_end_row_created_datetime: datetime) -> List[ApiEntrypointLog]:
 
-		if _update_result.fetchall()[0][0] == 0:
-			raise ReporterNotFoundException(f"Failed to find reporter with guid: \"{reporter_guid}\".")
+		_select_cursor = self.__connection.cursor()
+		_select_result = _select_cursor.execute('''
+			SELECT
+				ael.api_entrypoint_log_id,
+				ael.api_entrypoint_id,
+				ael.request_client_guid,
+				ael.input_json_string,
+				ael.row_created_datetime
+			FROM api_entrypoint_log AS ael
+			WHERE
+				ael.row_created_datetime >= ?
+				AND ael.row_created_datetime < ?
+		''', (inclusive_start_row_created_datetime, exclusive_end_row_created_datetime))
+
+		_rows = _select_result.fetchall()
+		_api_entrypoint_logs = []  # type: List[ApiEntrypointLog]
+		for _row in _rows:
+			_api_entrypoint_log = ApiEntrypointLog.parse_row(
+				row=_row
+			)
+			_api_entrypoint_logs.append(_api_entrypoint_log)
+		return _api_entrypoint_logs

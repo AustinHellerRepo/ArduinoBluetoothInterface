@@ -763,8 +763,6 @@ class Database():
 
 	def insert_api_entrypoint_log(self, *, client_guid: str, api_entrypoint: ApiEntrypoint, input_json_string: str):
 
-		print(f"insert_api_entrypoint_log: {input_json_string}")
-
 		_row_created_datetime = datetime.utcnow()
 
 		_insert_cursor = self.__connection.cursor()

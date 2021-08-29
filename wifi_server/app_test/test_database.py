@@ -640,6 +640,134 @@ class DatabaseTest(unittest.TestCase):
 			)
 			self.assertIsNone(_second_get_next_transmission_dequeue)
 
+	def test_get_next_transmission_4(self):
+		# only one available transmission but for second dequeuer in same queue
+		with Database() as _database:
+			_source_client = _database.insert_client(
+				ip_address="127.0.0.1"
+			)
+			self.assertIsNotNone(_source_client)
+			_source_device = _database.insert_device(
+				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
+				client_guid=_source_client.get_client_guid(),
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+			)
+			self.assertIsNotNone(_source_device)
+			_destination_client = _database.insert_client(
+				ip_address="127.0.0.2"
+			)
+			self.assertIsNotNone(_destination_client)
+			_destination_device = _database.insert_device(
+				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
+				client_guid=_destination_client.get_client_guid(),
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+			)
+			self.assertIsNotNone(_destination_device)
+			_transmission_client = _database.insert_client(
+				ip_address="127.0.0.3"
+			)
+			self.assertIsNotNone(_transmission_client)
+			_queue = _database.insert_queue(
+				queue_guid="8487777E-E70C-42E7-BC40-202CED41A441"
+			)
+			self.assertEqual("8487777E-E70C-42E7-BC40-202CED41A441", _queue.get_queue_guid())
+			_transmission = _database.insert_transmission(
+				queue_guid=_queue.get_queue_guid(),
+				source_device_guid=_source_device.get_device_guid(),
+				client_guid=_transmission_client.get_client_guid(),
+				transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid()
+			)
+			self.assertIsNotNone(_transmission)
+			_get_next_client = _database.insert_client(
+				ip_address="127.0.0.4"
+			)
+			self.assertIsNotNone(_get_next_client)
+			_first_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="C03DEC02-79C5-494F-BCA8-0FFA2E2F2ABB",
+				queue_guid=_queue.get_queue_guid(),
+				client_guid=_get_next_client.get_client_guid()
+			)
+			self.assertIsNotNone(_first_dequeuer)
+			_second_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="78D5DF3C-552B-4E60-AD14-626FA866D4D6",
+				queue_guid=_queue.get_queue_guid(),
+				client_guid=_get_next_client.get_client_guid()
+			)
+			self.assertIsNotNone(_second_dequeuer)
+			_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_second_dequeuer.get_dequeuer_guid(),
+				client_guid=_get_next_client.get_client_guid()
+			)
+			self.assertIsNotNone(_get_next_transmission_dequeue)
+			self.assertEqual(_transmission.get_transmission_guid(), _get_next_transmission_dequeue.get_transmission_guid())
+
+	def test_get_next_transmission_5(self):
+		# only one available transmission but for second dequeuer in different queue
+		with Database() as _database:
+			_source_client = _database.insert_client(
+				ip_address="127.0.0.1"
+			)
+			self.assertIsNotNone(_source_client)
+			_source_device = _database.insert_device(
+				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
+				client_guid=_source_client.get_client_guid(),
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+			)
+			self.assertIsNotNone(_source_device)
+			_destination_client = _database.insert_client(
+				ip_address="127.0.0.2"
+			)
+			self.assertIsNotNone(_destination_client)
+			_destination_device = _database.insert_device(
+				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
+				client_guid=_destination_client.get_client_guid(),
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+			)
+			self.assertIsNotNone(_destination_device)
+			_transmission_client = _database.insert_client(
+				ip_address="127.0.0.3"
+			)
+			self.assertIsNotNone(_transmission_client)
+			_first_queue = _database.insert_queue(
+				queue_guid="8487777E-E70C-42E7-BC40-202CED41A441"
+			)
+			self.assertEqual("8487777E-E70C-42E7-BC40-202CED41A441", _first_queue.get_queue_guid())
+			_second_queue = _database.insert_queue(
+				queue_guid="7DA94A53-A396-4DC7-B8EB-551E777CE691"
+			)
+			self.assertEqual("7DA94A53-A396-4DC7-B8EB-551E777CE691", _second_queue.get_queue_guid())
+			_transmission = _database.insert_transmission(
+				queue_guid=_second_queue.get_queue_guid(),
+				source_device_guid=_source_device.get_device_guid(),
+				client_guid=_transmission_client.get_client_guid(),
+				transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid()
+			)
+			self.assertIsNotNone(_transmission)
+			_get_next_client = _database.insert_client(
+				ip_address="127.0.0.4"
+			)
+			self.assertIsNotNone(_get_next_client)
+			_first_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="C03DEC02-79C5-494F-BCA8-0FFA2E2F2ABB",
+				queue_guid=_first_queue.get_queue_guid(),
+				client_guid=_get_next_client.get_client_guid()
+			)
+			self.assertIsNotNone(_first_dequeuer)
+			_second_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="78D5DF3C-552B-4E60-AD14-626FA866D4D6",
+				queue_guid=_second_queue.get_queue_guid(),
+				client_guid=_get_next_client.get_client_guid()
+			)
+			self.assertIsNotNone(_second_dequeuer)
+			_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_second_dequeuer.get_dequeuer_guid(),
+				client_guid=_get_next_client.get_client_guid()
+			)
+			self.assertIsNotNone(_get_next_transmission_dequeue)
+			self.assertEqual(_transmission.get_transmission_guid(), _get_next_transmission_dequeue.get_transmission_guid())
+
 	def test_transmission_complete_0(self):
 		# complete from same client that dequeued
 		with Database() as _database:
@@ -2624,7 +2752,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertEqual("CE50E40E-D888-4684-B72C-654FCF81975F", _second_dequeuer.get_queue_guid())
 
 	def test_different_queues_2(self):
-		# insert transmission into different queue, two transmissions and two dequeuers and two reporters, same source and destination
+		# insert transmission into different queue, two transmissions and two dequeuers and two reporters, same source and destination so second dequeuer must wait for earlier transmission for first dequeuer
 		with Database() as _database:
 			_first_queue = _database.insert_queue(
 				queue_guid="66053259-5456-455A-8898-E5F708F07C27"
@@ -2657,7 +2785,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			self.assertIsNotNone(_transmission_client)
 			_first_transmission = _database.insert_transmission(
-				queue_guid="66053259-5456-455A-8898-E5F708F07C27",
+				queue_guid=_first_queue.get_queue_guid(),
 				source_device_guid=_source_device.get_device_guid(),
 				client_guid=_transmission_client.get_client_guid(),
 				transmission_json_string="{ \"test\": true }",
@@ -2665,7 +2793,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			self.assertIsNotNone(_first_transmission)
 			_second_transmission = _database.insert_transmission(
-				queue_guid="CE50E40E-D888-4684-B72C-654FCF81975F",
+				queue_guid=_second_queue.get_queue_guid(),
 				source_device_guid=_source_device.get_device_guid(),
 				client_guid=_transmission_client.get_client_guid(),
 				transmission_json_string="{ \"test\": false }",
@@ -2677,26 +2805,282 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_first_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="136B7D8A-573E-45D3-B075-567ADBFE1DDE",
-				queue_guid="66053259-5456-455A-8898-E5F708F07C27",
+				queue_guid=_first_queue.get_queue_guid(),
 				client_guid=_dequeue_client.get_client_guid()
 			)
+			self.assertEqual(_first_queue.get_queue_guid(), _first_dequeuer.get_queue_guid())
 			_second_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="22E4B5F4-4DDF-421D-B160-70D2F8120E5B",
-				queue_guid="CE50E40E-D888-4684-B72C-654FCF81975F",
+				queue_guid=_second_queue.get_queue_guid(),
 				client_guid=_dequeue_client.get_client_guid()
 			)
+			self.assertEqual(_second_queue.get_queue_guid(), _second_dequeuer.get_queue_guid())
+
+			# second dequeuer must wait for the earlier transmission for this destination
+
 			_second_transmission_dequeue = _database.get_next_transmission_dequeue(
 				dequeuer_guid=_second_dequeuer.get_dequeuer_guid(),
 				client_guid=_dequeue_client.get_client_guid()
 			)
-			self.assertIsNotNone(_second_transmission_dequeue)
-			self.assertEqual(_second_transmission.get_transmission_guid(), _second_transmission_dequeue.get_transmission_guid())
+			self.assertIsNone(_second_transmission_dequeue)
+
+			# first dequeuer must occur prior to second dequeuer
+
 			_first_transmission_dequeue = _database.get_next_transmission_dequeue(
 				dequeuer_guid=_first_dequeuer.get_dequeuer_guid(),
 				client_guid=_dequeue_client.get_client_guid()
 			)
 			self.assertIsNotNone(_first_transmission_dequeue)
 			self.assertEqual(_first_transmission.get_transmission_guid(), _first_transmission_dequeue.get_transmission_guid())
+
+			# trying to call the second dequeuer should still fail because the first transmission is not in a completed state
+
+			_second_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_second_dequeuer.get_dequeuer_guid(),
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertIsNone(_second_transmission_dequeue)
+
+			# failing the transmission should not unblock the second dequeuer
+
+			_database.transmission_failed(
+				client_guid=_dequeue_client.get_client_guid(),
+				transmission_dequeue_guid=_first_transmission_dequeue.get_transmission_dequeue_guid(),
+				error_message_json_string="{ \"message\": \"testing entire process blocks second transmission\" }"
+			)
+
+			_second_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_second_dequeuer.get_dequeuer_guid(),
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertIsNone(_second_transmission_dequeue)
+
+			# pulling the failed transmission should not unblock the second dequeuer
+
+			_reporter_client = _database.insert_client(
+				ip_address="127.0.1.0"
+			)
+			_reporter = _database.insert_reporter(
+				reporter_guid="DAB74CDA-4690-40B1-ABBB-54C601E6EBA1",
+				queue_guid=_first_queue.get_queue_guid(),
+				client_guid=_reporter_client.get_client_guid()
+			)
+
+			_first_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_reporter.get_reporter_guid(),
+				client_guid=_reporter_client.get_client_guid()
+			)
+			self.assertIsNotNone(_first_failed_transmission_dequeue)
+
+			_second_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_second_dequeuer.get_dequeuer_guid(),
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertIsNone(_second_transmission_dequeue)
+
+			# setting the failed transmission to retry should not unblock the second transmission
+
+			_database.failed_transmission_completed(
+				client_guid=_reporter_client.get_client_guid(),
+				transmission_dequeue_error_transmission_dequeue_guid=_first_failed_transmission_dequeue.get_transmission_dequeue_error_transmission_dequeue_guid(),
+				is_retry_requested=True
+			)
+
+			_second_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_second_dequeuer.get_dequeuer_guid(),
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertIsNone(_second_transmission_dequeue)
+
+			# the first transaction cannot be immediately pulled without the destination reconnecting
+
+			_first_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_first_dequeuer.get_dequeuer_guid(),
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertIsNone(_first_transmission_dequeue)
+
+			_destination_device = _database.insert_device(
+				device_guid=_destination_device.get_device_guid(),
+				client_guid=_destination_client.get_client_guid(),
+				purpose_guid=_destination_device.get_purpose_guid()
+			)
+
+			# pulling the transaction again should not unblock the second transaction
+
+			_first_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_first_dequeuer.get_dequeuer_guid(),
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertIsNotNone(_first_transmission_dequeue)
+			self.assertEqual(_first_transmission.get_transmission_guid(), _first_transmission_dequeue.get_transmission_guid())
+
+			_second_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_second_dequeuer.get_dequeuer_guid(),
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertIsNone(_second_transmission_dequeue)
+
+			# closing the first transaction should unblock the second transaction
+
+			_database.transmission_completed(
+				client_guid=_dequeue_client.get_client_guid(),
+				transmission_dequeue_guid=_first_transmission_dequeue.get_transmission_dequeue_guid()
+			)
+
+			# now the second dequeuer should succeed
+
+			_second_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_second_dequeuer.get_dequeuer_guid(),
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertIsNotNone(_second_transmission_dequeue)
+			self.assertEqual(_second_transmission.get_transmission_guid(), _second_transmission_dequeue.get_transmission_guid())
+
+	def test_different_queues_3(self):
+		# insert transmission into different queue, two transmissions and two dequeuers and two reporters, same source but different destination
+		with Database() as _database:
+			_first_queue = _database.insert_queue(
+				queue_guid="66053259-5456-455A-8898-E5F708F07C27"
+			)
+			_second_queue = _database.insert_queue(
+				queue_guid="CE50E40E-D888-4684-B72C-654FCF81975F",
+			)
+			_source_client = _database.insert_client(
+				ip_address="127.0.0.1"
+			)
+			self.assertIsNotNone(_source_client)
+			_source_device = _database.insert_device(
+				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
+				client_guid=_source_client.get_client_guid(),
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+			)
+			self.assertIsNotNone(_source_device)
+			_destination_client = _database.insert_client(
+				ip_address="127.0.0.2"
+			)
+			self.assertIsNotNone(_destination_client)
+			_first_destination_device = _database.insert_device(
+				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
+				client_guid=_destination_client.get_client_guid(),
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+			)
+			self.assertIsNotNone(_first_destination_device)
+			_second_destination_device = _database.insert_device(
+				device_guid="7B0C7428-AD10-4E0E-BB5E-6B38CF9AB7BA",
+				client_guid=_destination_client.get_client_guid(),
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+			)
+			self.assertIsNotNone(_second_destination_device)
+			_transmission_client = _database.insert_client(
+				ip_address="127.0.0.3"
+			)
+			self.assertIsNotNone(_transmission_client)
+			_first_transmission = _database.insert_transmission(
+				queue_guid=_first_queue.get_queue_guid(),
+				source_device_guid=_source_device.get_device_guid(),
+				client_guid=_transmission_client.get_client_guid(),
+				transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_first_destination_device.get_device_guid()
+			)
+			self.assertIsNotNone(_first_transmission)
+			_second_transmission = _database.insert_transmission(
+				queue_guid=_second_queue.get_queue_guid(),
+				source_device_guid=_source_device.get_device_guid(),
+				client_guid=_transmission_client.get_client_guid(),
+				transmission_json_string="{ \"test\": false }",
+				destination_device_guid=_second_destination_device.get_device_guid()
+			)
+			self.assertIsNotNone(_second_transmission)
+			_dequeue_client = _database.insert_client(
+				ip_address="127.0.0.4"
+			)
+			_first_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="136B7D8A-573E-45D3-B075-567ADBFE1DDE",
+				queue_guid=_first_queue.get_queue_guid(),
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertEqual(_first_queue.get_queue_guid(), _first_dequeuer.get_queue_guid())
+			_second_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="22E4B5F4-4DDF-421D-B160-70D2F8120E5B",
+				queue_guid=_second_queue.get_queue_guid(),
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertEqual(_second_queue.get_queue_guid(), _second_dequeuer.get_queue_guid())
+
+			# attempting to pull second transmission should be fine since it's a different destination than the earlier/first transmission
+
+			_second_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_second_dequeuer.get_dequeuer_guid(),
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertIsNotNone(_second_transmission_dequeue)
+			self.assertEqual(_second_transmission.get_transmission_guid(), _second_transmission_dequeue.get_transmission_guid())
+
+			# the first transmission can be pulled prior to the second transmission being completed
+
+			_first_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_first_dequeuer.get_dequeuer_guid(),
+				client_guid=_dequeue_client.get_client_guid()
+			)
+			self.assertIsNotNone(_first_transmission_dequeue)
+			self.assertEqual(_first_transmission.get_transmission_guid(), _first_transmission_dequeue.get_transmission_guid())
+
+			# the failed transmissions can only be pulled once the source has sequentially dealt with the responses
+
+			_database.transmission_failed(
+				client_guid=_dequeue_client.get_client_guid(),
+				transmission_dequeue_guid=_second_transmission_dequeue.get_transmission_dequeue_guid(),
+				error_message_json_string="{ \"order\": \"first\" }"
+			)
+
+			_database.transmission_failed(
+				client_guid=_dequeue_client.get_client_guid(),
+				transmission_dequeue_guid=_first_transmission_dequeue.get_transmission_dequeue_guid(),
+				error_message_json_string="{ \"order\": \"second\" }"
+			)
+
+			_reporter_client = _database.insert_client(
+				ip_address="127.0.2.0"
+			)
+			_first_reporter = _database.insert_reporter(
+				reporter_guid="A0CF5891-6BA5-4962-A6BB-C46BF11990C2",
+				queue_guid=_first_queue.get_queue_guid(),
+				client_guid=_reporter_client.get_client_guid()
+			)
+			_second_reporter = _database.insert_reporter(
+				reporter_guid="CC3B6496-D92D-47A7-BBC2-841B007A6326",
+				queue_guid=_second_queue.get_queue_guid(),
+				client_guid=_reporter_client.get_client_guid()
+			)
+
+			_second_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_second_reporter.get_reporter_guid(),
+				client_guid=_reporter_client.get_client_guid()
+			)
+			self.assertIsNotNone(_second_failed_transmission_dequeue)
+			self.assertEqual(_second_transmission_dequeue.get_transmission_dequeue_guid(), _second_failed_transmission_dequeue.get_transmission_dequeue_error_transmission().get_transmission_dequeue_guid())
+
+			_first_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_first_reporter.get_reporter_guid(),
+				client_guid=_reporter_client.get_client_guid()
+			)
+			self.assertIsNone(_first_failed_transmission_dequeue)
+
+			# with the second failed transmission dequeue responded to, the first failed transmission dequeue can finally be pulled and sent to the source
+
+			_database.failed_transmission_completed(
+				client_guid=_reporter_client.get_client_guid(),
+				transmission_dequeue_error_transmission_dequeue_guid=_second_failed_transmission_dequeue.get_transmission_dequeue_error_transmission_dequeue_guid(),
+				is_retry_requested=True
+			)
+
+			_first_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_first_reporter.get_reporter_guid(),
+				client_guid=_reporter_client.get_client_guid()
+			)
+			self.assertIsNotNone(_first_failed_transmission_dequeue)
+			self.assertEqual(_first_transmission_dequeue.get_transmission_dequeue_guid(), _first_failed_transmission_dequeue.get_transmission_dequeue_error_transmission().get_transmission_dequeue_guid())
 
 
 if __name__ == "__main__":

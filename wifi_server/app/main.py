@@ -3,6 +3,7 @@ from app.database import Database, ApiEntrypoint
 import traceback
 from typing import List, Tuple, Dict
 import json
+import uuid
 
 app = FastAPI()
 
@@ -40,13 +41,17 @@ def log_api_entrypoint(*, api_entrypoint: ApiEntrypoint, args_json: Dict, reques
 		_client = _database.insert_client(
 			ip_address=request.client.host
 		)
+
+		# NOTE errors here could indicate that new api entry point has not been added to database
+		#  check the __initialize function in the database module
+
 		_database.insert_api_entrypoint_log(
 			client_guid=_client.get_client_guid(),
 			api_entrypoint=api_entrypoint,
 			input_json_string=json.dumps(args_json)
 		)
 	except Exception as ex:
-		_error_message = str(ex)
+		_error_message = f"{str(ex)} after entry point {api_entrypoint}"
 		traceback.print_exc()
 
 
@@ -111,8 +116,46 @@ def v1_receive_device_announcement(device_guid: str, purpose_guid: str, request:
 	}
 
 
+@app.post("/v1/device/list")
+def v1_list_available_devices(purpose_guid: str, request: Request):
+
+	log_api_entrypoint(
+		api_entrypoint=ApiEntrypoint.V1ListDevices,
+		args_json={
+			"purpose_guid": purpose_guid
+		},
+		request=request
+	)
+
+	_is_successful = False
+	_response_json = None
+	_error_message = None
+
+	try:
+		_database = get_database()
+		_devices = _database.get_devices_by_purpose(
+			purpose_guid=purpose_guid
+		)
+		_devices_json_array = []
+		for _device in _devices:
+			_devices_json_array.append(_device.to_json())
+		_response_json = {
+			"devices": _devices_json_array
+		}
+		_is_successful = True
+	except Exception as ex:
+		_error_message = str(ex)
+		traceback.print_exc()
+
+	return {
+		"is_successful": _is_successful,
+		"response": _response_json,
+		"error": _error_message
+	}
+
+
 @app.post("/v1/transmission/enqueue")
-def v1_receive_device_transmission(source_device_guid: str, transmission_json_string: str, destination_device_guid: str, request: Request):
+def v1_receive_device_transmission(queue_guid: str, source_device_guid: str, transmission_json_string: str, destination_device_guid: str, request: Request):
 
 	log_api_entrypoint(
 		api_entrypoint=ApiEntrypoint.V1ReceiveDeviceTransmission,
@@ -133,7 +176,11 @@ def v1_receive_device_transmission(source_device_guid: str, transmission_json_st
 		_client = _database.insert_client(
 			ip_address=request.client.host
 		)
+		_queue = _database.insert_queue(
+			queue_guid=queue_guid
+		)
 		_transmission = _database.insert_transmission(
+			queue_guid=_queue.get_queue_guid(),
 			source_device_guid=source_device_guid,
 			client_guid=_client.get_client_guid(),
 			transmission_json_string=transmission_json_string,
@@ -379,6 +426,35 @@ def v1_failed_failure_transmission(transmission_dequeue_error_transmission_deque
 			transmission_dequeue_error_transmission_dequeue_guid=transmission_dequeue_error_transmission_dequeue_guid,
 			error_message_json_string=error_message_json_string
 		)
+		_is_successful = True
+	except Exception as ex:
+		_error_message = str(ex)
+		traceback.print_exc()
+
+	return {
+		"is_successful": _is_successful,
+		"response": _response_json,
+		"error": _error_message
+	}
+
+
+@app.get("/v1/uuid")
+def v1_get_uuid(request: Request):
+
+	log_api_entrypoint(
+		api_entrypoint=ApiEntrypoint.V1GetUuid,
+		args_json={},
+		request=request
+	)
+
+	_is_successful = False
+	_response_json = None
+	_error_message = None
+
+	try:
+		_response_json = {
+			"uuid": str(uuid.uuid4()).upper()
+		}
 		_is_successful = True
 	except Exception as ex:
 		_error_message = str(ex)

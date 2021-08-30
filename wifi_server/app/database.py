@@ -30,7 +30,9 @@ class ApiEntrypoint(IntEnum):
 	V1FailedTransmission = 6,
 	V1DequeueFailureTransmission = 7,
 	V1CompleteFailureTransmission = 8,
-	V1FailedFailureTransmission = 9
+	V1FailedFailureTransmission = 9,
+	V1GetUuid = 10,
+	V1ListDevices = 11
 
 
 class Client():
@@ -665,50 +667,19 @@ class Database():
 				name TEXT
 			)
 		''')
-		_cursor.execute('''
-			INSERT INTO api_entrypoint
-			(
-				api_entrypoint_id,
-				name
-			)
-			VALUES
-			(
-				1,
-				'test_root'
-			),
-			(
-				2,
-				'v1_receive_device_announcement'
-			),
-			(
-				3,
-				'v1_receive_device_transmission'
-			),
-			(
-				4,
-				'v1_dequeue_next_transmission'
-			),
-			(
-				5,
-				'v1_complete_transmission'
-			),
-			(
-				6,
-				'v1_failed_transmission'
-			),
-			(
-				7,
-				'v1_dequeue_failure_transmission'
-			),
-			(
-				8,
-				'v1_complete_failure_transmission'
-			),
-			(
-				9,
-				'v1_failed_failure_transmission'
-			)
-		''')
+		for _api_entrypoint in list(ApiEntrypoint):
+			_cursor.execute('''
+				INSERT INTO api_entrypoint
+				(
+					api_entrypoint_id,
+					name
+				)
+				VALUES
+				(
+					?,
+					?
+				)
+		''', (int(_api_entrypoint), str(_api_entrypoint)))
 		if self.__drop_tables_if_exist:
 			_cursor.execute("DROP TABLE IF EXISTS api_entrypoint_log;")
 		_cursor.execute('''
@@ -843,7 +814,7 @@ class Database():
 
 		_insert_cursor = self.__connection.cursor()
 		_insert_cursor.execute('''
-			INSERT INTO queue
+			INSERT OR IGNORE INTO queue
 			(
 				queue_guid,
 				row_created_datetime

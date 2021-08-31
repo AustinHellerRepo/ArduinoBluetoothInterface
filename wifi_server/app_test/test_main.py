@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 import unittest
 import json
 import re
+from datetime import datetime
 
 
 class MainTest(unittest.TestCase):
@@ -67,8 +68,29 @@ class MainTest(unittest.TestCase):
 		_response = _app.post("/v1/transmission/enqueue", params=_transmission_enqueue_post_params)
 		self.assertEqual(200, _response.status_code)
 		_first_transmission = _response.json()["response"]["transmission"]
+		self.assertEqual(_transmission_enqueue_post_params["queue_guid"], _first_transmission["queue_guid"])
+		self.assertEqual(_transmission_enqueue_post_params["source_device_guid"], _first_transmission["source_device_guid"])
+		self.assertEqual(_transmission_enqueue_post_params["transmission_json_string"], _first_transmission["transmission_json_string"])
+		self.assertEqual(_transmission_enqueue_post_params["destination_device_guid"], _first_transmission["destination_device_guid"])
 
-		# TODO
+		# setup dequeuer
+
+		_dequeuer_guid = "20E5EF95-2D4C-44D7-B750-98A413A6613B"
+
+		_dequeuer_before_datetime = datetime.utcnow()
+		_response = _app.post("/v1/dequeuer/announce", params={"dequeuer_guid": _dequeuer_guid})
+		_dequeuer_after_datetime = datetime.utcnow()
+		self.assertEqual(200, _response.status_code)
+		_dequeuer = _response.json()["response"]["dequeuer"]
+		self.assertEqual(_dequeuer_guid, _dequeuer["dequeuer_guid"])
+		self.assertEqual(True, _dequeuer["is_responsive"])
+		self.assertLess(_dequeuer_before_datetime, datetime.strptime(_dequeuer["responsive_update_datetime"], "%Y-%m-%d %H:%M:%S.%f"))
+		self.assertGreater(_dequeuer_after_datetime, datetime.strptime(_dequeuer["responsive_update_datetime"], "%Y-%m-%d %H:%M:%S.%f"))
+
+		_response = _app.post("/v1/transmission/dequeue", params={"dequeuer_guid": None})  # TODO
+		self.assertEqual(200, _response.status_code)
+		_first_transmission_dequeue = _response.json()["response"]["transmission_dequeue"]
+
 
 	def test_get_uuid_0(self):
 		_app = TestClient(app)

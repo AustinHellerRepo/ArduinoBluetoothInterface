@@ -154,12 +154,91 @@ def v1_list_available_devices(purpose_guid: str, request: Request):
 	}
 
 
+@app.post("/v1/dequeuer/announce")
+def v1_receive_dequeuer_announcement(dequeuer_guid: str, request: Request):
+
+	log_api_entrypoint(
+		api_entrypoint=ApiEntrypoint.V1ReceiveDequeuerAnnouncement,
+		args_json={
+			"dequeuer_guid": dequeuer_guid
+		},
+		request=request
+	)
+
+	_is_successful = False
+	_response_json = None
+	_error_message = None
+
+	try:
+		_database = get_database()
+		_client = _database.insert_client(
+			ip_address=request.client.host
+		)
+		_dequeuer = _database.insert_dequeuer(
+			dequeuer_guid=dequeuer_guid,
+			client_guid=_client.get_client_guid()
+		)
+		_response_json = {
+			"dequeuer": _dequeuer.to_json()
+		}
+		_is_successful = True
+	except Exception as ex:
+		_error_message = str(ex)
+		traceback.print_exc()
+
+	return {
+		"is_successful": _is_successful,
+		"response": _response_json,
+		"error": _error_message
+	}
+
+
+@app.post("/v1/reporter/announce")
+def v1_receive_reporter_announcement(reporter_guid: str, request: Request):
+
+	log_api_entrypoint(
+		api_entrypoint=ApiEntrypoint.V1ReceiveReporterAnnouncement,
+		args_json={
+			"reporter_guid": reporter_guid
+		},
+		request=request
+	)
+
+	_is_successful = False
+	_response_json = None
+	_error_message = None
+
+	try:
+		_database = get_database()
+		_client = _database.insert_client(
+			ip_address=request.client.host
+		)
+		_reporter = _database.insert_reporter(
+			reporter_guid=reporter_guid,
+			client_guid=_client.get_client_guid()
+		)
+		_response_json = {
+			"reporter": _reporter.to_json()
+		}
+		_is_successful = True
+	except Exception as ex:
+		_error_message = str(ex)
+		traceback.print_exc()
+
+	return {
+		"is_successful": _is_successful,
+		"response": _response_json,
+		"error": _error_message
+	}
+
+
 @app.post("/v1/transmission/enqueue")
 def v1_receive_device_transmission(queue_guid: str, source_device_guid: str, transmission_json_string: str, destination_device_guid: str, request: Request):
 
 	log_api_entrypoint(
 		api_entrypoint=ApiEntrypoint.V1ReceiveDeviceTransmission,
 		args_json={
+			"queue_guid": queue_guid,
 			"source_device_guid": source_device_guid,
 			"transmission_json_string": transmission_json_string,
 			"destination_device_guid": destination_device_guid
@@ -202,11 +281,13 @@ def v1_receive_device_transmission(queue_guid: str, source_device_guid: str, tra
 
 
 @app.post("/v1/transmission/dequeue")
-def v1_dequeue_next_transmission(request: Request):
+def v1_dequeue_next_transmission(dequeuer_guid: str, request: Request):
 
 	log_api_entrypoint(
 		api_entrypoint=ApiEntrypoint.V1DequeueNextTransmission,
-		args_json={},
+		args_json={
+			"dequeuer_guid": dequeuer_guid
+		},
 		request=request
 	)
 
@@ -220,6 +301,7 @@ def v1_dequeue_next_transmission(request: Request):
 			ip_address=request.client.host
 		)
 		_transmission_dequeue = _database.get_next_transmission_dequeue(
+			dequeuer_guid=dequeuer_guid,
 			client_guid=_client.get_client_guid()
 		)
 		if _transmission_dequeue is None:

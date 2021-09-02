@@ -150,11 +150,12 @@ class Queue():
 
 class Dequeuer():
 
-	def __init__(self, *, dequeuer_guid: str, is_responsive: bool, responsive_update_datetime: datetime):
+	def __init__(self, *, dequeuer_guid: str, is_responsive: bool, responsive_update_datetime: datetime, is_informed_of_enqueue: bool):
 
 		self.__dequeuer_guid = dequeuer_guid
 		self.__is_responsive = is_responsive
 		self.__responsive_update_datetime = responsive_update_datetime
+		self.__is_informed_of_enqueue = is_informed_of_enqueue
 
 	def get_dequeuer_guid(self) -> str:
 		return self.__dequeuer_guid
@@ -165,32 +166,38 @@ class Dequeuer():
 	def get_responsive_update_datetime(self) -> datetime:
 		return self.__responsive_update_datetime
 
+	def get_is_informed_of_enqueue(self) -> bool:
+		return self.__is_informed_of_enqueue
+
 	def to_json(self) -> object:
 		return {
 			"dequeuer_guid": self.__dequeuer_guid,
 			"is_responsive": self.__is_responsive,
-			"responsive_update_datetime": self.__responsive_update_datetime
+			"responsive_update_datetime": self.__responsive_update_datetime,
+			"is_informed_of_enqueue": self.__is_informed_of_enqueue
 		}
 
 	@staticmethod
 	def parse_row(*, row: Dict) -> Dequeuer:
-		if len(row) != 3:
-			raise Exception(f"Unexpected number of columns in row. Expected 3, found {len(row)}.")
+		if len(row) != 4:
+			raise Exception(f"Unexpected number of columns in row. Expected 4, found {len(row)}.")
 		else:
 			return Dequeuer(
 				dequeuer_guid=row[0],
 				is_responsive=row[1],
-				responsive_update_datetime=row[2]
+				responsive_update_datetime=row[2],
+				is_informed_of_enqueue=row[3]
 			)
 
 
 class Reporter():
 
-	def __init__(self, *, reporter_guid: str, is_responsive: bool, responsive_update_datetime: datetime):
+	def __init__(self, *, reporter_guid: str, is_responsive: bool, responsive_update_datetime: datetime, is_informed_of_enqueue: bool):
 
 		self.__reporter_guid = reporter_guid
 		self.__is_responsive = is_responsive
 		self.__responsive_update_datetime = responsive_update_datetime
+		self.__is_informed_of_enqueue = is_informed_of_enqueue
 
 	def get_reporter_guid(self) -> str:
 		return self.__reporter_guid
@@ -201,22 +208,27 @@ class Reporter():
 	def get_responsive_update_datetime(self) -> datetime:
 		return self.__responsive_update_datetime
 
+	def get_is_informed_of_enqueue(self) -> bool:
+		return self.__is_informed_of_enqueue
+
 	def to_json(self) -> object:
 		return {
 			"reporter_guid": self.__reporter_guid,
 			"is_responsive": self.__is_responsive,
-			"responsive_update_datetime": self.__responsive_update_datetime
+			"responsive_update_datetime": self.__responsive_update_datetime,
+			"is_informed_of_enqueue": self.__is_informed_of_enqueue
 		}
 
 	@staticmethod
 	def parse_row(*, row: Dict) -> Reporter:
-		if len(row) != 3:
-			raise Exception(f"Unexpected number of columns in row. Expected 3, found {len(row)}.")
+		if len(row) != 4:
+			raise Exception(f"Unexpected number of columns in row. Expected 4, found {len(row)}.")
 		else:
 			return Reporter(
 				reporter_guid=row[0],
 				is_responsive=row[1],
-				responsive_update_datetime=row[2]
+				responsive_update_datetime=row[2],
+				is_informed_of_enqueue=row[3]
 			)
 
 
@@ -573,6 +585,7 @@ class Database():
 				dequeuer_guid GUID PRIMARY KEY,
 				is_responsive BIT,
 				responsive_update_datetime TIMESTAMP,
+				is_informed_of_enqueue BIT,
 				last_known_client_guid GUID,
 				last_known_datetime TIMESTAMP,
 				row_created_datetime TIMESTAMP,
@@ -587,6 +600,7 @@ class Database():
 				reporter_guid GUID PRIMARY KEY,
 				is_responsive BIT,
 				responsive_update_datetime TIMESTAMP,
+				is_informed_of_enqueue BIT,
 				last_known_client_guid GUID,
 				last_known_datetime TIMESTAMP,
 				row_created_datetime TIMESTAMP,
@@ -898,7 +912,7 @@ class Database():
 
 		return _queue
 
-	def insert_dequeuer(self, *, dequeuer_guid: str, client_guid: str) -> Dequeuer:
+	def insert_dequeuer(self, *, dequeuer_guid: str, is_informed_of_enqueue: bool, client_guid: str) -> Dequeuer:
 
 		_responsive_update_datetime = datetime.utcnow()
 
@@ -913,11 +927,12 @@ class Database():
 				dequeuer_guid,
 				is_responsive,
 				responsive_update_datetime,
+				is_informed_of_enqueue,
 				last_known_client_guid,
 				last_known_datetime
 			)
-			VALUES (?, ?, ?, ?, ?)
-		''', (dequeuer_guid, True, _responsive_update_datetime, client_guid, datetime.utcnow()))
+			VALUES (?, ?, ?, ?, ?, ?)
+		''', (dequeuer_guid, True, _responsive_update_datetime, is_informed_of_enqueue, client_guid, datetime.utcnow()))
 		_insert_cursor.execute('''
 			UPDATE dequeuer
 			SET
@@ -947,7 +962,8 @@ class Database():
 			SELECT
 				d.dequeuer_guid,
 				d.is_responsive,
-				d.responsive_update_datetime
+				d.responsive_update_datetime,
+				d.is_informed_of_enqueue
 			FROM dequeuer AS d
 			WHERE
 				d.dequeuer_guid = ?
@@ -974,10 +990,12 @@ class Database():
 			SELECT
 				d.dequeuer_guid,
 				d.is_responsive,
-				d.responsive_update_datetime
+				d.responsive_update_datetime,
+				d.is_informed_of_enqueue
 			FROM dequeuer AS d
 			WHERE
 				d.is_responsive = 1
+				AND d.is_informed_of_enqueue = 1
 		''')
 
 		_dequeuers = []  # type: List[Dequeuer]
@@ -996,10 +1014,12 @@ class Database():
 			SELECT
 				r.reporter_guid,
 				r.is_responsive,
-				r.responsive_update_datetime
+				r.responsive_update_datetime,
+				r.is_informed_of_enqueue
 			FROM reporter AS r
 			WHERE
 				r.is_responsive = 1
+				AND r.is_informed_of_enqueue = 1
 		''')
 
 		_reporters = []  # type: List[Reporter]
@@ -1011,7 +1031,7 @@ class Database():
 			_reporters.append(_reporter)
 		return _reporters
 
-	def insert_reporter(self, *, reporter_guid: str, client_guid: str) -> Reporter:
+	def insert_reporter(self, *, reporter_guid: str, is_informed_of_enqueue: bool, client_guid: str) -> Reporter:
 
 		_responsive_update_datetime = datetime.utcnow()
 
@@ -1026,11 +1046,12 @@ class Database():
 				reporter_guid,
 				is_responsive,
 				responsive_update_datetime,
+				is_informed_of_enqueue,
 				last_known_client_guid,
 				last_known_datetime
 			)
-			VALUES (?, ?, ?, ?, ?)
-		''', (reporter_guid, True, _responsive_update_datetime, client_guid, datetime.utcnow()))
+			VALUES (?, ?, ?, ?, ?, ?)
+		''', (reporter_guid, True, _responsive_update_datetime, is_informed_of_enqueue, client_guid, datetime.utcnow()))
 		_insert_cursor.execute('''
 			UPDATE reporter
 			SET
@@ -1060,7 +1081,8 @@ class Database():
 			SELECT
 				r.reporter_guid,
 				r.is_responsive,
-				r.responsive_update_datetime
+				r.responsive_update_datetime,
+				r.is_informed_of_enqueue
 			FROM reporter AS r
 			WHERE
 				r.reporter_guid = ?

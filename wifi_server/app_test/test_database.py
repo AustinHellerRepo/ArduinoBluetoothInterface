@@ -383,6 +383,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_get_next_client)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="C03DEC02-79C5-494F-BCA8-0FFA2E2F2ABB",
+				is_informed_of_enqueue=False,
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_dequeuer)
@@ -446,6 +447,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_get_next_client)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="8A38F5A8-0F3F-42C2-A4E8-8FF6F8FA4AD9",
+				is_informed_of_enqueue=False,
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_dequeuer)
@@ -526,6 +528,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_first_get_next_client)
 			_first_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="A97C06B8-3C61-48AA-AE2F-82E242A2C878",
+				is_informed_of_enqueue=False,
 				client_guid=_first_get_next_client.get_client_guid()
 			)
 			_first_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
@@ -541,6 +544,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_second_get_next_client)
 			_second_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="37399BE8-1EAA-497D-BA5D-E6581E560466",
+				is_informed_of_enqueue=False,
 				client_guid=_second_get_next_client.get_client_guid()
 			)
 
@@ -613,6 +617,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_first_get_next_client)
 			_first_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="4E3F7F3D-B82F-4434-83C4-DDCF43283F9B",
+				is_informed_of_enqueue=False,
 				client_guid=_first_get_next_client.get_client_guid()
 			)
 			_first_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
@@ -631,6 +636,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_second_get_next_client)
 			_second_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="1CE1A72D-C103-4B14-A81A-DA09F412E337",
+				is_informed_of_enqueue=False,
 				client_guid=_second_get_next_client.get_client_guid()
 			)
 
@@ -686,11 +692,13 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_get_next_client)
 			_first_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="C03DEC02-79C5-494F-BCA8-0FFA2E2F2ABB",
+				is_informed_of_enqueue=False,
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_first_dequeuer)
 			_second_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="78D5DF3C-552B-4E60-AD14-626FA866D4D6",
+				is_informed_of_enqueue=False,
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_second_dequeuer)
@@ -751,11 +759,13 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_get_next_client)
 			_first_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="C03DEC02-79C5-494F-BCA8-0FFA2E2F2ABB",
+				is_informed_of_enqueue=False,
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_first_dequeuer)
 			_second_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="78D5DF3C-552B-4E60-AD14-626FA866D4D6",
+				is_informed_of_enqueue=False,
 				client_guid=_get_next_client.get_client_guid()
 			)
 			self.assertIsNotNone(_second_dequeuer)
@@ -811,6 +821,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_get_next_client)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="97009FE3-10C9-4B39-A472-373C6CAD4126",
+				is_informed_of_enqueue=False,
 				client_guid=_get_next_client.get_client_guid()
 			)
 			_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
@@ -869,6 +880,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_get_next_client)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="8C19940C-DA62-43CA-93ED-AC9C0BFDD707",
+				is_informed_of_enqueue=False,
 				client_guid=_get_next_client.get_client_guid()
 			)
 			_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
@@ -931,6 +943,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_get_next_client)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="F9652133-3FFB-4EFF-ADB2-26320E7E0FA6",
+				is_informed_of_enqueue=False,
 				client_guid=_get_next_client.get_client_guid()
 			)
 			_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
@@ -990,6 +1003,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_get_next_client)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="DEFE4C38-0106-4072-AC7F-E9EC43EDD60E",
+				is_informed_of_enqueue=False,
 				client_guid=_get_next_client.get_client_guid()
 			)
 			_first_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
@@ -1062,6 +1076,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_get_next_client)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="AB8E2EE3-A1E6-4189-971E-E778ED43808F",
+				is_informed_of_enqueue=False,
 				client_guid=_get_next_client.get_client_guid()
 			)
 			_first_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
@@ -1089,6 +1104,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_reporter = _database.insert_reporter(
 				reporter_guid="70FAC0CB-EA93-404D-8F83-D9B25FAF70B0",
+				is_informed_of_enqueue=False,
 				client_guid=_failed_dequeue_client.get_client_guid()
 			)
 
@@ -1168,6 +1184,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_get_next_client)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="ECCD5319-92C6-43A4-BC08-1B984BA6C910",
+				is_informed_of_enqueue=False,
 				client_guid=_get_next_client.get_client_guid()
 			)
 			_first_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
@@ -1188,6 +1205,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_reporter = _database.insert_reporter(
 				reporter_guid="6D44AA09-F6DE-4A98-893F-DBA0FAA2F78F",
+				is_informed_of_enqueue=False,
 				client_guid=_failed_dequeue_client.get_client_guid()
 			)
 
@@ -1259,6 +1277,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_get_next_client)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="D84352F4-5E26-4C72-B348-F3B7464E1374",
+				is_informed_of_enqueue=False,
 				client_guid=_get_next_client.get_client_guid()
 			)
 			_first_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
@@ -1279,6 +1298,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_reporter = _database.insert_reporter(
 				reporter_guid="17CA30BC-76E0-453A-8C62-F9E1F5672F11",
+				is_informed_of_enqueue=False,
 				client_guid=_failed_dequeue_client.get_client_guid()
 			)
 
@@ -1358,6 +1378,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_get_next_client)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="82A7FB93-A228-4632-937F-68F1CB1A26F6",
+				is_informed_of_enqueue=False,
 				client_guid=_get_next_client.get_client_guid()
 			)
 
@@ -1379,6 +1400,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_reporter = _database.insert_reporter(
 				reporter_guid="37D4AC01-23A0-4625-BBBB-1F08A82DE4C1",
+				is_informed_of_enqueue=False,
 				client_guid=_failed_dequeue_client.get_client_guid()
 			)
 
@@ -1453,6 +1475,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_get_next_client)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="B5B999F4-B39F-4CDF-A287-FA658F138430",
+				is_informed_of_enqueue=False,
 				client_guid=_get_next_client.get_client_guid()
 			)
 			_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
@@ -1473,6 +1496,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_failed_client)
 			_reporter = _database.insert_reporter(
 				reporter_guid="978CEC80-A01D-4BE0-BE85-725C64D62F07",
+				is_informed_of_enqueue=False,
 				client_guid=_failed_client.get_client_guid()
 			)
 
@@ -1554,6 +1578,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_get_next_client)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="A949C1CD-2466-4919-BAEC-92BF1CE1B5A4",
+				is_informed_of_enqueue=False,
 				client_guid=_get_next_client.get_client_guid()
 			)
 			_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
@@ -1574,6 +1599,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_failed_client)
 			_reporter = _database.insert_reporter(
 				reporter_guid="FCF1D55C-08AE-45CC-AD0E-139F62B48B9A",
+				is_informed_of_enqueue=False,
 				client_guid=_failed_client.get_client_guid()
 			)
 
@@ -1656,6 +1682,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_get_next_client)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="099D4BA3-CCA9-4834-9E83-4D4BE60DCB29",
+				is_informed_of_enqueue=False,
 				client_guid=_get_next_client.get_client_guid()
 			)
 
@@ -1677,6 +1704,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertIsNotNone(_failed_client)
 			_reporter = _database.insert_reporter(
 				reporter_guid="764C68C1-D6CE-4207-B9A7-E4E6FC4844C5",
+				is_informed_of_enqueue=False,
 				client_guid=_failed_client.get_client_guid()
 			)
 
@@ -1788,6 +1816,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="735282F3-16E9-4CB0-A24E-443A72884B1E",
+				is_informed_of_enqueue=False,
 				client_guid=_dequeue_client.get_client_guid()
 			)
 			for _transmission_index in range(len(_transmissions)):
@@ -1932,6 +1961,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="E27BE734-F26C-409F-A598-160342452FA1",
+				is_informed_of_enqueue=False,
 				client_guid=_dequeue_client.get_client_guid()
 			)
 
@@ -1940,6 +1970,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_reporter = _database.insert_reporter(
 				reporter_guid="829F8BD5-5A2A-4502-8DAB-6FBAB7F05C6F",
+				is_informed_of_enqueue=False,
 				client_guid=_failure_dequeue_client.get_client_guid()
 			)
 
@@ -2037,6 +2068,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="3CF492A0-AEFA-4916-9E20-9925268A5D53",
+				is_informed_of_enqueue=False,
 				client_guid=_get_next_client.get_client_guid()
 			)
 
@@ -2057,6 +2089,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_reporter = _database.insert_reporter(
 				reporter_guid="82615F5D-E860-4686-9A70-230B2E7F0D7D",
+				is_informed_of_enqueue=False,
 				client_guid=_failure_client.get_client_guid()
 			)
 
@@ -2139,6 +2172,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="3CF492A0-AEFA-4916-9E20-9925268A5D53",
+				is_informed_of_enqueue=False,
 				client_guid=_get_next_client.get_client_guid()
 			)
 
@@ -2159,6 +2193,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_reporter = _database.insert_reporter(
 				reporter_guid="82615F5D-E860-4686-9A70-230B2E7F0D7D",
+				is_informed_of_enqueue=False,
 				client_guid=_failure_client.get_client_guid()
 			)
 
@@ -2235,6 +2270,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="0A2E9940-C338-427F-804D-5DB4E2A1EC2B",
+				is_informed_of_enqueue=False,
 				client_guid=_dequeue_client.get_client_guid()
 			)
 
@@ -2269,6 +2305,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_reporter = _database.insert_reporter(
 				reporter_guid="9CBFF852-247C-49E6-854A-CB649A42ED79",
+				is_informed_of_enqueue=False,
 				client_guid=_failure_dequeue_client.get_client_guid()
 			)
 
@@ -2355,6 +2392,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="5BB17692-26E2-4D2A-B637-15F09A01D73E",
+				is_informed_of_enqueue=False,
 				client_guid=_dequeue_client.get_client_guid()
 			)
 
@@ -2389,6 +2427,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_reporter = _database.insert_reporter(
 				reporter_guid="CB779604-68FA-452C-B0B2-4A7B8578F245",
+				is_informed_of_enqueue=False,
 				client_guid=_failure_dequeue_client.get_client_guid()
 			)
 
@@ -2495,6 +2534,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="136B7D8A-573E-45D3-B075-567ADBFE1DDE",
+				is_informed_of_enqueue=False,
 				client_guid=_dequeue_client.get_client_guid()
 			)
 			_first_transmission_dequeue = _database.get_next_transmission_dequeue(
@@ -2555,6 +2595,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="136B7D8A-573E-45D3-B075-567ADBFE1DDE",
+				is_informed_of_enqueue=True,
 				client_guid=_dequeue_client.get_client_guid()
 			)
 			_first_transmission_dequeue = _database.get_next_transmission_dequeue(
@@ -2576,6 +2617,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertEqual(0, len(_second_responsive_dequeuers))
 			_same_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="136B7D8A-573E-45D3-B075-567ADBFE1DDE",
+				is_informed_of_enqueue=False,
 				client_guid=_dequeue_client.get_client_guid()
 			)
 			_third_responsive_dequeuers = _database.get_all_responsive_dequeuers()
@@ -2624,6 +2666,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="136B7D8A-573E-45D3-B075-567ADBFE1DDE",
+				is_informed_of_enqueue=False,
 				client_guid=_dequeue_client.get_client_guid()
 			)
 			_transmission_dequeue = _database.get_next_transmission_dequeue(
@@ -2642,6 +2685,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_reporter = _database.insert_reporter(
 				reporter_guid="297E5526-EF3F-4506-A431-C6854CD66FA8",
+				is_informed_of_enqueue=True,
 				client_guid=_reporter_client.get_client_guid()
 			)
 			_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
@@ -2663,6 +2707,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertEqual(0, len(_second_responsive_reporters))
 			_same_reporter = _database.insert_reporter(
 				reporter_guid="297E5526-EF3F-4506-A431-C6854CD66FA8",
+				is_informed_of_enqueue=False,
 				client_guid=_reporter_client.get_client_guid()
 			)
 			_third_responsive_reporters = _database.get_all_responsive_reporters()
@@ -2679,6 +2724,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_reporter = _database.insert_reporter(
 				reporter_guid="297E5526-EF3F-4506-A431-C6854CD66FA8",
+				is_informed_of_enqueue=False,
 				client_guid=_reporter_client.get_client_guid()
 			)
 			_database.set_reporter_unresponsive(
@@ -2693,6 +2739,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_reporter = _database.insert_reporter(
 				reporter_guid="297E5526-EF3F-4506-A431-C6854CD66FA8",
+				is_informed_of_enqueue=False,
 				client_guid=_reporter_client.get_client_guid()
 			)
 			with self.assertRaises(NotImplementedError):
@@ -2819,6 +2866,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="136B7D8A-573E-45D3-B075-567ADBFE1DDE",
+				is_informed_of_enqueue=False,
 				client_guid=_dequeue_client.get_client_guid()
 			)
 			_transmission_dequeue = _database.get_next_transmission_dequeue(
@@ -2842,10 +2890,12 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_first_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="136B7D8A-573E-45D3-B075-567ADBFE1DDE",
+				is_informed_of_enqueue=False,
 				client_guid=_dequeue_client.get_client_guid()
 			)
 			_second_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="136B7D8A-573E-45D3-B075-567ADBFE1DDE",
+				is_informed_of_enqueue=False,
 				client_guid=_dequeue_client.get_client_guid()
 			)
 			self.assertEqual(_first_dequeuer.get_dequeuer_guid(), _second_dequeuer.get_dequeuer_guid())
@@ -2904,10 +2954,12 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_first_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="136B7D8A-573E-45D3-B075-567ADBFE1DDE",
+				is_informed_of_enqueue=False,
 				client_guid=_dequeue_client.get_client_guid()
 			)
 			_second_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="22E4B5F4-4DDF-421D-B160-70D2F8120E5B",
+				is_informed_of_enqueue=False,
 				client_guid=_dequeue_client.get_client_guid()
 			)
 
@@ -2961,6 +3013,7 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_reporter = _database.insert_reporter(
 				reporter_guid="DAB74CDA-4690-40B1-ABBB-54C601E6EBA1",
+				is_informed_of_enqueue=False,
 				client_guid=_reporter_client.get_client_guid()
 			)
 
@@ -3102,10 +3155,12 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_first_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="136B7D8A-573E-45D3-B075-567ADBFE1DDE",
+				is_informed_of_enqueue=False,
 				client_guid=_dequeue_client.get_client_guid()
 			)
 			_second_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="22E4B5F4-4DDF-421D-B160-70D2F8120E5B",
+				is_informed_of_enqueue=False,
 				client_guid=_dequeue_client.get_client_guid()
 			)
 
@@ -3148,10 +3203,12 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_first_reporter = _database.insert_reporter(
 				reporter_guid="A0CF5891-6BA5-4962-A6BB-C46BF11990C2",
+				is_informed_of_enqueue=False,
 				client_guid=_reporter_client.get_client_guid()
 			)
 			_second_reporter = _database.insert_reporter(
 				reporter_guid="CC3B6496-D92D-47A7-BBC2-841B007A6326",
+				is_informed_of_enqueue=False,
 				client_guid=_reporter_client.get_client_guid()
 			)
 

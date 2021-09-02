@@ -176,6 +176,7 @@ def v1_receive_dequeuer_announcement(dequeuer_guid: str, request: Request):
 		)
 		_dequeuer = _database.insert_dequeuer(
 			dequeuer_guid=dequeuer_guid,
+			is_informed_of_enqueue=False,
 			client_guid=_client.get_client_guid()
 		)
 		_response_json = {
@@ -215,6 +216,7 @@ def v1_receive_reporter_announcement(reporter_guid: str, request: Request):
 		)
 		_reporter = _database.insert_reporter(
 			reporter_guid=reporter_guid,
+			is_informed_of_enqueue=False,
 			client_guid=_client.get_client_guid()
 		)
 		_response_json = {

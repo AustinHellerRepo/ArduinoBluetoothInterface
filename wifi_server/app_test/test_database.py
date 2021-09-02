@@ -2102,6 +2102,86 @@ class DatabaseTest(unittest.TestCase):
 				error_message_json_string="{ \"again\": true }"
 			)
 
+	def test_failed_transmission_failed_1(self):
+		# failed transmission failed and then attempt to pull transmission again as if ready for retry
+		with Database() as _database:
+			_source_client = _database.insert_client(
+				ip_address="127.0.0.1"
+			)
+			_source_device = _database.insert_device(
+				device_guid="C65EDB87-1F38-402E-A166-90411841AA29",
+				client_guid=_source_client.get_client_guid(),
+				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7"
+			)
+			_destination_client = _database.insert_client(
+				ip_address="127.0.0.2"
+			)
+			_destination_device = _database.insert_device(
+				device_guid="3E1AF46C-6D1E-4349-B6EC-00557DA6C47F",
+				client_guid=_destination_client.get_client_guid(),
+				purpose_guid="7B3316A1-89F4-49A0-A6B3-351CC5FE6D63"
+			)
+
+			_queue = _database.insert_queue(
+				queue_guid="D6809C07-A05B-4233-B8CA-6D033B56BC30"
+			)
+
+			_transmission = _database.insert_transmission(
+				queue_guid="D6809C07-A05B-4233-B8CA-6D033B56BC30",
+				source_device_guid=_source_device.get_device_guid(),
+				client_guid=_source_client.get_client_guid(),
+				transmission_json_string="{ \"first\": true }",
+				destination_device_guid=_destination_device.get_device_guid()
+			)
+
+			_get_next_client = _database.insert_client(
+				ip_address="127.0.0.3"
+			)
+			_dequeuer = _database.insert_dequeuer(
+				dequeuer_guid="3CF492A0-AEFA-4916-9E20-9925268A5D53",
+				client_guid=_get_next_client.get_client_guid()
+			)
+
+			_first_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
+				queue_guid=_queue.get_queue_guid(),
+				client_guid=_get_next_client.get_client_guid()
+			)
+
+			_database.transmission_failed(
+				client_guid=_get_next_client.get_client_guid(),
+				transmission_dequeue_guid=_first_transmission_dequeue.get_transmission_dequeue_guid(),
+				error_message_json_string="{ \"error\": true }"
+			)
+
+			_failure_client = _database.insert_client(
+				ip_address="127.0.0.4"
+			)
+			_reporter = _database.insert_reporter(
+				reporter_guid="82615F5D-E860-4686-9A70-230B2E7F0D7D",
+				client_guid=_failure_client.get_client_guid()
+			)
+
+			_failure_dequeue = _database.get_next_failed_transmission_dequeue(
+				reporter_guid=_reporter.get_reporter_guid(),
+				queue_guid=_queue.get_queue_guid(),
+				client_guid=_failure_client.get_client_guid()
+			)
+
+			_database.failed_transmission_failed(
+				client_guid=_failure_client.get_client_guid(),
+				transmission_dequeue_error_transmission_dequeue_guid=_failure_dequeue.get_transmission_dequeue_error_transmission_dequeue_guid(),
+				error_message_json_string="{ \"error\": \"failed to find source device\" }"
+			)
+
+			_second_transmission_dequeue = _database.get_next_transmission_dequeue(
+				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
+				queue_guid=_queue.get_queue_guid(),
+				client_guid=_get_next_client.get_client_guid()
+			)
+
+			self.assertIsNone(_second_transmission_dequeue)
+
 	def test_multiple_failed_transmissions_back_to_source_0(self):
 		# source sends two transmissions to different devices and both fail and are returned to source
 		with Database() as _database:
@@ -2205,7 +2285,8 @@ class DatabaseTest(unittest.TestCase):
 				queue_guid=_queue.get_queue_guid(),
 				client_guid=_failure_dequeue_client.get_client_guid()
 			)
-			self.assertIsNone(_second_failed_transmission_dequeue)
+			self.assertIsNotNone(_second_failed_transmission_dequeue)
+			self.assertEqual(_first_failed_transmission_dequeue.get_transmission_dequeue_error_transmission_dequeue_guid(), _second_failed_transmission_dequeue.get_transmission_dequeue_error_transmission_dequeue_guid())
 
 			_database.failed_transmission_completed(
 				client_guid=_failure_dequeue_client.get_client_guid(),
@@ -2324,7 +2405,8 @@ class DatabaseTest(unittest.TestCase):
 				queue_guid=_queue.get_queue_guid(),
 				client_guid=_failure_dequeue_client.get_client_guid()
 			)
-			self.assertIsNone(_second_failed_transmission_dequeue)
+			self.assertIsNotNone(_second_failed_transmission_dequeue)
+			self.assertEqual(_first_failed_transmission_dequeue.get_transmission_dequeue_error_transmission_dequeue_guid(), _second_failed_transmission_dequeue.get_transmission_dequeue_error_transmission_dequeue_guid())
 
 			_database.failed_transmission_failed(
 				client_guid=_failure_dequeue_client.get_client_guid(),

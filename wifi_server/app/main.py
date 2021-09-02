@@ -281,12 +281,13 @@ def v1_receive_device_transmission(queue_guid: str, source_device_guid: str, tra
 
 
 @app.post("/v1/transmission/dequeue")
-def v1_dequeue_next_transmission(dequeuer_guid: str, request: Request):
+def v1_dequeue_next_transmission(dequeuer_guid: str, queue_guid: str, request: Request):
 
 	log_api_entrypoint(
 		api_entrypoint=ApiEntrypoint.V1DequeueNextTransmission,
 		args_json={
-			"dequeuer_guid": dequeuer_guid
+			"dequeuer_guid": dequeuer_guid,
+			"queue_guid": queue_guid
 		},
 		request=request
 	)
@@ -300,8 +301,12 @@ def v1_dequeue_next_transmission(dequeuer_guid: str, request: Request):
 		_client = _database.insert_client(
 			ip_address=request.client.host
 		)
+		_queue = _database.insert_queue(
+			queue_guid=queue_guid
+		)
 		_transmission_dequeue = _database.get_next_transmission_dequeue(
 			dequeuer_guid=dequeuer_guid,
+			queue_guid=_queue.get_queue_guid(),
 			client_guid=_client.get_client_guid()
 		)
 		if _transmission_dequeue is None:
@@ -387,11 +392,14 @@ def v1_failed_transmission(transmission_dequeue_guid: str, error_message_json_st
 		_client = _database.insert_client(
 			ip_address=request.client.host
 		)
-		_database.transmission_failed(
+		_transmission_dequeue_error_transmission = _database.transmission_failed(
 			client_guid=_client.get_client_guid(),
 			transmission_dequeue_guid=transmission_dequeue_guid,
 			error_message_json_string=error_message_json_string
 		)
+		_response_json = {
+			"transmission_dequeue_error_transmission": _transmission_dequeue_error_transmission.to_json()
+		}
 		_is_successful = True
 	except Exception as ex:
 		_error_message = str(ex)
@@ -405,11 +413,14 @@ def v1_failed_transmission(transmission_dequeue_guid: str, error_message_json_st
 
 
 @app.post("/v1/failure/dequeue")
-def v1_dequeue_failure_transmission(request: Request):
+def v1_dequeue_failure_transmission(reporter_guid: str, queue_guid: str, request: Request):
 
 	log_api_entrypoint(
 		api_entrypoint=ApiEntrypoint.V1DequeueFailureTransmission,
-		args_json={},
+		args_json={
+			"reporter_guid": reporter_guid,
+			"queue_guid": queue_guid
+		},
 		request=request
 	)
 
@@ -422,15 +433,20 @@ def v1_dequeue_failure_transmission(request: Request):
 		_client = _database.insert_client(
 			ip_address=request.client.host
 		)
-		_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+		_queue = _database.insert_queue(
+			queue_guid=queue_guid
+		)
+		_transmission_dequeue_error_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
+			reporter_guid=reporter_guid,
+			queue_guid=_queue.get_queue_guid(),
 			client_guid=_client.get_client_guid()
 		)
-		if _transmission_dequeue is None:
-			_transmission_dequeue_json = None
+		if _transmission_dequeue_error_transmission_dequeue is None:
+			_transmission_dequeue_error_transmission_dequeue_json = None
 		else:
-			_transmission_dequeue_json = _transmission_dequeue.to_json()
+			_transmission_dequeue_error_transmission_dequeue_json = _transmission_dequeue_error_transmission_dequeue.to_json()
 		_response_json = {
-			"failure_transmission_dequeue": _transmission_dequeue_json
+			"transmission_dequeue_error_transmission_dequeue": _transmission_dequeue_error_transmission_dequeue_json
 		}
 		_is_successful = True
 	except Exception as ex:

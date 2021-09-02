@@ -50,6 +50,12 @@ class Client():
 	def get_ip_address(self) -> str:
 		return self.__ip_address
 
+	def to_json(self) -> object:
+		return {
+			"client_guid": self.__client_guid,
+			"ip_address": self.__ip_address
+		}
+
 	@staticmethod
 	def parse_row(*, row: Dict) -> Client:
 		return Client(
@@ -129,6 +135,11 @@ class Queue():
 
 	def get_queue_guid(self) -> str:
 		return self.__queue_guid
+
+	def to_json(self) -> object:
+		return {
+			"queue_guid": self.__queue_guid
+		}
 
 	@staticmethod
 	def parse_row(row: Dict) -> Queue:
@@ -268,28 +279,33 @@ class Transmission():
 
 	@staticmethod
 	def parse_row(*, row: Dict) -> Transmission:
-		return Transmission(
-			transmission_guid=row[0],
-			queue_guid=row[1],
-			source_device_guid=row[2],
-			request_client_guid=row[3],
-			transmission_json_string=row[4],
-			destination_device_guid=row[5],
-			row_created_datetime=datetime.strptime(row[6], "%Y-%m-%d %H:%M:%S.%f"),
-			is_retry_ready=row[7]
-		)
+		if len(row) != 8:
+			raise Exception(f"Unexpected number of columns in row. Expected 8, found {len(row)}.")
+		else:
+			return Transmission(
+				transmission_guid=row[0],
+				queue_guid=row[1],
+				source_device_guid=row[2],
+				request_client_guid=row[3],
+				transmission_json_string=row[4],
+				destination_device_guid=row[5],
+				row_created_datetime=datetime.strptime(row[6], "%Y-%m-%d %H:%M:%S.%f"),
+				is_retry_ready=row[7]
+			)
 
 
 class TransmissionDequeue():
 
 	def __init__(self, *,
 				 transmission_dequeue_guid: str,
+				 dequeuer_guid: str,
 				 transmission_guid: str,
 				 request_client_guid: str,
 				 destination_client_guid: str,
 				 row_created_datetime: datetime
 	):
 		self.__transmission_dequeue_guid = transmission_dequeue_guid
+		self.__dequeuer_guid = dequeuer_guid
 		self.__transmission_guid = transmission_guid
 		self.__request_client_guid = request_client_guid
 		self.__destination_client_guid = destination_client_guid
@@ -299,6 +315,9 @@ class TransmissionDequeue():
 
 	def get_transmission_dequeue_guid(self) -> str:
 		return self.__transmission_dequeue_guid
+
+	def get_dequeuer_guid(self) -> str:
+		return self.__dequeuer_guid
 
 	def get_transmission_guid(self) -> str:
 		return self.__transmission_guid
@@ -321,6 +340,7 @@ class TransmissionDequeue():
 	def to_json(self) -> object:
 		return {
 			"transmission_dequeue_guid": self.__transmission_dequeue_guid,
+			"dequeuer_guid": self.__dequeuer_guid,
 			"transmission_guid": self.__transmission_guid,
 			"request_client_guid": self.__request_client_guid,
 			"destination_client_guid": self.__destination_client_guid,
@@ -330,13 +350,17 @@ class TransmissionDequeue():
 
 	@staticmethod
 	def parse_row(*, row: Dict) -> TransmissionDequeue:
-		return TransmissionDequeue(
-			transmission_dequeue_guid=row[0],
-			transmission_guid=row[1],
-			request_client_guid=row[2],
-			destination_client_guid=row[3],
-			row_created_datetime=datetime.strptime(row[4], "%Y-%m-%d %H:%M:%S.%f")
-		)
+		if len(row) != 6:
+			raise Exception(f"Unexpected number of columns in row. Expected 6, found {len(row)}.")
+		else:
+			return TransmissionDequeue(
+				transmission_dequeue_guid=row[0],
+				dequeuer_guid=row[1],
+				transmission_guid=row[2],
+				request_client_guid=row[3],
+				destination_client_guid=row[4],
+				row_created_datetime=datetime.strptime(row[5], "%Y-%m-%d %H:%M:%S.%f")
+			)
 
 
 class TransmissionDequeueErrorTransmission():
@@ -356,7 +380,7 @@ class TransmissionDequeueErrorTransmission():
 		self.__row_created_datetime = row_created_datetime
 		self.__is_retry_ready = is_retry_ready
 
-		self.__transmission_dequeue = None
+		self.__transmission_dequeue = None  # type: TransmissionDequeue
 
 	def get_transmission_dequeue_error_transmission_guid(self) -> str:
 		return self.__transmission_dequeue_error_transmission_guid
@@ -382,37 +406,57 @@ class TransmissionDequeueErrorTransmission():
 	def get_transmission_dequeue(self) -> TransmissionDequeue:
 		return self.__transmission_dequeue
 
+	def to_json(self) -> object:
+		return {
+			"transmission_dequeue_error_transmission_guid": self.__transmission_dequeue_error_transmission_guid,
+			"request_client_guid": self.__request_client_guid,
+			"transmission_dequeue_guid": self.__transmission_dequeue_guid,
+			"error_message_json_string": self.__error_message_json_string,
+			"row_created_datetime": self.__row_created_datetime,
+			"is_retry_ready": self.__is_retry_ready,
+			"transmission_dequeue": None if self.__transmission_dequeue is None else self.__transmission_dequeue.to_json()
+		}
+
 	@staticmethod
 	def parse_row(*, row: Dict) -> TransmissionDequeueErrorTransmission:
-		return TransmissionDequeueErrorTransmission(
-			transmission_dequeue_error_transmission_guid=row[0],
-			request_client_guid=row[1],
-			transmission_dequeue_guid=row[2],
-			error_message_json_string=row[3],
-			row_created_datetime=datetime.strptime(row[4], "%Y-%m-%d %H:%M:%S.%f"),
-			is_retry_ready=row[5]
-		)
+		if len(row) != 6:
+			raise Exception(f"Unexpected number of columns in row. Expected 6, found {len(row)}.")
+		else:
+			return TransmissionDequeueErrorTransmission(
+				transmission_dequeue_error_transmission_guid=row[0],
+				request_client_guid=row[1],
+				transmission_dequeue_guid=row[2],
+				error_message_json_string=row[3],
+				row_created_datetime=datetime.strptime(row[4], "%Y-%m-%d %H:%M:%S.%f"),
+				is_retry_ready=row[5]
+			)
 
 
 class TransmissionDequeueErrorTransmissionDequeue():
 
 	def __init__(self, *,
 				 transmission_dequeue_error_transmission_dequeue_guid: str,
+				 reporter_guid: str,
 				 transmission_dequeue_error_transmission_guid: str,
 				 request_client_guid: str,
 				 destination_client_guid: str,
 				 row_created_datetime: datetime
 	):
 		self.__transmission_dequeue_error_transmission_dequeue_guid = transmission_dequeue_error_transmission_dequeue_guid
+		self.__reporter_guid = reporter_guid
 		self.__transmission_dequeue_error_transmission_guid = transmission_dequeue_error_transmission_guid
 		self.__request_client_guid = request_client_guid
 		self.__destination_client_guid = destination_client_guid
 		self.__row_created_datetime = row_created_datetime
 
-		self.__transmission_dequeue_error_transmission = None
+		self.__transmission_dequeue_error_transmission = None  # type: TransmissionDequeueErrorTransmission
+		self.__destination_client = None  # type: Client
 
 	def get_transmission_dequeue_error_transmission_dequeue_guid(self) -> str:
 		return self.__transmission_dequeue_error_transmission_dequeue_guid
+
+	def get_reporter_guid(self) -> str:
+		return self.__reporter_guid
 
 	def get_transmission_dequeue_error_transmission_guid(self) -> str:
 		return self.__transmission_dequeue_error_transmission_guid
@@ -432,22 +476,36 @@ class TransmissionDequeueErrorTransmissionDequeue():
 	def get_transmission_dequeue_error_transmission(self) -> TransmissionDequeueErrorTransmission:
 		return self.__transmission_dequeue_error_transmission
 
+	def set_destination_client(self, *, destination_client: Client):
+		self.__destination_client = destination_client
+
+	def get_destination_client(self) -> Client:
+		return self.__destination_client
+
 	def to_json(self) -> object:
 		return {
 			"transmission_dequeue_error_transmission_dequeue_guid": self.__transmission_dequeue_error_transmission_dequeue_guid,
+			"transmission_dequeue_error_transmission_guid": self.__transmission_dequeue_error_transmission_guid,
+			"request_client_guid": self.__request_client_guid,
 			"destination_client_guid": self.__destination_client_guid,
-			"row_created_datetime": self.__row_created_datetime
+			"row_created_datetime": self.__row_created_datetime,
+			"destination_client": None if self.__destination_client is None else self.__destination_client.to_json(),
+			"transmission_dequeue_error_transmission": None if self.__transmission_dequeue_error_transmission is None else self.__transmission_dequeue_error_transmission.to_json()
 		}
 
 	@staticmethod
 	def parse_row(*, row: Dict) -> TransmissionDequeueErrorTransmissionDequeue:
-		return TransmissionDequeueErrorTransmissionDequeue(
-			transmission_dequeue_error_transmission_dequeue_guid=row[0],
-			transmission_dequeue_error_transmission_guid=row[1],
-			request_client_guid=row[2],
-			destination_client_guid=row[3],
-			row_created_datetime=datetime.strptime(row[4], "%Y-%m-%d %H:%M:%S.%f")
-		)
+		if len(row) != 6:
+			raise Exception(f"Unexpected number of columns in row. Expected 6, found {len(row)}.")
+		else:
+			return TransmissionDequeueErrorTransmissionDequeue(
+				transmission_dequeue_error_transmission_dequeue_guid=row[0],
+				reporter_guid=row[1],
+				transmission_dequeue_error_transmission_guid=row[2],
+				request_client_guid=row[3],
+				destination_client_guid=row[4],
+				row_created_datetime=datetime.strptime(row[5], "%Y-%m-%d %H:%M:%S.%f")
+			)
 
 
 class Database():
@@ -1125,6 +1183,7 @@ class Database():
 		_get_result = _get_cursor.execute('''
 			SELECT
 				td.transmission_dequeue_guid,
+				td.dequeuer_guid,
 				td.transmission_guid,
 				td.request_client_guid,
 				td.destination_client_guid,
@@ -1157,6 +1216,18 @@ class Database():
 				row=_row
 			)
 
+			_is_successful, _transmission = self.try_get_transmission(
+				transmission_guid=_transmission_dequeue.get_transmission_guid()
+			)
+
+			if not _is_successful:
+				raise Exception(f"Failed to find transmission with guid: {_transmission_dequeue.get_transmission_guid()}")
+			else:
+
+				_transmission_dequeue.set_transmission(
+					transmission=_transmission
+				)
+
 		return _transmission_dequeue is not None, _transmission_dequeue
 
 	def try_get_transmission_dequeue(self, *, transmission_dequeue_guid: str) -> Tuple[bool, TransmissionDequeue]:
@@ -1165,6 +1236,7 @@ class Database():
 		_get_result = _get_cursor.execute('''
 			SELECT
 				transmission_dequeue_guid,
+				dequeuer_guid,
 				transmission_guid,
 				request_client_guid,
 				destination_client_guid,
@@ -1186,6 +1258,18 @@ class Database():
 				row=_row
 			)
 
+			_is_successful, _transmission = self.try_get_transmission(
+				transmission_guid=_transmission_dequeue.get_transmission_guid()
+			)
+
+			if not _is_successful:
+				raise Exception(f"Failed to find transmission with guid: \"{_transmission_dequeue.get_transmission_guid()}\".")
+			else:
+
+				_transmission_dequeue.set_transmission(
+					transmission=_transmission
+				)
+
 		return _transmission_dequeue is not None, _transmission_dequeue
 
 	def get_next_transmission_dequeue(self, *, dequeuer_guid: str, queue_guid: str, client_guid: str) -> TransmissionDequeue:
@@ -1200,8 +1284,8 @@ class Database():
 		_insert_cursor.execute('''
 			INSERT INTO transmission_dequeue
 			(
-				dequeuer_guid,
 				transmission_dequeue_guid,
+				dequeuer_guid,
 				transmission_guid,
 				request_client_guid,
 				destination_client_guid,
@@ -1242,33 +1326,31 @@ class Database():
 							t_earlier.destination_device_guid = t.destination_device_guid
 							AND t_earlier.row_created_datetime < t.row_created_datetime
 							AND
-							(
-								( -- the transmission is not in a terminal state
-									NOT EXISTS (
-										SELECT 1
-										FROM transmission_dequeue AS td_earlier
-										INNER JOIN transmission_complete AS tc_earlier
-										ON
-											tc_earlier.transmission_dequeue_guid = td_earlier.transmission_dequeue_guid
-										WHERE
-											td_earlier.transmission_guid = t_earlier.transmission_guid
-									)
-									AND NOT EXISTS (
-										SELECT 1
-										FROM transmission_dequeue AS td_earlier
-										INNER JOIN transmission_dequeue_error_transmission AS tdet_earlier
-										ON
-											tdet_earlier.transmission_dequeue_guid = td_earlier.transmission_dequeue_guid
-										INNER JOIN transmission_dequeue_error_transmission_dequeue AS tdetd_earlier
-										ON
-											tdetd_earlier.transmission_dequeue_error_transmission_guid = tdet_earlier.transmission_dequeue_error_transmission_guid
-										INNER JOIN transmission_dequeue_error_transmission_complete AS tdetc_earlier
-										ON
-											tdetc_earlier.transmission_dequeue_error_transmission_dequeue_guid = tdetd_earlier.transmission_dequeue_error_transmission_dequeue_guid
-										WHERE
-											td_earlier.transmission_guid = t_earlier.transmission_guid
-											AND tdetc_earlier.is_retry_requested = 0
-									)
+							( -- the transmission is not in a terminal state
+								NOT EXISTS ( -- not in a normal complete state
+									SELECT 1
+									FROM transmission_dequeue AS td_earlier
+									INNER JOIN transmission_complete AS tc_earlier
+									ON
+										tc_earlier.transmission_dequeue_guid = td_earlier.transmission_dequeue_guid
+									WHERE
+										td_earlier.transmission_guid = t_earlier.transmission_guid
+								)
+								AND NOT EXISTS ( -- not in an failed transmission completed where a retry was not requested (basically cancelling the transmission after it failed to be sent to the destination)
+									SELECT 1
+									FROM transmission_dequeue AS td_earlier
+									INNER JOIN transmission_dequeue_error_transmission AS tdet_earlier
+									ON
+										tdet_earlier.transmission_dequeue_guid = td_earlier.transmission_dequeue_guid
+									INNER JOIN transmission_dequeue_error_transmission_dequeue AS tdetd_earlier
+									ON
+										tdetd_earlier.transmission_dequeue_error_transmission_guid = tdet_earlier.transmission_dequeue_error_transmission_guid
+									INNER JOIN transmission_dequeue_error_transmission_complete AS tdetc_earlier
+									ON
+										tdetc_earlier.transmission_dequeue_error_transmission_dequeue_guid = tdetd_earlier.transmission_dequeue_error_transmission_dequeue_guid
+									WHERE
+										td_earlier.transmission_guid = t_earlier.transmission_guid
+										AND tdetc_earlier.is_retry_requested = 0
 								)
 							)
 							-- entries in the transmission_dequeue_error_transmission_error table are not valid terminal conditions because the transmissions may need to be received sequentially via a retry
@@ -1301,32 +1383,22 @@ class Database():
 			ORDER BY
 				t.row_created_datetime
 			LIMIT 1
-		''', (dequeuer_guid, _transmission_dequeue_guid, client_guid, _row_created_datetime, queue_guid, dequeuer_guid))
+		''', (_transmission_dequeue_guid, dequeuer_guid, client_guid, _row_created_datetime, queue_guid, dequeuer_guid))
 
 		_is_successful, _transmission_dequeue = self.try_get_transmission_dequeue_by_dequeuer(
 			dequeuer_guid=dequeuer_guid
 		)
 
 		if _is_successful:
-			_is_successful, _transmission = self.try_get_transmission(
-				transmission_guid=_transmission_dequeue.get_transmission_guid()
-			)
 
-			if not _is_successful:
-				raise Exception(f"Failed to find transmission with guid: {_transmission_dequeue.get_transmission_guid()}")
-			else:
-				_transmission_dequeue.set_transmission(
-					transmission=_transmission
-				)
-
-				if _transmission.get_is_retry_ready():
-					_insert_cursor.execute('''
-						UPDATE transmission
-						SET
-							is_retry_ready = NULL
-						WHERE
-							transmission_guid = ?
-					''', (_transmission_dequeue.get_transmission_guid(),))
+			if _transmission_dequeue.get_transmission().get_is_retry_ready():
+				_insert_cursor.execute('''
+					UPDATE transmission
+					SET
+						is_retry_ready = NULL
+					WHERE
+						transmission_guid = ?
+				''', (_transmission_dequeue.get_transmission_guid(),))
 
 		_insert_cursor.execute('''
 			COMMIT
@@ -1351,7 +1423,7 @@ class Database():
 			VALUES (?, ?, ?, ?)
 		''', (_transmission_complete_guid, transmission_dequeue_guid, client_guid, _row_created_datetime))
 
-	def transmission_failed(self, *, client_guid: str, transmission_dequeue_guid: str, error_message_json_string: str):
+	def transmission_failed(self, *, client_guid: str, transmission_dequeue_guid: str, error_message_json_string: str) -> TransmissionDequeueErrorTransmission:
 
 		_transmission_dequeue_error_transmission_guid = str(uuid.uuid4()).upper()
 		_row_created_datetime = datetime.utcnow()
@@ -1370,12 +1442,88 @@ class Database():
 			VALUES (?, ?, ?, ?, ?, ?)
 		''', (_transmission_dequeue_error_transmission_guid, client_guid, transmission_dequeue_guid, error_message_json_string, _row_created_datetime, None))
 
+		_is_successful, _transmission_dequeue_error_transmission = self.try_get_transmission_dequeue_error_transmission(
+			transmission_dequeue_error_transmission_guid=_transmission_dequeue_error_transmission_guid
+		)
+
+		if not _is_successful:
+			raise Exception(f"Failed to insert transmission_dequeue_error_transmission for transmission_dequeue_guid \"{transmission_dequeue_guid}\".")
+
+		return _transmission_dequeue_error_transmission
+
+	def try_get_transmission_dequeue_error_transmission_dequeue_by_reporter(self, *, reporter_guid: str) -> Tuple[bool, TransmissionDequeueErrorTransmissionDequeue]:
+
+		_get_cursor = self.__connection.cursor()
+		_get_result = _get_cursor.execute('''
+			SELECT
+				tdetd.transmission_dequeue_error_transmission_dequeue_guid,
+				tdetd.reporter_guid,
+				tdetd.transmission_dequeue_error_transmission_guid,
+				tdetd.request_client_guid,
+				tdetd.destination_client_guid,
+				tdetd.row_created_datetime
+			FROM transmission_dequeue_error_transmission_dequeue AS tdetd
+			WHERE
+				tdetd.reporter_guid = ?
+				AND NOT EXISTS (
+					SELECT 1
+					FROM transmission_dequeue_error_transmission_complete AS tdetc_inner
+					WHERE
+						tdetc_inner.transmission_dequeue_error_transmission_dequeue_guid = tdetd.transmission_dequeue_error_transmission_dequeue_guid
+				)
+				AND NOT EXISTS (
+					SELECT 1
+					FROM transmission_dequeue_error_transmission_error AS tdete_inner
+					WHERE
+						tdete_inner.transmission_dequeue_error_transmission_dequeue_guid = tdetd.transmission_dequeue_error_transmission_dequeue_guid
+				)
+		''', (reporter_guid,))
+
+		_rows = _get_result.fetchall()
+		if len(_rows) == 0:
+			_transmission_dequeue_error_transmission_dequeue = None
+		elif len(_rows) > 1:
+			raise Exception(f"Unexpected number of rows. Expected 0 or 1, found {len(_rows)}.")
+		else:
+			_row = _rows[0]
+
+			_transmission_dequeue_error_transmission_dequeue = TransmissionDequeueErrorTransmissionDequeue.parse_row(
+				row=_row
+			)
+
+			_is_successful, _destination_client = self.try_get_client(
+				client_guid=_transmission_dequeue_error_transmission_dequeue.get_destination_client_guid()
+			)
+
+			if not _is_successful:
+				raise Exception(f"Failed to find destination client with guid: \"{_transmission_dequeue_error_transmission_dequeue.get_destination_client_guid()}\".")
+			else:
+
+				_transmission_dequeue_error_transmission_dequeue.set_destination_client(
+					destination_client=_destination_client
+				)
+
+				_is_successful, _transmission_dequeue_error_transmission = self.try_get_transmission_dequeue_error_transmission(
+					transmission_dequeue_error_transmission_guid=_transmission_dequeue_error_transmission_dequeue.get_transmission_dequeue_error_transmission_guid()
+				)
+
+				if not _is_successful:
+					raise Exception(f"Failed to find transmission dequeue error transmission with guid: \"{_transmission_dequeue_error_transmission_dequeue.get_transmission_dequeue_error_transmission_guid()}\".")
+				else:
+
+					_transmission_dequeue_error_transmission_dequeue.set_transmission_dequeue_error_transmission(
+						transmission_dequeue_error_transmission=_transmission_dequeue_error_transmission
+					)
+
+		return _transmission_dequeue_error_transmission_dequeue is not None, _transmission_dequeue_error_transmission_dequeue
+
 	def try_get_transmission_dequeue_error_transmission_dequeue(self, *, transmission_dequeue_error_transmission_dequeue_guid: str) -> Tuple[bool, TransmissionDequeueErrorTransmissionDequeue]:
 
 		_get_cursor = self.__connection.cursor()
 		_get_result = _get_cursor.execute('''
 			SELECT
 				transmission_dequeue_error_transmission_dequeue_guid,
+				reporter_guid,
 				transmission_dequeue_error_transmission_guid,
 				request_client_guid,
 				destination_client_guid,
@@ -1396,6 +1544,30 @@ class Database():
 			_transmission_dequeue_error_transmission_dequeue = TransmissionDequeueErrorTransmissionDequeue.parse_row(
 				row=_row
 			)
+
+			_is_successful, _destination_client = self.try_get_client(
+				client_guid=_transmission_dequeue_error_transmission_dequeue.get_destination_client_guid()
+			)
+
+			if not _is_successful:
+				raise Exception(f"Failed to find destination client with guid: \"{_transmission_dequeue_error_transmission_dequeue.get_destination_client_guid()}\".")
+			else:
+
+				_transmission_dequeue_error_transmission_dequeue.set_destination_client(
+					destination_client=_destination_client
+				)
+
+				_is_successful, _transmission_dequeue_error_transmission = self.try_get_transmission_dequeue_error_transmission(
+					transmission_dequeue_error_transmission_guid=_transmission_dequeue_error_transmission_dequeue.get_transmission_dequeue_error_transmission_guid()
+				)
+
+				if not _is_successful:
+					raise Exception(f"Failed to find transmission dequeue error transmission with guid: \"{_transmission_dequeue_error_transmission_dequeue.get_transmission_dequeue_error_transmission_guid()}\".")
+				else:
+
+					_transmission_dequeue_error_transmission_dequeue.set_transmission_dequeue_error_transmission(
+						transmission_dequeue_error_transmission=_transmission_dequeue_error_transmission
+					)
 
 		return _transmission_dequeue_error_transmission_dequeue is not None, _transmission_dequeue_error_transmission_dequeue
 
@@ -1426,6 +1598,18 @@ class Database():
 			_transmission_dequeue_error_transmission = TransmissionDequeueErrorTransmission.parse_row(
 				row=_row
 			)
+
+			_is_successful, _transmission_dequeue = self.try_get_transmission_dequeue(
+				transmission_dequeue_guid=_transmission_dequeue_error_transmission.get_transmission_dequeue_guid()
+			)
+
+			if not _is_successful:
+				raise Exception(f"Failed to find transmission dequeue with guid: \"{_transmission_dequeue_error_transmission.get_transmission_dequeue_guid()}\".")
+			else:
+
+				_transmission_dequeue_error_transmission.set_transmission_dequeue(
+					transmission_dequeue=_transmission_dequeue
+				)
 
 		return _transmission_dequeue_error_transmission is not None, _transmission_dequeue_error_transmission
 
@@ -1483,7 +1667,7 @@ class Database():
 					)
 				)
 				AND
-				(
+				(  -- there does not exist an earlier failed transmission not yet in a terminal state
 					NOT EXISTS (
 						SELECT 1
 						FROM transmission_dequeue_error_transmission AS tdet_earlier
@@ -1496,70 +1680,74 @@ class Database():
 						WHERE
 							t_earlier.source_device_guid = t.source_device_guid
 							AND tdet_earlier.row_created_datetime < tdet.row_created_datetime
-							AND NOT EXISTS (
-								SELECT 1
-								FROM transmission_dequeue_error_transmission_dequeue AS tdetd_earlier
-								INNER JOIN transmission_dequeue_error_transmission_complete AS tdetc_earlier
-								ON
-									tdetc_earlier.transmission_dequeue_error_transmission_dequeue_guid = tdetd_earlier.transmission_dequeue_error_transmission_dequeue_guid
-								WHERE
-									tdetd_earlier.transmission_dequeue_error_transmission_guid = tdet_earlier.transmission_dequeue_error_transmission_guid
+							AND
+							( -- the failed transmission is not in a terminal state
+								NOT EXISTS ( -- not in a failed transaction complete state
+									SELECT 1
+									FROM transmission_dequeue_error_transmission_dequeue AS tdetd_earlier
+									INNER JOIN transmission_dequeue_error_transmission_complete AS tdetc_earlier
+									ON
+										tdetc_earlier.transmission_dequeue_error_transmission_dequeue_guid = tdetd_earlier.transmission_dequeue_error_transmission_dequeue_guid
+									WHERE
+										tdetd_earlier.transmission_dequeue_error_transmission_guid = tdet_earlier.transmission_dequeue_error_transmission_guid
+								)
+								-- an entry in transmission_dequeue_error_transmission_error can occur multiple times and will not stop retrying until it succeeds
+								--AND NOT EXISTS ( -- not in a failed transaction that failed state
+								--	SELECT 1
+								--	FROM transmission_dequeue_error_transmission_dequeue AS tdetd_earlier
+								--	INNER JOIN transmission_dequeue_error_transmission_error AS tdete_earlier
+								--	ON
+								--		tdete_earlier.transmission_dequeue_error_transmission_dequeue_guid = tdetd_earlier.transmission_dequeue_error_transmission_dequeue_guid
+								--	WHERE
+								--		tdetd_earlier.transmission_dequeue_error_transmission_guid = tdet_earlier.transmission_dequeue_error_transmission_guid
+								--)
+							)
+					)
+				)
+				AND -- reporter doesn't already have an entry dequeued
+				(
+					NOT EXISTS (
+						SELECT 1
+						FROM transmission_dequeue_error_transmission_dequeue AS tdetd_same
+						WHERE
+							tdetd_same.reporter_guid = ?
+							AND 
+							( -- failed transmission is not in a state post-dequeuer
+								NOT EXISTS (
+									SELECT 1
+									FROM transmission_dequeue_error_transmission_complete AS tdetc_same
+									WHERE
+										tdetc_same.transmission_dequeue_error_transmission_dequeue_guid = tdetd_same.transmission_dequeue_error_transmission_dequeue_guid
+								)
+								AND NOT EXISTS (
+									SELECT 1
+									FROM transmission_dequeue_error_transmission_error AS tdete_same
+									WHERE
+										tdete_same.transmission_dequeue_error_transmission_dequeue_guid = tdetd_same.transmission_dequeue_error_transmission_dequeue_guid
+								)
 							)
 					)
 				)
 			ORDER BY
 				t.row_created_datetime
 			LIMIT 1
-		''', (reporter_guid, _transmission_dequeue_error_transmission_dequeue_guid, client_guid, _row_created_datetime, queue_guid))
+		''', (reporter_guid, _transmission_dequeue_error_transmission_dequeue_guid, client_guid, _row_created_datetime, queue_guid, reporter_guid))
 
-		_is_successful, _transmission_dequeue_error_transmission_dequeue = self.try_get_transmission_dequeue_error_transmission_dequeue(
-			transmission_dequeue_error_transmission_dequeue_guid=_transmission_dequeue_error_transmission_dequeue_guid
+		_is_successful, _transmission_dequeue_error_transmission_dequeue = self.try_get_transmission_dequeue_error_transmission_dequeue_by_reporter(
+			reporter_guid=reporter_guid
 		)
 
 		if _is_successful:
 
-			_is_successful, _transmission_dequeue_error_transmission = self.try_get_transmission_dequeue_error_transmission(
-				transmission_dequeue_error_transmission_guid=_transmission_dequeue_error_transmission_dequeue.get_transmission_dequeue_error_transmission_guid()
-			)
+			if _transmission_dequeue_error_transmission_dequeue.get_transmission_dequeue_error_transmission().get_is_retry_ready():
 
-			if not _is_successful:
-				raise Exception(f"Failed to find transmission dequeue error transmission with guid: \"{_transmission_dequeue_error_transmission_dequeue.get_transmission_dequeue_error_transmission_guid()}\".")
-			else:
-				_transmission_dequeue_error_transmission_dequeue.set_transmission_dequeue_error_transmission(
-					transmission_dequeue_error_transmission=_transmission_dequeue_error_transmission
-				)
-
-				_is_successful, _transmission_dequeue = self.try_get_transmission_dequeue(
-					transmission_dequeue_guid=_transmission_dequeue_error_transmission.get_transmission_dequeue_guid()
-				)
-
-				if not _is_successful:
-					raise Exception(f"Failed to find transmission dequeue with guid: \"{_transmission_dequeue_error_transmission.get_transmission_dequeue_guid()}\".")
-				else:
-					_transmission_dequeue_error_transmission.set_transmission_dequeue(
-						transmission_dequeue=_transmission_dequeue
-					)
-
-					_is_successful, _transmission = self.try_get_transmission(
-						transmission_guid=_transmission_dequeue.get_transmission_guid()
-					)
-
-					if not _is_successful:
-						raise Exception(
-							f"Failed to find transmission with guid: \"{_transmission_dequeue.get_transmission_guid()}\".")
-					else:
-						_transmission_dequeue.set_transmission(
-							transmission=_transmission
-						)
-
-						if _transmission_dequeue_error_transmission.get_is_retry_ready():
-							_insert_cursor.execute('''
-								UPDATE transmission_dequeue_error_transmission
-								SET
-									is_retry_ready = NULL
-								WHERE
-									transmission_dequeue_error_transmission_guid = ?
-							''', (_transmission_dequeue_error_transmission_dequeue.get_transmission_dequeue_error_transmission_guid(),))
+				_insert_cursor.execute('''
+					UPDATE transmission_dequeue_error_transmission
+					SET
+						is_retry_ready = NULL
+					WHERE
+						transmission_dequeue_error_transmission_guid = ?
+				''', (_transmission_dequeue_error_transmission_dequeue.get_transmission_dequeue_error_transmission_guid(),))
 
 		_insert_cursor.execute('''
 			COMMIT
@@ -1727,3 +1915,29 @@ class Database():
 			)
 			_api_entrypoint_logs.append(_api_entrypoint_log)
 		return _api_entrypoint_logs
+
+	def try_get_client(self, *, client_guid: str) -> Tuple[bool, Client]:
+
+		_get_cursor = self.__connection.cursor()
+		_get_result = _get_cursor.execute('''
+			SELECT
+				client_guid,
+				ip_address
+			FROM client
+			WHERE
+				client_guid = ?
+		''', (client_guid,))
+
+		_rows = _get_result.fetchall()
+		if len(_rows) == 0:
+			_client = None
+		elif len(_rows) > 1:
+			raise Exception(f"Unexpected number of rows. Expected 0 or 1, found {len(_rows)}.")
+		else:
+			_row = _rows[0]
+
+			_client = Client.parse_row(
+				row=_row
+			)
+
+		return _client is not None, _client

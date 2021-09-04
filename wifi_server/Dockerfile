@@ -1,14 +1,14 @@
 FROM tiangolo/uvicorn-gunicorn-fastapi:python3.8
 
-RUN wget -c https://sqlite.org/2021/sqlite-autoconf-3350400.tar.gz
-RUN mkdir sqlite3
-RUN tar xvfz sqlite-autoconf-3350400.tar.gz -C ./sqlite3/
-RUN cd sqlite3/sqlite-autoconf-3350400/ \
-    && ./configure \
-    && make \
-    && make install
+#RUN wget -c https://sqlite.org/2021/sqlite-autoconf-3350400.tar.gz
+#RUN mkdir sqlite3
+#RUN tar xvfz sqlite-autoconf-3350400.tar.gz -C ./sqlite3/
+#RUN cd sqlite3/sqlite-autoconf-3350400/ \
+#    && ./configure \
+#    && make \
+#    && make install
 
-WORKDIR /
+#WORKDIR /
 
 COPY ./requirements.txt /wifi_server/requirements.txt
 

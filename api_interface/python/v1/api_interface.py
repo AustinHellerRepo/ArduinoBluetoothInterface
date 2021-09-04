@@ -30,11 +30,11 @@ class ApiInterface():
 			raise Exception(f"Unexpected status code: {_response.status_code}: {_response.reason}. Error: \"{_response.text}\".")
 		else:
 			_json_response = _response.json()
-			if not _json_response.has_key("is_successful"):
+			if "is_successful" not in _json_response:
 				raise Exception(f"Unexpected missing key \"is_successful\": {_json_response}")
-			elif not _json_response.has_key("response"):
+			elif "response" not in _json_response:
 				raise Exception(f"Unexpected missing key \"response\": {_json_response}")
-			elif not _json_response.has_key("error"):
+			elif "error" not in _json_response:
 				raise Exception(f"Unexpected missing key \"error\": {_json_response}")
 			else:
 				_is_successful = _json_response["is_successful"]

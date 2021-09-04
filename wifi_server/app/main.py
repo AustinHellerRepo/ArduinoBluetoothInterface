@@ -538,7 +538,7 @@ def v1_failed_failure_transmission(transmission_dequeue_error_transmission_deque
 	}
 
 
-@app.get("/v1/uuid")
+@app.post("/v1/uuid")
 def v1_get_uuid(request: Request):
 
 	log_api_entrypoint(

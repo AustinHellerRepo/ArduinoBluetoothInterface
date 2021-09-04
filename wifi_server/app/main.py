@@ -4,6 +4,13 @@ import traceback
 from typing import List, Tuple, Dict
 import json
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+import asyncio
+
+
+_loop = asyncio.get_running_loop()
+_loop.set_default_executor(ThreadPoolExecutor(max_workers=1))  # TODO pull from settings
+
 
 app = FastAPI()
 

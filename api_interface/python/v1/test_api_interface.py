@@ -6,6 +6,8 @@ from datetime import datetime
 from typing import List, Tuple, Dict
 import json
 import threading
+import time
+import math
 
 
 def get_api_interface() -> ApiInterface:
@@ -157,5 +159,112 @@ class ApiInterfaceTest(unittest.TestCase):
 
 	def test_send_transmission_1(self):
 		# send async messages between threads
+
+		_running_seconds_total = 20
+		_send_thread_delay_seconds_theta = 0
+		_dequeue_thread_delay_seconds_theta = math.tau * 0.5
+		_theta_delta = 0.3
+		_max_delay_seconds = 1.0
+		_min_delay_seconds = 0.25
+		_is_send_running = True
+		_is_dequeue_running = True
+		_queue_guid = str(uuid.uuid4())
+		_sent_transmissions = []
+		_sent_transmissions_semaphore = threading.Semaphore()
+		_dequeued_transmissions = []
+		_dequeued_transmissions_semaphore = threading.Semaphore()
+
 		def _send_thread_method():
-			raise NotImplementedError()
+			nonlocal _send_thread_delay_seconds_theta
+			nonlocal _theta_delta
+			_api_interface = get_api_interface()
+			_source_device_guid = str(uuid.uuid4())
+			_source_device_purpose_guid = str(uuid.uuid4())
+			_api_interface.send_device_announcement(
+				device_guid=_source_device_guid,
+				purpose_guid=_source_device_purpose_guid
+			)
+			_destination_device_guid = str(uuid.uuid4())
+			_destination_device_purpose_guid = str(uuid.uuid4())
+			_api_interface.send_device_announcement(
+				device_guid=_destination_device_guid,
+				purpose_guid=_destination_device_purpose_guid
+			)
+			while _is_send_running:
+				_transmission_json = {
+					"test": str(uuid.uuid4())
+				}
+				_transmission_response = _api_interface.send_transmission(
+					queue_guid=_queue_guid,
+					source_device_guid=_source_device_guid,
+					transmission_json=_transmission_json,
+					destination_device_guid=_destination_device_guid
+				)
+				self.assertIn("transmission", _transmission_response)
+				_transmission = _transmission_response["transmission"]
+				_sent_transmissions_semaphore.acquire()
+				_sent_transmissions.append(_transmission)
+				_sent_transmissions_semaphore.release()
+
+				_delay_seconds = (math.cos(_send_thread_delay_seconds_theta) + 1) / 2.0 * (_max_delay_seconds - _min_delay_seconds) + _min_delay_seconds
+				_send_thread_delay_seconds_theta += _theta_delta
+				if _send_thread_delay_seconds_theta > math.tau:
+					_send_thread_delay_seconds_theta -= math.tau
+				time.sleep(_delay_seconds)
+
+		def _dequeue_thread_method():
+			nonlocal _dequeue_thread_delay_seconds_theta
+			nonlocal _theta_delta
+			_api_interface = get_api_interface()
+			_dequeuer_guid = str(uuid.uuid4())
+			_api_interface.send_dequeuer_announcement(
+				dequeuer_guid=_dequeuer_guid
+			)
+			while _is_dequeue_running:
+				_transmission_dequeue_response = _api_interface.dequeue_next_transmission(
+					dequeuer_guid=_dequeuer_guid,
+					queue_guid=_queue_guid
+				)
+				self.assertIsNotNone(_transmission_dequeue_response)
+				self.assertIn("transmission_dequeue", _transmission_dequeue_response)
+				_transmission_dequeue = _transmission_dequeue_response["transmission_dequeue"]
+				if _transmission_dequeue is not None:
+					print(f"_transmission_dequeue: {_transmission_dequeue}")
+					_dequeued_transmissions_semaphore.acquire()
+					_dequeued_transmissions.append(_transmission_dequeue)
+					_dequeued_transmissions_semaphore.release()
+					self.assertIn("transmission_dequeue_guid", _transmission_dequeue)
+					_api_interface.update_transmission_as_completed(
+						transmission_dequeue_guid=_transmission_dequeue["transmission_dequeue_guid"]
+					)
+
+				_delay_seconds = (math.cos(_dequeue_thread_delay_seconds_theta) + 1) / 2.0 * (_max_delay_seconds - _min_delay_seconds) + _min_delay_seconds
+				_dequeue_thread_delay_seconds_theta += _theta_delta
+				if _dequeue_thread_delay_seconds_theta > math.tau:
+					_dequeue_thread_delay_seconds_theta -= math.tau
+				print(f"_delay_seconds: {_delay_seconds}")
+				time.sleep(_delay_seconds)
+
+		_send_thread = threading.Thread(
+			target=_send_thread_method
+		)
+		_send_thread.start()
+
+		_dequeue_thread = threading.Thread(
+			target=_dequeue_thread_method
+		)
+		_dequeue_thread.start()
+
+		time.sleep(_running_seconds_total)
+		_is_send_running = False
+		_send_thread.join()
+		_dequeue_thread_delay_seconds_theta = math.tau * 0.5
+		_theta_delta = 0.0
+		_min_delay_seconds = 0.0
+		time.sleep(1)
+		_is_dequeue_running = False
+		_dequeue_thread.join()
+
+		self.assertEqual(len(_sent_transmissions), len(_dequeued_transmissions))
+		self.assertGreater(len(_dequeued_transmissions), 0)
+

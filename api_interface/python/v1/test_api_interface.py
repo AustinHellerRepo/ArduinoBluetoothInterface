@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime
 from typing import List, Tuple, Dict
 import json
+import threading
 
 
 def get_api_interface() -> ApiInterface:
@@ -148,3 +149,13 @@ class ApiInterfaceTest(unittest.TestCase):
 		self.assertIn("transmission_json_string", _transmission)
 		self.assertEqual(json.dumps(_transmission_json), _transmission["transmission_json_string"])
 		self.assertEqual(_transmission_json, json.loads(_transmission["transmission_json_string"]))
+
+		self.assertIn("transmission_dequeue_guid", _transmission_dequeue)
+		_api_interface.update_transmission_as_completed(
+			transmission_dequeue_guid=_transmission_dequeue["transmission_dequeue_guid"]
+		)
+
+	def test_send_transmission_1(self):
+		# send async messages between threads
+		def _send_thread_method():
+			raise NotImplementedError()

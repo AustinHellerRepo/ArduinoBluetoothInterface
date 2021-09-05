@@ -1,5 +1,9 @@
 FROM tiangolo/uvicorn-gunicorn-fastapi:python3.8
 
+RUN /usr/local/bin/python -m pip install --upgrade pip
+RUN apt update
+RUN apt install -y python3-brlapi
+
 #RUN wget -c https://sqlite.org/2021/sqlite-autoconf-3350400.tar.gz
 #RUN mkdir sqlite3
 #RUN tar xvfz sqlite-autoconf-3350400.tar.gz -C ./sqlite3/

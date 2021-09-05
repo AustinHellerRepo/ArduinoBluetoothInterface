@@ -22,7 +22,7 @@ class Purpose(IntEnum):
 
 class ApiEntrypoint(IntEnum):
 
-	TestRoot = 1,
+	TestGet = 1,
 	V1ReceiveDeviceAnnouncement = 2,
 	V1ReceiveDeviceTransmission = 3,
 	V1DequeueNextTransmission = 4,
@@ -34,7 +34,9 @@ class ApiEntrypoint(IntEnum):
 	V1GetUuid = 10,
 	V1ListDevices = 11,
 	V1ReceiveDequeuerAnnouncement = 12,
-	V1ReceiveReporterAnnouncement = 13
+	V1ReceiveReporterAnnouncement = 13,
+	TestPost = 14,
+	TestJson = 15
 
 
 class Client():

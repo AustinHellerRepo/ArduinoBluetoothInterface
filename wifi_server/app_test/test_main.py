@@ -10,15 +10,27 @@ from datetime import datetime
 
 class MainTest(unittest.TestCase):
 
-	def test_application_running(self):
+	def test_get_0(self):
 		_app = TestClient(app)
-		_response = _app.get("/")
+		_response = _app.get("/v1/test/get")
 		self.assertEqual(200, _response.status_code)
 		self.assertEqual({"is_successful": True, "response": None, "error": None}, _response.json())
 
-	def test_announce_device(self):
+	def test_post_0(self):
 		_app = TestClient(app)
-		_response = _app.post("/v1/device/announce", params={"device_guid": "2061BABC-9CCE-4E48-9C7C-C09D92342678", "purpose_guid": "866FB619-E643-46CB-B508-1377EF43CEBC"})
+		_response = _app.post("/v1/test/post")
+		self.assertEqual(200, _response.status_code)
+		self.assertEqual({"is_successful": True, "response": None, "error": None}, _response.json())
+
+	def test_json_0(self):
+		_app = TestClient(app)
+		_response = _app.post("/v1/test/json", json={"test": "hello"})
+		self.assertEqual(200, _response.status_code)
+		self.assertEqual({"is_successful": True, "response": {"test": "hello"}, "error": None}, _response.json())
+
+	def test_announce_device_0(self):
+		_app = TestClient(app)
+		_response = _app.post("/v1/device/announce", json={"device_guid": "2061BABC-9CCE-4E48-9C7C-C09D92342678", "purpose_guid": "866FB619-E643-46CB-B508-1377EF43CEBC"})
 		self.assertEqual(200, _response.status_code)
 		_response_json = _response.json()
 		self.assertTrue(_response_json["is_successful"])
@@ -37,7 +49,7 @@ class MainTest(unittest.TestCase):
 
 		_first_device_guid = "805FC328-943D-42BA-A81D-8486ADE0C4A1"
 		_first_device_purpose_guid = "71779DF6-B7AB-4815-9308-CD688B3F2F0D"
-		_response = _app.post("/v1/device/announce", params={"device_guid": _first_device_guid, "purpose_guid": _first_device_purpose_guid})
+		_response = _app.post("/v1/device/announce", json={"device_guid": _first_device_guid, "purpose_guid": _first_device_purpose_guid})
 		self.assertEqual(200, _response.status_code)
 		_first_device = _response.json()["response"]["device"]
 		self.assertIsNotNone(_first_device)
@@ -48,7 +60,7 @@ class MainTest(unittest.TestCase):
 
 		_second_device_guid = "FB144F0B-8A53-49E4-85A5-5349EAB4FBF1"
 		_second_device_purpose_guid = "B5155325-C1D6-4ED8-A7B4-BF52601D326C"
-		_response = _app.post("/v1/device/announce", params={"device_guid": _second_device_guid, "purpose_guid": _second_device_purpose_guid})
+		_response = _app.post("/v1/device/announce", json={"device_guid": _second_device_guid, "purpose_guid": _second_device_purpose_guid})
 		self.assertEqual(200, _response.status_code)
 		_second_device = _response.json()["response"]["device"]
 		self.assertIsNotNone(_second_device)
@@ -182,7 +194,7 @@ class MainTest(unittest.TestCase):
 
 		# reannounce destination device
 
-		_response = _app.post("/v1/device/announce", params={"device_guid": _second_device_guid, "purpose_guid": _second_device_purpose_guid})
+		_response = _app.post("/v1/device/announce", json={"device_guid": _second_device_guid, "purpose_guid": _second_device_purpose_guid})
 		self.assertEqual(200, _response.status_code)
 		_second_device = _response.json()["response"]["device"]
 		self.assertIsNotNone(_second_device)
@@ -236,7 +248,7 @@ class MainTest(unittest.TestCase):
 
 		# reannounce source device
 
-		_response = _app.post("/v1/device/announce", params={"device_guid": _first_device_guid, "purpose_guid": _first_device_purpose_guid})
+		_response = _app.post("/v1/device/announce", json={"device_guid": _first_device_guid, "purpose_guid": _first_device_purpose_guid})
 		self.assertEqual(200, _response.status_code)
 		_first_again_device = _response.json()["response"]["device"]
 		self.assertIsNotNone(_first_again_device)
@@ -270,11 +282,10 @@ class MainTest(unittest.TestCase):
 		_response = _app.post("/v1/transmission/complete", params={"transmission_dequeue_guid": _first_transmission_dequeue["transmission_dequeue_guid"]})
 		self.assertEqual(200, _response.status_code)
 
-
-def test_get_uuid_0(self):
-		_app = TestClient(app)
-		_response = _app.get("/v1/uuid")
-		self.assertEqual(200, _response.status_code)
-		_uuid = _response.json()["response"]["uuid"]
-		_match = re.search("^[A-F0-9]{8}\\-[A-F0-9]{4}\\-[A-F0-9]{4}\\-[A-F0-9]{4}\\-[A-F0-9]{12}$", _uuid)
-		self.assertIsNotNone(_match)
+	def test_get_uuid_0(self):
+			_app = TestClient(app)
+			_response = _app.post("/v1/uuid")
+			self.assertEqual(200, _response.status_code)
+			_uuid = _response.json()["response"]["uuid"]
+			_match = re.search("^[A-F0-9]{8}\\-[A-F0-9]{4}\\-[A-F0-9]{4}\\-[A-F0-9]{4}\\-[A-F0-9]{12}$", _uuid)
+			self.assertIsNotNone(_match)

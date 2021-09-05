@@ -2758,7 +2758,7 @@ class DatabaseTest(unittest.TestCase):
 
 			_database.insert_api_entrypoint_log(
 				client_guid=_client.get_client_guid(),
-				api_entrypoint=ApiEntrypoint.TestRoot,
+				api_entrypoint=ApiEntrypoint.TestGet,
 				input_json_string=None
 			)
 			_database.insert_api_entrypoint_log(
@@ -2801,6 +2801,36 @@ class DatabaseTest(unittest.TestCase):
 				api_entrypoint=ApiEntrypoint.V1FailedFailureTransmission,
 				input_json_string=f"{{ \"size_test\": \"{'1234567890' * 10**7}\" }}"
 			)
+			_database.insert_api_entrypoint_log(
+				client_guid=_client.get_client_guid(),
+				api_entrypoint=ApiEntrypoint.V1ReceiveDequeuerAnnouncement,
+				input_json_string=None
+			)
+			_database.insert_api_entrypoint_log(
+				client_guid=_client.get_client_guid(),
+				api_entrypoint=ApiEntrypoint.V1ReceiveReporterAnnouncement,
+				input_json_string=None
+			)
+			_database.insert_api_entrypoint_log(
+				client_guid=_client.get_client_guid(),
+				api_entrypoint=ApiEntrypoint.V1DequeueFailureTransmission,
+				input_json_string=None
+			)
+			_database.insert_api_entrypoint_log(
+				client_guid=_client.get_client_guid(),
+				api_entrypoint=ApiEntrypoint.V1GetUuid,
+				input_json_string=None
+			)
+			_database.insert_api_entrypoint_log(
+				client_guid=_client.get_client_guid(),
+				api_entrypoint=ApiEntrypoint.TestPost,
+				input_json_string=None
+			)
+			_database.insert_api_entrypoint_log(
+				client_guid=_client.get_client_guid(),
+				api_entrypoint=ApiEntrypoint.TestJson,
+				input_json_string=None
+			)
 
 			_end_datetime = datetime.utcnow()
 
@@ -2809,7 +2839,7 @@ class DatabaseTest(unittest.TestCase):
 				exclusive_end_row_created_datetime=_end_datetime
 			)
 
-			self.assertEqual(9, len(_api_entrypoint_logs))
+			self.assertEqual(len(ApiEntrypoint), len(_api_entrypoint_logs))
 			self.assertEqual(None, _api_entrypoint_logs[0].get_input_json_string())
 			self.assertEqual("", _api_entrypoint_logs[1].get_input_json_string())
 			self.assertEqual("{ }", _api_entrypoint_logs[2].get_input_json_string())

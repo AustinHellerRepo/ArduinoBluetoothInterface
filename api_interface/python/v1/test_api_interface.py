@@ -16,6 +16,10 @@ def get_api_interface() -> ApiInterface:
 	)
 
 
+_1024_bytes = "01" * 2**9
+_1048576_bytes = _1024_bytes * 1024
+
+
 class ApiInterfaceTest(unittest.TestCase):
 
 	def test_access_api_0(self):
@@ -157,7 +161,7 @@ class ApiInterfaceTest(unittest.TestCase):
 			transmission_dequeue_guid=_transmission_dequeue["transmission_dequeue_guid"]
 		)
 
-	def test_send_transmission_1(self):
+	def _test_send_transmission_1(self):
 		# send async messages between threads
 
 		_running_seconds_total = 20
@@ -268,3 +272,60 @@ class ApiInterfaceTest(unittest.TestCase):
 		self.assertEqual(len(_sent_transmissions), len(_dequeued_transmissions))
 		self.assertGreater(len(_dequeued_transmissions), 0)
 
+		for _transmission, _transmission_dequeue in zip(_sent_transmissions, _dequeued_transmissions):
+			self.assertIn("transmission_guid", _transmission)
+			self.assertIn("transmission", _transmission_dequeue)
+			self.assertIn("transmission_guid", _transmission_dequeue["transmission"])
+			self.assertEqual(_transmission["transmission_guid"], _transmission_dequeue["transmission"]["transmission_guid"])
+
+	def test_send_transmission_2(self):
+		# test throughput of data
+
+		_is_running = True
+		_enqueue_dequeue_total = 0
+
+		def _enqueue_dequeue_transmission_thread_method():
+			nonlocal _is_running
+			nonlocal _enqueue_dequeue_total
+			_api_interface = get_api_interface()
+			_source_device_guid = str(uuid.uuid4())
+			_source_device_purpose_guid = str(uuid.uuid4())
+			_api_interface.send_device_announcement(
+				device_guid=_source_device_guid,
+				purpose_guid=_source_device_purpose_guid
+			)
+			_destination_device_guid = str(uuid.uuid4())
+			_destination_device_purpose_guid = str(uuid.uuid4())
+			_api_interface.send_device_announcement(
+				device_guid=_destination_device_guid,
+				purpose_guid=_destination_device_purpose_guid
+			)
+			_dequeuer_guid = str(uuid.uuid4())
+			_api_interface.send_dequeuer_announcement(
+				dequeuer_guid=_dequeuer_guid
+			)
+			_queue_guid = str(uuid.uuid4())
+			while _is_running:
+				_api_interface.send_transmission(
+					queue_guid=_queue_guid,
+					source_device_guid=_source_device_guid,
+					transmission_json={"a": _1024_bytes},
+					destination_device_guid=_destination_device_guid
+				)
+				_api_interface.dequeue_next_transmission(
+					dequeuer_guid=_dequeuer_guid,
+					queue_guid=_queue_guid
+				)
+				_enqueue_dequeue_total += 1
+
+		_enqueue_dequeue_transmission_thread = threading.Thread(
+			target=_enqueue_dequeue_transmission_thread_method
+		)
+		_enqueue_dequeue_transmission_thread.start()
+
+		time.sleep(10)
+		_is_running = False
+		_enqueue_dequeue_transmission_thread.join()
+		print(f"total: {_enqueue_dequeue_total}")
+
+		# testing 1024 bytes gives 851 total

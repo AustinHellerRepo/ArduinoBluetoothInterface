@@ -6,10 +6,14 @@ import json
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 import asyncio
+from pydantic import BaseModel
 
 
-_loop = asyncio.get_running_loop()
-_loop.set_default_executor(ThreadPoolExecutor(max_workers=1))  # TODO pull from settings
+try:
+	_loop = asyncio.get_running_loop()
+	_loop.set_default_executor(ThreadPoolExecutor(max_workers=1))  # TODO pull from settings
+except:
+	pass
 
 
 app = FastAPI()
@@ -27,7 +31,8 @@ def get_database() -> Database:
 
 def log_api_entrypoint(*, api_entrypoint: ApiEntrypoint, args_json: Dict, request: Request):
 	try:
-		args_json["request"] = {
+		_altered_json = args_json.copy()
+		_altered_json["request"] = {
 			"method": request.method,
 			"url": {
 				"query": request.url.query,
@@ -55,18 +60,18 @@ def log_api_entrypoint(*, api_entrypoint: ApiEntrypoint, args_json: Dict, reques
 		_database.insert_api_entrypoint_log(
 			client_guid=_client.get_client_guid(),
 			api_entrypoint=api_entrypoint,
-			input_json_string=json.dumps(args_json)
+			input_json_string=json.dumps(_altered_json)
 		)
 	except Exception as ex:
 		_error_message = f"{str(ex)} after entry point {api_entrypoint}"
 		traceback.print_exc()
 
 
-@app.get("/")
-def test_root(request: Request):
+@app.get("/v1/test/get")
+def test_get(request: Request):
 
 	log_api_entrypoint(
-		api_entrypoint=ApiEntrypoint.TestRoot,
+		api_entrypoint=ApiEntrypoint.TestGet,
 		args_json={},
 		request=request
 	)
@@ -81,15 +86,62 @@ def test_root(request: Request):
 	}
 
 
+@app.post("/v1/test/post")
+def test_post(request: Request):
+
+	log_api_entrypoint(
+		api_entrypoint=ApiEntrypoint.TestPost,
+		args_json={},
+		request=request
+	)
+
+	_is_successful = True
+	_response_json = None
+	_error_message = None
+	return {
+		"is_successful": _is_successful,
+		"response": _response_json,
+		"error": _error_message
+	}
+
+
+class TestJsonBaseModel(BaseModel):
+	test: str
+
+
+@app.post("/v1/test/json")
+def test_json(item: TestJsonBaseModel, request: Request):
+
+	_json = json.loads(item.json())
+	print(f"json: {_json}")
+
+	log_api_entrypoint(
+		api_entrypoint=ApiEntrypoint.TestJson,
+		args_json=_json,
+		request=request
+	)
+
+	_is_successful = True
+	_response_json = _json
+	_error_message = None
+	return {
+		"is_successful": _is_successful,
+		"response": _response_json,
+		"error": _error_message
+	}
+
+
+class DeviceInsertBaseModel(BaseModel):
+	device_guid: str
+	purpose_guid: str
+
+
 @app.post("/v1/device/announce")
-def v1_receive_device_announcement(device_guid: str, purpose_guid: str, request: Request):
+def v1_receive_device_announcement(device: DeviceInsertBaseModel, request: Request):
 
 	log_api_entrypoint(
 		api_entrypoint=ApiEntrypoint.V1ReceiveDeviceAnnouncement,
-		args_json={
-			"device_guid": device_guid,
-			"purpose_guid": purpose_guid,
-		},
+		args_json=json.loads(device.json()),
 		request=request
 	)
 
@@ -103,9 +155,9 @@ def v1_receive_device_announcement(device_guid: str, purpose_guid: str, request:
 			ip_address=request.client.host
 		)
 		_device = _database.insert_device(
-			device_guid=device_guid,
+			device_guid=device.device_guid,
 			client_guid=_client.get_client_guid(),
-			purpose_guid=purpose_guid
+			purpose_guid=device.purpose_guid
 		)
 		_response_json = {
 			"device": _device.to_json()

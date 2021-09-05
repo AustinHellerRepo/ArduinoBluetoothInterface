@@ -48,7 +48,7 @@ class ApiInterface():
 	def _get_formatted_url(self, *, url_part: str) -> str:
 		return f"{self.__api_base_url}{url_part}"
 
-	def test_root(self) -> object:
+	def test_get(self) -> object:
 
 		return self._get_json_result_from_url(
 			method=MethodEnum.Get,

@@ -20,9 +20,9 @@ class ApiInterface():
 	def _get_json_result_from_url(self, *, method: MethodEnum, url: str, arguments_json_object: Dict) -> Dict:
 
 		if method == MethodEnum.Get:
-			_response = requests.get(url, params=arguments_json_object)
+			_response = requests.get(url, json=arguments_json_object)
 		elif method == MethodEnum.Post:
-			_response = requests.post(url, params=arguments_json_object)
+			_response = requests.post(url, json=arguments_json_object)
 		else:
 			raise NotImplementedError()
 
@@ -53,7 +53,7 @@ class ApiInterface():
 		return self._get_json_result_from_url(
 			method=MethodEnum.Get,
 			url=self._get_formatted_url(
-				url_part="/"
+				url_part="/v1/test/get"
 			),
 			arguments_json_object={}
 		)

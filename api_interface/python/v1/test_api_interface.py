@@ -8,6 +8,7 @@ import json
 import threading
 import time
 import math
+import base64
 
 
 def get_api_interface() -> ApiInterface:
@@ -16,8 +17,13 @@ def get_api_interface() -> ApiInterface:
 	)
 
 
-_1024_bytes = "01" * 2**9
-_1048576_bytes = _1024_bytes * 1024
+_1KB_characters = "01" * 2**9
+_1MB_characters = _1KB_characters * 1024
+_10MB_characters = _1MB_characters * 10
+_1GB_characters = _1MB_characters * 1024
+_1KB_bytes = base64.b64encode(bytearray(1024)).decode("ascii")
+_1MB_bytes = base64.b64encode(bytearray(1024**2)).decode("ascii")
+_10MB_bytes = base64.b64encode(bytearray(1024**2 * 10)).decode("ascii")
 
 
 class ApiInterfaceTest(unittest.TestCase):
@@ -25,7 +31,7 @@ class ApiInterfaceTest(unittest.TestCase):
 	def test_access_api_0(self):
 		# attempt to pull from test root
 		_api_interface = get_api_interface()
-		_test_result = _api_interface.test_root()
+		_test_result = _api_interface.test_get()
 		self.assertIsNone(_test_result)
 
 	def test_send_device_annoucement_0(self):
@@ -309,7 +315,7 @@ class ApiInterfaceTest(unittest.TestCase):
 				_api_interface.send_transmission(
 					queue_guid=_queue_guid,
 					source_device_guid=_source_device_guid,
-					transmission_json={"a": _1024_bytes},
+					transmission_json={"a": _10MB_bytes},
 					destination_device_guid=_destination_device_guid
 				)
 				_api_interface.dequeue_next_transmission(

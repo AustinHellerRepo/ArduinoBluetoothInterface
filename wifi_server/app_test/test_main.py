@@ -69,7 +69,7 @@ class MainTest(unittest.TestCase):
 
 		# pretend that the source device does not know about the destination device
 
-		_response = _app.post("/v1/device/list", params={"purpose_guid": _second_device_purpose_guid})
+		_response = _app.post("/v1/device/list", json={"purpose_guid": _second_device_purpose_guid})
 		self.assertEqual(200, _response.status_code)
 		_discovered_destination_devices = _response.json()["response"]["devices"]
 		self.assertEqual(1, len(_discovered_destination_devices))
@@ -87,7 +87,7 @@ class MainTest(unittest.TestCase):
 			"transmission_json_string": _first_transmission_json_string,
 			"destination_device_guid": _discovered_destination_devices[0]["device_guid"]
 		}
-		_response = _app.post("/v1/transmission/enqueue", params=_first_transmission_enqueue_post_params)
+		_response = _app.post("/v1/transmission/enqueue", json=_first_transmission_enqueue_post_params)
 		self.assertEqual(200, _response.status_code)
 		_first_transmission = _response.json()["response"]["transmission"]
 		self.assertEqual(_first_transmission_enqueue_post_params["queue_guid"], _first_transmission["queue_guid"])
@@ -104,7 +104,7 @@ class MainTest(unittest.TestCase):
 			"transmission_json_string": _second_transmission_json_string,
 			"destination_device_guid": _discovered_destination_devices[0]["device_guid"]
 		}
-		_response = _app.post("/v1/transmission/enqueue", params=_second_transmission_enqueue_post_params)
+		_response = _app.post("/v1/transmission/enqueue", json=_second_transmission_enqueue_post_params)
 		self.assertEqual(200, _response.status_code)
 		_second_transmission = _response.json()["response"]["transmission"]
 		self.assertEqual(_second_transmission_enqueue_post_params["queue_guid"], _second_transmission["queue_guid"])
@@ -117,7 +117,7 @@ class MainTest(unittest.TestCase):
 		_dequeuer_guid = "20E5EF95-2D4C-44D7-B750-98A413A6613B"
 
 		_dequeuer_before_datetime = datetime.utcnow()
-		_response = _app.post("/v1/dequeuer/announce", params={"dequeuer_guid": _dequeuer_guid})
+		_response = _app.post("/v1/dequeuer/announce", json={"dequeuer_guid": _dequeuer_guid})
 		_dequeuer_after_datetime = datetime.utcnow()
 		self.assertEqual(200, _response.status_code)
 		_dequeuer = _response.json()["response"]["dequeuer"]
@@ -128,7 +128,7 @@ class MainTest(unittest.TestCase):
 
 		# pull first transmission
 
-		_response = _app.post("/v1/transmission/dequeue", params={"dequeuer_guid": _dequeuer_guid, "queue_guid": _queue_guid})  # TODO
+		_response = _app.post("/v1/transmission/dequeue", json={"dequeuer_guid": _dequeuer_guid, "queue_guid": _queue_guid})  # TODO
 		self.assertEqual(200, _response.status_code)
 		_first_transmission_dequeue = _response.json()["response"]["transmission_dequeue"]
 		self.assertEqual(_dequeuer_guid, _first_transmission_dequeue["dequeuer_guid"])
@@ -136,7 +136,7 @@ class MainTest(unittest.TestCase):
 
 		# try to pull again, but receive the same transmission
 
-		_response = _app.post("/v1/transmission/dequeue", params={"dequeuer_guid": _dequeuer_guid, "queue_guid": _queue_guid})
+		_response = _app.post("/v1/transmission/dequeue", json={"dequeuer_guid": _dequeuer_guid, "queue_guid": _queue_guid})
 		self.assertEqual(200, _response.status_code)
 		_first_again_transmission_dequeue = _response.json()["response"]["transmission_dequeue"]
 		self.assertEqual(_dequeuer_guid, _first_again_transmission_dequeue["dequeuer_guid"])
@@ -145,7 +145,7 @@ class MainTest(unittest.TestCase):
 
 		# fail dequeue
 
-		_response = _app.post("/v1/transmission/failure", params={"transmission_dequeue_guid": _first_transmission_dequeue["transmission_dequeue_guid"], "error_message_json_string": json.dumps({"error": "first"})})
+		_response = _app.post("/v1/transmission/failure", json={"transmission_dequeue_guid": _first_transmission_dequeue["transmission_dequeue_guid"], "error_message_json_string": json.dumps({"error": "first"})})
 		self.assertEqual(200, _response.status_code)
 		_transmission_dequeue_error_transmission = _response.json()["response"]["transmission_dequeue_error_transmission"]
 		self.assertEqual(_first_transmission_dequeue["transmission_dequeue_guid"], _transmission_dequeue_error_transmission["transmission_dequeue_guid"])
@@ -156,7 +156,7 @@ class MainTest(unittest.TestCase):
 		_reporter_guid = "CF56EBB0-0BC1-4122-822D-C8BE6A2E6D63"
 
 		_reporter_before_datetime = datetime.utcnow()
-		_response = _app.post("/v1/reporter/announce", params={"reporter_guid": _reporter_guid})
+		_response = _app.post("/v1/reporter/announce", json={"reporter_guid": _reporter_guid})
 		_reporter_after_datetime = datetime.utcnow()
 		self.assertEqual(200, _response.status_code)
 		_reporter = _response.json()["response"]["reporter"]
@@ -167,14 +167,14 @@ class MainTest(unittest.TestCase):
 
 		# pull first failure
 
-		_response = _app.post("/v1/failure/dequeue", params={"reporter_guid": _reporter_guid, "queue_guid": _queue_guid})
+		_response = _app.post("/v1/failure/dequeue", json={"reporter_guid": _reporter_guid, "queue_guid": _queue_guid})
 		self.assertEqual(200, _response.status_code)
 		_first_transmission_dequeue_error_transmission_dequeue = _response.json()["response"]["transmission_dequeue_error_transmission_dequeue"]
 		self.assertIsNotNone(_first_transmission_dequeue_error_transmission_dequeue)
 		self.assertEqual(_transmission_dequeue_error_transmission["transmission_dequeue_error_transmission_guid"], _first_transmission_dequeue_error_transmission_dequeue["transmission_dequeue_error_transmission_guid"])
 		self.assertEqual("testclient", _first_transmission_dequeue_error_transmission_dequeue["destination_client"]["ip_address"])
 
-		_response = _app.post("/v1/failure/dequeue", params={"reporter_guid": _reporter_guid, "queue_guid": _queue_guid})
+		_response = _app.post("/v1/failure/dequeue", json={"reporter_guid": _reporter_guid, "queue_guid": _queue_guid})
 		self.assertEqual(200, _response.status_code)
 		_first_again_transmission_dequeue_error_transmission_dequeue = _response.json()["response"]["transmission_dequeue_error_transmission_dequeue"]
 		self.assertIsNotNone(_first_again_transmission_dequeue_error_transmission_dequeue)
@@ -182,12 +182,12 @@ class MainTest(unittest.TestCase):
 
 		# complete the failed transaction and setup for retry
 
-		_response = _app.post("/v1/failure/complete", params={"transmission_dequeue_error_transmission_dequeue_guid": _first_transmission_dequeue_error_transmission_dequeue["transmission_dequeue_error_transmission_dequeue_guid"], "is_retry_requested": True})
+		_response = _app.post("/v1/failure/complete", json={"transmission_dequeue_error_transmission_dequeue_guid": _first_transmission_dequeue_error_transmission_dequeue["transmission_dequeue_error_transmission_dequeue_guid"], "is_retry_requested": True})
 		self.assertEqual(200, _response.status_code)
 
 		# pull the first transaction again, but the destination needs to announce itself first
 
-		_response = _app.post("/v1/transmission/dequeue", params={"dequeuer_guid": _dequeuer_guid, "queue_guid": _queue_guid})
+		_response = _app.post("/v1/transmission/dequeue", json={"dequeuer_guid": _dequeuer_guid, "queue_guid": _queue_guid})
 		self.assertEqual(200, _response.status_code)
 		_first_again_transmission_dequeue = _response.json()["response"]["transmission_dequeue"]
 		self.assertIsNone(_first_again_transmission_dequeue)
@@ -203,7 +203,7 @@ class MainTest(unittest.TestCase):
 
 		# dequeue first transaction again
 
-		_response = _app.post("/v1/transmission/dequeue", params={"dequeuer_guid": _dequeuer_guid, "queue_guid": _queue_guid})
+		_response = _app.post("/v1/transmission/dequeue", json={"dequeuer_guid": _dequeuer_guid, "queue_guid": _queue_guid})
 		self.assertEqual(200, _response.status_code)
 		_first_again_transmission_dequeue = _response.json()["response"]["transmission_dequeue"]
 		self.assertEqual(_dequeuer_guid, _first_again_transmission_dequeue["dequeuer_guid"])
@@ -212,7 +212,7 @@ class MainTest(unittest.TestCase):
 
 		# fail dequeue
 
-		_response = _app.post("/v1/transmission/failure", params={"transmission_dequeue_guid": _first_again_transmission_dequeue["transmission_dequeue_guid"], "error_message_json_string": json.dumps({"error": "first"})})
+		_response = _app.post("/v1/transmission/failure", json={"transmission_dequeue_guid": _first_again_transmission_dequeue["transmission_dequeue_guid"], "error_message_json_string": json.dumps({"error": "first"})})
 		self.assertEqual(200, _response.status_code)
 		_transmission_dequeue_error_transmission = _response.json()["response"]["transmission_dequeue_error_transmission"]
 		self.assertEqual(_first_again_transmission_dequeue["transmission_dequeue_guid"], _transmission_dequeue_error_transmission["transmission_dequeue_guid"])
@@ -220,7 +220,7 @@ class MainTest(unittest.TestCase):
 
 		# pull first failure
 
-		_response = _app.post("/v1/failure/dequeue", params={"reporter_guid": _reporter_guid, "queue_guid": _queue_guid})
+		_response = _app.post("/v1/failure/dequeue", json={"reporter_guid": _reporter_guid, "queue_guid": _queue_guid})
 		self.assertEqual(200, _response.status_code)
 		_first_transmission_dequeue_error_transmission_dequeue = _response.json()["response"]["transmission_dequeue_error_transmission_dequeue"]
 		self.assertIsNotNone(_first_transmission_dequeue_error_transmission_dequeue)
@@ -229,19 +229,19 @@ class MainTest(unittest.TestCase):
 
 		# fail the failed transaction
 
-		_response = _app.post("/v1/failure/failure", params={"transmission_dequeue_error_transmission_dequeue_guid": _first_transmission_dequeue_error_transmission_dequeue["transmission_dequeue_error_transmission_dequeue_guid"], "error_message_json_string": json.dumps({"something": "here"})})
+		_response = _app.post("/v1/failure/failure", json={"transmission_dequeue_error_transmission_dequeue_guid": _first_transmission_dequeue_error_transmission_dequeue["transmission_dequeue_error_transmission_dequeue_guid"], "error_message_json_string": json.dumps({"something": "here"})})
 		self.assertEqual(200, _response.status_code)
 
 		# try to pull a transmission, but the failed failure still needs to be addressed
 
-		_response = _app.post("/v1/transmission/dequeue", params={"dequeuer_guid": _dequeuer_guid, "queue_guid": _queue_guid})  # TODO
+		_response = _app.post("/v1/transmission/dequeue", json={"dequeuer_guid": _dequeuer_guid, "queue_guid": _queue_guid})  # TODO
 		self.assertEqual(200, _response.status_code)
 		_first_transmission_dequeue = _response.json()["response"]["transmission_dequeue"]
 		self.assertIsNone(_first_transmission_dequeue)
 
 		# try to dequeue failed transmission, but nothing to find since existing transmission is still in failed state
 
-		_response = _app.post("/v1/failure/dequeue", params={"reporter_guid": _reporter_guid, "queue_guid": _queue_guid})
+		_response = _app.post("/v1/failure/dequeue", json={"reporter_guid": _reporter_guid, "queue_guid": _queue_guid})
 		self.assertEqual(200, _response.status_code)
 		_first_transmission_dequeue_error_transmission_dequeue = _response.json()["response"]["transmission_dequeue_error_transmission_dequeue"]
 		self.assertIsNone(_first_transmission_dequeue_error_transmission_dequeue)
@@ -257,7 +257,7 @@ class MainTest(unittest.TestCase):
 
 		# pull first failure again so that it can be completed
 
-		_response = _app.post("/v1/failure/dequeue", params={"reporter_guid": _reporter_guid, "queue_guid": _queue_guid})
+		_response = _app.post("/v1/failure/dequeue", json={"reporter_guid": _reporter_guid, "queue_guid": _queue_guid})
 		self.assertEqual(200, _response.status_code)
 		_first_transmission_dequeue_error_transmission_dequeue = _response.json()["response"]["transmission_dequeue_error_transmission_dequeue"]
 		self.assertIsNotNone(_first_transmission_dequeue_error_transmission_dequeue)
@@ -266,12 +266,12 @@ class MainTest(unittest.TestCase):
 
 		# complete the failed transaction and cancel
 
-		_response = _app.post("/v1/failure/complete", params={"transmission_dequeue_error_transmission_dequeue_guid": _first_transmission_dequeue_error_transmission_dequeue["transmission_dequeue_error_transmission_dequeue_guid"], "is_retry_requested": False})
+		_response = _app.post("/v1/failure/complete", json={"transmission_dequeue_error_transmission_dequeue_guid": _first_transmission_dequeue_error_transmission_dequeue["transmission_dequeue_error_transmission_dequeue_guid"], "is_retry_requested": False})
 		self.assertEqual(200, _response.status_code)
 
 		# try to pull a transmission
 
-		_response = _app.post("/v1/transmission/dequeue", params={"dequeuer_guid": _dequeuer_guid, "queue_guid": _queue_guid})  # TODO
+		_response = _app.post("/v1/transmission/dequeue", json={"dequeuer_guid": _dequeuer_guid, "queue_guid": _queue_guid})  # TODO
 		self.assertEqual(200, _response.status_code)
 		_first_transmission_dequeue = _response.json()["response"]["transmission_dequeue"]
 		self.assertIsNotNone(_first_transmission_dequeue)
@@ -279,7 +279,7 @@ class MainTest(unittest.TestCase):
 
 		# complete transmission
 
-		_response = _app.post("/v1/transmission/complete", params={"transmission_dequeue_guid": _first_transmission_dequeue["transmission_dequeue_guid"]})
+		_response = _app.post("/v1/transmission/complete", json={"transmission_dequeue_guid": _first_transmission_dequeue["transmission_dequeue_guid"]})
 		self.assertEqual(200, _response.status_code)
 
 	def test_get_uuid_0(self):

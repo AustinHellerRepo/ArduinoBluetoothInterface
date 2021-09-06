@@ -13,6 +13,8 @@ class ApiInterface {
   public:
     ApiInterface(char* api_base_url);
     JsonObject test_get();
+    JsonObject test_post();
+    JsonObject test_json(JsonObject json_object);
     JsonObject send_device_announcement(char* device_guid, char* purpose_guid);
     JsonObject get_available_devices(char* purpose_guid);
     JsonObject send_dequeuer_announcement(char* dequeuer_guid);

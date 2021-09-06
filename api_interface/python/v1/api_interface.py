@@ -48,7 +48,7 @@ class ApiInterface():
 	def _get_formatted_url(self, *, url_part: str) -> str:
 		return f"{self.__api_base_url}{url_part}"
 
-	def test_get(self) -> object:
+	def test_get(self) -> Dict:
 
 		return self._get_json_result_from_url(
 			method_type=MethodTypeEnum.Get,
@@ -56,6 +56,26 @@ class ApiInterface():
 				url_part="/v1/test/get"
 			),
 			arguments_json_object={}
+		)
+
+	def test_post(self) -> Dict:
+
+		return self._get_json_result_from_url(
+			method_type=MethodTypeEnum.Post,
+			url=self._get_formatted_url(
+				url_part="/v1/test/post"
+			),
+			arguments_json_object={}
+		)
+
+	def test_json(self, *, json_object: Dict) -> Dict:
+
+		return self._get_json_result_from_url(
+			method_type=MethodTypeEnum.Post,
+			url=self._get_formatted_url(
+				url_part="/v1/test/json"
+			),
+			arguments_json_object=json_object
 		)
 
 	def send_device_announcement(self, *, device_guid: str, purpose_guid: str) -> Dict:

@@ -5,7 +5,7 @@ import requests
 import json
 
 
-class MethodEnum(Enum):
+class MethodTypeEnum(Enum):
 
 	Get = auto(),
 	Post = auto()
@@ -17,11 +17,11 @@ class ApiInterface():
 
 		self.__api_base_url = api_base_url
 
-	def _get_json_result_from_url(self, *, method: MethodEnum, url: str, arguments_json_object: Dict) -> Dict:
+	def _get_json_result_from_url(self, *, method_type: MethodTypeEnum, url: str, arguments_json_object: Dict) -> Dict:
 
-		if method == MethodEnum.Get:
+		if method_type == MethodTypeEnum.Get:
 			_response = requests.get(url, json=arguments_json_object)
-		elif method == MethodEnum.Post:
+		elif method_type == MethodTypeEnum.Post:
 			_response = requests.post(url, json=arguments_json_object)
 		else:
 			raise NotImplementedError()
@@ -51,7 +51,7 @@ class ApiInterface():
 	def test_get(self) -> object:
 
 		return self._get_json_result_from_url(
-			method=MethodEnum.Get,
+			method_type=MethodTypeEnum.Get,
 			url=self._get_formatted_url(
 				url_part="/v1/test/get"
 			),
@@ -61,7 +61,7 @@ class ApiInterface():
 	def send_device_announcement(self, *, device_guid: str, purpose_guid: str) -> Dict:
 
 		return self._get_json_result_from_url(
-			method=MethodEnum.Post,
+			method_type=MethodTypeEnum.Post,
 			url=self._get_formatted_url(
 				url_part="/v1/device/announce"
 			),
@@ -74,7 +74,7 @@ class ApiInterface():
 	def get_available_devices(self, *, purpose_guid: str) -> Dict:
 
 		return self._get_json_result_from_url(
-			method=MethodEnum.Post,
+			method_type=MethodTypeEnum.Post,
 			url=self._get_formatted_url(
 				url_part="/v1/device/list"
 			),
@@ -86,7 +86,7 @@ class ApiInterface():
 	def send_dequeuer_announcement(self, *, dequeuer_guid: str) -> Dict:
 
 		return self._get_json_result_from_url(
-			method=MethodEnum.Post,
+			method_type=MethodTypeEnum.Post,
 			url=self._get_formatted_url(
 				url_part="/v1/dequeuer/announce"
 			),
@@ -98,7 +98,7 @@ class ApiInterface():
 	def send_reporter_announcement(self, *, reporter_guid: str) -> Dict:
 
 		return self._get_json_result_from_url(
-			method=MethodEnum.Post,
+			method_type=MethodTypeEnum.Post,
 			url=self._get_formatted_url(
 				url_part="/v1/reporter/announce"
 			),
@@ -110,7 +110,7 @@ class ApiInterface():
 	def send_transmission(self, *, queue_guid: str, source_device_guid: str, transmission_json: Dict, destination_device_guid: str) -> Dict:
 
 		return self._get_json_result_from_url(
-			method=MethodEnum.Post,
+			method_type=MethodTypeEnum.Post,
 			url=self._get_formatted_url(
 				url_part="/v1/transmission/enqueue"
 			),
@@ -125,7 +125,7 @@ class ApiInterface():
 	def dequeue_next_transmission(self, *, dequeuer_guid: str, queue_guid: str) -> Dict:
 
 		return self._get_json_result_from_url(
-			method=MethodEnum.Post,
+			method_type=MethodTypeEnum.Post,
 			url=self._get_formatted_url(
 				url_part="/v1/transmission/dequeue"
 			),
@@ -138,7 +138,7 @@ class ApiInterface():
 	def update_transmission_as_completed(self, *, transmission_dequeue_guid: str) -> Dict:
 
 		return self._get_json_result_from_url(
-			method=MethodEnum.Post,
+			method_type=MethodTypeEnum.Post,
 			url=self._get_formatted_url(
 				url_part="/v1/transmission/complete"
 			),
@@ -150,7 +150,7 @@ class ApiInterface():
 	def update_transmission_as_failed(self, *, transmission_dequeue_guid: str, error_message_json: Dict) -> Dict:
 
 		return self._get_json_result_from_url(
-			method=MethodEnum.Post,
+			method_type=MethodTypeEnum.Post,
 			url=self._get_formatted_url(
 				url_part="/v1/transmission/failure"
 			),
@@ -163,7 +163,7 @@ class ApiInterface():
 	def dequeue_next_failed_transmission(self, *, reporter_guid: str, queue_guid: str) -> Dict:
 
 		return self._get_json_result_from_url(
-			method=MethodEnum.Post,
+			method_type=MethodTypeEnum.Post,
 			url=self._get_formatted_url(
 				url_part="/v1/failure/dequeue"
 			),
@@ -176,7 +176,7 @@ class ApiInterface():
 	def update_failed_transmission_as_completed(self, *, transmission_dequeue_error_transmission_dequeue_guid: str, is_retry_requested: bool) -> Dict:
 
 		return self._get_json_result_from_url(
-			method=MethodEnum.Post,
+			method_type=MethodTypeEnum.Post,
 			url=self._get_formatted_url(
 				url_part="/v1/failure/complete"
 			),
@@ -189,7 +189,7 @@ class ApiInterface():
 	def update_failed_transmission_as_failed(self, *, transmission_dequeue_error_transmission_dequeue_guid: str, error_message_json: Dict) -> Dict:
 
 		return self._get_json_result_from_url(
-			method=MethodEnum.Post,
+			method_type=MethodTypeEnum.Post,
 			url=self._get_formatted_url(
 				url_part="/v1/failure/failure"
 			),
@@ -202,7 +202,7 @@ class ApiInterface():
 	def get_uuid(self) -> Dict:
 
 		return self._get_json_result_from_url(
-			method=MethodEnum.Post,
+			method_type=MethodTypeEnum.Post,
 			url=self._get_formatted_url(
 				url_part="/v1/uuid"
 			),

@@ -30,10 +30,13 @@ if False:
 for _com_port in _com_ports:
 	_device_names.append(_com_port.device)
 
-print(f"Select COM port")
-for _device_name_index, _device_name in enumerate(_device_names):
-	print(f"{_device_name_index}: {_device_name}")
-_user_input = input("Device index: ")
-if _user_input != "":
-	_device_name_index = int(_user_input)
-	esptool.main(['--port', _device_names[_device_name_index], 'flash_id'])
+if len(_device_names) == 0:
+	print("No devices found.")
+else:
+	print(f"Select COM port")
+	for _device_name_index, _device_name in enumerate(_device_names):
+		print(f"{_device_name_index}: {_device_name}")
+	_user_input = input("Device index: ")
+	if _user_input != "":
+		_device_name_index = int(_user_input)
+		esptool.main(['--port', _device_names[_device_name_index], 'flash_id'])

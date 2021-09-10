@@ -33,8 +33,8 @@ for _com_port in _com_ports:
 if len(_device_names) == 0:
 	print("No devices found.")
 else:
-	_backup_file_path = input("Backup file path: ")
-	if _backup_file_path != "":
+	_restore_file_path = input("Restore file path: ")
+	if _restore_file_path != "":
 		print(f"Select COM port")
 		for _device_name_index, _device_name in enumerate(_device_names):
 			print(f"{_device_name_index}: {_device_name}")
@@ -65,6 +65,16 @@ else:
 
 					_flash_size_value = int(re.findall("^\d+", _flash_size_string)[0])
 					_flash_size_integer *= _flash_size_value
+
+					# check that flash memory bin file is correct size
+
+					_restore_file_size = os.path.getsize(_restore_file_path)
+
+					if _restore_file_size != _flash_size_integer:
+						_error = f"Unexpected mismatch between file size and flash memory. Expected {_flash_size_integer}, found {_restore_file_size} file size."
+						print(_error)
+						raise Exception(_error)
+
 					_flash_size_hex = str(hex(_flash_size_integer))
 
 					print(f"_flash_size_hex: {_flash_size_hex}")
@@ -73,7 +83,7 @@ else:
 
 					for _baud_rate in _baud_rates:
 						try:
-							esptool.main(["--port", _device_name, "--baud", str(_baud_rate), "read_flash", "0", str(_flash_size_hex), _backup_file_path])
+							esptool.main(["--port", _device_name, "--baud", str(_baud_rate), "--before", "default_reset", "--after", "hard_reset", "write_flash", "-z", "--flash_mode", "dio", "--flash_freq", "80m", "--flash_size", "detect", "0x0", _restore_file_path])
 							break
 						except Exception as ex:
 							print(f"ex: {ex}")

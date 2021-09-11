@@ -71,9 +71,13 @@ else:
 						_remove_subprocess = subprocess.Popen(["ampy", "--port", _device_name, "rm", _output_line], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 					else:
 						_remove_subprocess = subprocess.Popen(["ampy", "--port", _device_name, "rmdir", _output_line], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-					_standard_output, _standard_error = _subprocess.communicate()
+					_standard_output, _standard_error = _remove_subprocess.communicate()
 					if _standard_error != b"":
 						print(_standard_error)
+					_remove_output_lines = _standard_output.decode().split("\n")
+					for _remove_output_line in _remove_output_lines:
+						if _remove_output_line != "":
+							print(f"Output: {_remove_output_line}")
 
 			# copy over project
 
@@ -87,4 +91,10 @@ else:
 						print(f"Copying \"{_file_path}\"...")
 						_subprocess = subprocess.Popen(["ampy", "--port", _device_name, "put", _file_path, _file_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 					_standard_output, _standard_error = _subprocess.communicate()
+					if _standard_error != b"":
+						print(_standard_error)
 					_output_lines = _standard_output.decode().split("\n")
+					for _output_line in _output_lines:
+						if _output_line != "":
+							print(f"Output: {_output_line}")
+

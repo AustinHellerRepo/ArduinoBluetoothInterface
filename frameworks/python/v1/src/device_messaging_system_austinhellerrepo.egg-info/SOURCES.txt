@@ -1,0 +1,7 @@
+LICENSE
+pyproject.toml
+setup.cfg
+src/device_messaging_system_austinhellerrepo.egg-info/PKG-INFO
+src/device_messaging_system_austinhellerrepo.egg-info/SOURCES.txt
+src/device_messaging_system_austinhellerrepo.egg-info/dependency_links.txt
+src/device_messaging_system_austinhellerrepo.egg-info/top_level.txt

@@ -27,6 +27,8 @@ class ApiInterface():
 
 	def _get_json_result_from_url(self, *, method_type: MethodTypeEnum, url: str, arguments_json_object: Dict) -> Dict:
 
+		print(f"Trying to {method_type} to \"{url}\"...")
+
 		if method_type == MethodTypeEnum.Get:
 			_response = requests.get(url, json=arguments_json_object)
 		elif method_type == MethodTypeEnum.Post:

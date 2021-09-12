@@ -57,7 +57,7 @@ class Dequeuer():
 			)
 			_is_successful = True
 		except Exception as ex:
-			print(f"ex: {ex}")
+			print(f"try_announce_dequeuer: ex: {ex}")
 		return _is_successful
 
 	def try_process_next_transmission_dequeue(self) -> bool:
@@ -108,13 +108,15 @@ class Dequeuer():
 				self.__process_transmission_dequeue_threads_semaphore.release()
 			_is_successful = True
 		except Exception as ex:
-			print(f"ex: {ex}")
+			print(f"try_process_next_transmission_dequeue: ex: {ex}")
 		return _is_successful
 
 	def stop(self):
 
 		if self.__process_thread is None:
-			raise Exception(f"Cannot stop processing without first starting.")
+			_error = f"Cannot stop processing without first starting."
+			print(_error)
+			raise Exception(_error)
 		else:
 			self.__is_running_process_thread = False
 			self.__process_thread.join()

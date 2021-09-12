@@ -6,7 +6,7 @@ COPY ./requirements.txt /dequeuer/requirements.txt
 
 WORKDIR /dequeuer/
 
-RUN pip install -r requirements.txt
+RUN pip install --upgrade -r requirements.txt
 
 COPY ./app /dequeuer/app
 
@@ -14,6 +14,4 @@ WORKDIR /dequeuer/app/
 
 ENV PYTHONPATH "${PYTHONPATH}:/dequeuer"
 
-CMD ["/dequeuer/app/main.py"]
-
-ENTRYPOINT ["python"]
+ENTRYPOINT ["python", "/dequeuer/app/main.py"]

@@ -1,1 +1,2 @@
 git+https://github.com/AustinHellerRepo/DeviceMessagingSystem#subdirectory=frameworks/python/v1
+requests==2.26.0

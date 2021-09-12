@@ -4,7 +4,7 @@ from austin_heller_repo.socket_client_factory import get_machine_guid, re, Serve
 from austin_heller_repo.api_interface import ApiInterfaceFactory
 
 
-if len(sys.argv) != 3:
+if len(sys.argv) != 7:
 	_error = "Must provide queue guid, api base URL, listening port, from server packet bytes length, to devices packet bytes length, server polling seconds as arguments to the script."
 	print(_error)
 	raise Exception(_error)

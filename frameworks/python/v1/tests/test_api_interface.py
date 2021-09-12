@@ -72,7 +72,8 @@ class ApiInterfaceTest(unittest.TestCase):
 
 			_send_device_announcement_response = _api_interface.send_device_announcement(
 				device_guid=_device_guid,
-				purpose_guid=_purpose_guid
+				purpose_guid=_purpose_guid,
+				socket_port=24855
 			)
 			self.assertIsNotNone(_send_device_announcement_response)
 			self.assertIn("device", _send_device_announcement_response)
@@ -126,13 +127,15 @@ class ApiInterfaceTest(unittest.TestCase):
 		_source_device_purpose_guid = str(uuid.uuid4())
 		_api_interface.send_device_announcement(
 			device_guid=_source_device_guid,
-			purpose_guid=_source_device_purpose_guid
+			purpose_guid=_source_device_purpose_guid,
+			socket_port=24855
 		)
 		_destination_device_guid = str(uuid.uuid4())
 		_destination_device_purpose_guid = str(uuid.uuid4())
 		_api_interface.send_device_announcement(
 			device_guid=_destination_device_guid,
-			purpose_guid=_destination_device_purpose_guid
+			purpose_guid=_destination_device_purpose_guid,
+			socket_port=24855
 		)
 		_queue_guid = str(uuid.uuid4())
 		_transmission_json = {
@@ -193,13 +196,15 @@ class ApiInterfaceTest(unittest.TestCase):
 			_source_device_purpose_guid = str(uuid.uuid4())
 			_api_interface.send_device_announcement(
 				device_guid=_source_device_guid,
-				purpose_guid=_source_device_purpose_guid
+				purpose_guid=_source_device_purpose_guid,
+				socket_port=24855
 			)
 			_destination_device_guid = str(uuid.uuid4())
 			_destination_device_purpose_guid = str(uuid.uuid4())
 			_api_interface.send_device_announcement(
 				device_guid=_destination_device_guid,
-				purpose_guid=_destination_device_purpose_guid
+				purpose_guid=_destination_device_purpose_guid,
+				socket_port=24855
 			)
 			while _is_send_running:
 				_transmission_json = {
@@ -299,13 +304,15 @@ class ApiInterfaceTest(unittest.TestCase):
 			_source_device_purpose_guid = str(uuid.uuid4())
 			_api_interface.send_device_announcement(
 				device_guid=_source_device_guid,
-				purpose_guid=_source_device_purpose_guid
+				purpose_guid=_source_device_purpose_guid,
+				socket_port=24855
 			)
 			_destination_device_guid = str(uuid.uuid4())
 			_destination_device_purpose_guid = str(uuid.uuid4())
 			_api_interface.send_device_announcement(
 				device_guid=_destination_device_guid,
-				purpose_guid=_destination_device_purpose_guid
+				purpose_guid=_destination_device_purpose_guid,
+				socket_port=24855
 			)
 			_dequeuer_guid = str(uuid.uuid4())
 			_api_interface.send_dequeuer_announcement(

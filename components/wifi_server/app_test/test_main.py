@@ -285,12 +285,12 @@ class MainTest(unittest.TestCase):
 		self.assertEqual(200, _response.status_code)
 
 	def test_get_uuid_0(self):
-			_app = TestClient(app)
-			_response = _app.post("/v1/uuid")
-			self.assertEqual(200, _response.status_code)
-			_uuid = _response.json()["response"]["uuid"]
-			_match = re.search("^[A-F0-9]{8}\\-[A-F0-9]{4}\\-[A-F0-9]{4}\\-[A-F0-9]{4}\\-[A-F0-9]{12}$", _uuid)
-			self.assertIsNotNone(_match)
+		_app = TestClient(app)
+		_response = _app.post("/v1/uuid")
+		self.assertEqual(200, _response.status_code)
+		_uuid = _response.json()["response"]["uuid"]
+		_match = re.search("^[A-F0-9]{8}\\-[A-F0-9]{4}\\-[A-F0-9]{4}\\-[A-F0-9]{4}\\-[A-F0-9]{12}$", _uuid)
+		self.assertIsNotNone(_match)
 
 
 if __name__ == "__main__":

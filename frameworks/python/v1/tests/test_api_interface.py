@@ -1,5 +1,5 @@
 from __future__ import annotations
-from api_interface import ApiInterface
+from src.api_interface import ApiInterface
 import unittest
 import uuid
 from datetime import datetime
@@ -9,6 +9,9 @@ import threading
 import time
 import math
 import base64
+
+
+# NOTE requires that the wifi_server docker_run.sh script running
 
 
 def get_api_interface() -> ApiInterface:

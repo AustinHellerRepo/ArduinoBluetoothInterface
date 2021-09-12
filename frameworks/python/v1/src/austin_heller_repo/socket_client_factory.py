@@ -72,6 +72,21 @@ try:
 except ImportError:
 	import json
 
+
+try:
+	import network
+
+	def get_machine_id() -> str:
+		_wlan = network.WLAN()
+		_mac = _wlan.config("mac")
+		return _mac
+except ImportError:
+	import uuid
+
+	def get_machine_id() -> str:
+		_mac_hex = hex(uuid.getnode())
+		return _mac_hex
+
 import time
 from typing import Callable, List, Tuple, Dict
 

@@ -65,7 +65,7 @@ except ImportError:
 			def release(self):
 				self.__locks_total -= 1
 				if self.__locks_total < 0:
-					raise Exception(f"Unexpected number of releases.")
+					raise Exception("Unexpected number of releases.")
 
 try:
 	import ujson as json
@@ -83,8 +83,8 @@ try:
 		_sha256 = hashlib.sha256()
 		_sha256.update(_mac_bytes)
 		_hashed_bytes = _sha256.digest()
-		_hashed_hex_string = _hashed_bytes.hex()
-		_guid = f"{_hashed_hex_string[0:8]}-{_hashed_hex_string[8:12]}-{_hashed_hex_string[12:16]}-{_hashed_hex_string[16:20]}-{_hashed_hex_string[20:32]}"
+		_hashed_hex_string = str(_hashed_bytes.hex())
+		_guid = _hashed_hex_string[0:8] + "-" + _hashed_hex_string[8:12] + "-" + _hashed_hex_string[12:16] + "-" + _hashed_hex_string[16:20] + "-" + _hashed_hex_string[20:32]
 		return _guid
 except ImportError:
 	import uuid
@@ -163,7 +163,7 @@ class ClientSocket():
 
 		_text_bytes = text.encode()
 		_text_bytes_length = len(_text_bytes)
-		print(f"{_write_index}: _text_bytes_length: {_text_bytes_length}")
+		#print(f"{_write_index}: _text_bytes_length: {_text_bytes_length}")
 		_packet_bytes_length = self.__packet_bytes_length
 		_packets_total = int((_text_bytes_length + _packet_bytes_length - 1)/_packet_bytes_length)
 		_packets_total_bytes = _packets_total.to_bytes(8, "big")
@@ -238,7 +238,7 @@ class ClientSocket():
 			if _packets_total_bytes is None and delay_between_packets_seconds > 0:
 				time.sleep(delay_between_packets_seconds)
 		_packets_total = int.from_bytes(_packets_total_bytes, "big")
-		print(f"{_read_index}: _packets_total: {_packets_total}")
+		#print(f"{_read_index}: _packets_total: {_packets_total}")
 		_packets = []
 		if _packets_total != 0:
 			for _packet_index in range(_packets_total):
@@ -315,7 +315,7 @@ class ServerSocket():
 	def start_accepting_clients(self, *, clients_total: int, accept_timeout_seconds: float):
 
 		if self.__is_accepting:
-			raise Exception(f"Cannot start accepting clients while already accepting.")
+			raise Exception("Cannot start accepting clients while already accepting.")
 		else:
 
 			self.__is_accepting = True
@@ -342,7 +342,7 @@ class ServerSocket():
 					except socket.timeout:
 						pass
 					except Exception as ex:
-						print(f"ex: {ex}")
+						print("ex: " + str(ex))
 					if _is_threading_async:
 						time.sleep(0.01)
 
@@ -351,7 +351,7 @@ class ServerSocket():
 	def stop_accepting_clients(self):
 
 		if not self.__is_accepting:
-			raise Exception(f"Cannot stop accepting clients without first starting.")
+			raise Exception("Cannot stop accepting clients without first starting.")
 		else:
 			self.__is_accepting = False
 			if self.__accepting_thread is not None:
@@ -361,7 +361,7 @@ class ServerSocket():
 
 		#print(f"closing server socket...")
 		if self.__is_accepting:
-			raise Exception(f"Cannot close without first stopping accepting clients.")
+			raise Exception("Cannot close without first stopping accepting clients.")
 		else:
 			self.__accepting_socket.close()
 

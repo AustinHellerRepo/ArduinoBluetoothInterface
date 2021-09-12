@@ -26,7 +26,7 @@ class ApiInterface():
 
 	def _get_json_result_from_url(self, *, method_type: MethodTypeEnum, url: str, arguments_json_object: dict) -> dict:
 
-		print(f"Trying to {method_type} to \"{url}\"...")
+		print("Trying to " + str(method_type) + " to \"" + url + "\"...")
 
 		if method_type == MethodTypeEnum.Get:
 			_response = requests.get(url, json=arguments_json_object)
@@ -36,26 +36,26 @@ class ApiInterface():
 			raise NotImplementedError()
 
 		if _response.status_code != 200:
-			raise Exception(f"Unexpected status code: {_response.status_code}: {_response.reason}. Error: \"{_response.text}\".")
+			raise Exception("Unexpected status code: " + str(_response.status_code) + ": " + str(_response.reason) + ". Error: \"" + str(_response.text) + "\".")
 		else:
 			_json_response = _response.json()
 			if "is_successful" not in _json_response:
-				raise Exception(f"Unexpected missing key \"is_successful\": {_json_response}")
+				raise Exception("Unexpected missing key \"is_successful\": " + str(_json_response))
 			elif "response" not in _json_response:
-				raise Exception(f"Unexpected missing key \"response\": {_json_response}")
+				raise Exception("Unexpected missing key \"response\": " + str(_json_response))
 			elif "error" not in _json_response:
-				raise Exception(f"Unexpected missing key \"error\": {_json_response}")
+				raise Exception("Unexpected missing key \"error\": " + str(_json_response))
 			else:
 				_is_successful = _json_response["is_successful"]
 				_response_value = _json_response["response"]
 				_error = _json_response["error"]
 				if not _is_successful:
-					raise Exception(f"Error from messaging system: \"{_error}\".")
+					raise Exception("Error from messaging system: \"" + str(_error) + "\".")
 				else:
 					return _response_value
 
 	def _get_formatted_url(self, *, url_part: str) -> str:
-		return f"{self.__api_base_url}{url_part}"
+		return self.__api_base_url + url_part
 
 	def test_get(self) -> dict:
 

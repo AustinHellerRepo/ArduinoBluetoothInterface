@@ -81,20 +81,55 @@ else:
 
 			# copy over project
 
+			def _copy_directory_to_device(*, source_directory_path: str, destination_directory_name: str):
+				_subprocess = subprocess.Popen(["ampy", "--port", _device_name, "put", source_directory_path, destination_directory_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				_standard_output, _standard_error = _subprocess.communicate()
+				if _standard_error != b"":
+					print(_standard_error)
+				_output_lines = _standard_output.decode().split("\n")
+				for _output_line in _output_lines:
+					if _output_line != "":
+						print(f"Output: {_output_line}")
+
 			for _file_name in os.listdir(_project_directory):
 				if _file_name != "venv" and not _file_name.startswith("."):
 					_file_path = os.path.join(_project_directory, _file_name)
 					if os.path.isfile(_file_path):
 						print(f"Copying \"{_file_path}\"...")
-						_subprocess = subprocess.Popen(["ampy", "--port", _device_name, "put", _file_path, _file_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+						_copy_directory_to_device(
+							source_directory_path=_file_path,
+							destination_directory_name=_file_name
+						)
 					elif os.path.isdir(_file_path):
 						print(f"Copying \"{_file_path}\"...")
-						_subprocess = subprocess.Popen(["ampy", "--port", _device_name, "put", _file_path, _file_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-					_standard_output, _standard_error = _subprocess.communicate()
-					if _standard_error != b"":
-						print(_standard_error)
-					_output_lines = _standard_output.decode().split("\n")
-					for _output_line in _output_lines:
-						if _output_line != "":
-							print(f"Output: {_output_line}")
+						_copy_directory_to_device(
+							source_directory_path=_file_path,
+							destination_directory_name=_file_name
+						)
 
+			# copy over venv library modules of interest
+
+			_useful_modules = [
+				"austin_heller_repo"
+			]
+
+			_venv_directory_path = os.path.join(_project_directory, "venv")
+			if not os.path.exists(_venv_directory_path):
+				print(f"Cannot pull venv libraries due to missing venv directory at \"{_venv_directory_path}\".")
+			else:
+				_lib_directory_path = os.path.join(_venv_directory_path, "lib")
+				_python_regex = re.compile("^python\d\.\d+(\.\d+)?$")
+				for _file_name in os.listdir(_lib_directory_path):
+					if _python_regex.search(_file_name) is not None:
+						_python_directory_path = os.path.join(_lib_directory_path, _file_name)
+						_site_packages_directory_path = os.path.join(_python_directory_path, "site-packages")
+
+						for _useful_module in _useful_modules:
+							_useful_module_directory_path = os.path.join(_site_packages_directory_path, _useful_module)
+							if os.path.exists(_useful_module_directory_path):
+								print(f"Copying \"{_useful_module_directory_path}\"...")
+								_copy_directory_to_device(
+									source_directory_path=_useful_module_directory_path,
+									destination_directory_name=_useful_module
+								)
+						break

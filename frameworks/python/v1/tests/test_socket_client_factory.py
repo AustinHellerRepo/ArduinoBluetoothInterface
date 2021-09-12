@@ -1,5 +1,5 @@
 from __future__ import annotations
-from src.austin_heller_repo.socket_client_factory import ServerSocketFactory, ClientSocket, ClientSocketFactory, Semaphore
+from src.austin_heller_repo.socket_client_factory import ServerSocketFactory, ClientSocket, ClientSocketFactory, Semaphore, get_machine_guid
 import unittest
 import time
 from datetime import datetime
@@ -342,3 +342,9 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_client_socket.close()
 		_server_sockets[0].close()
 		_server_socket.close()
+
+	def test_get_machine_guid_0(self):
+		# try to get the same guid from this machine
+		_first_guid = get_machine_guid()
+		_second_guid = get_machine_guid()
+		self.assertEqual(_first_guid, _second_guid)

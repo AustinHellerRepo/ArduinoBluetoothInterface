@@ -72,20 +72,27 @@ try:
 except ImportError:
 	import json
 
+import hashlib
 
 try:
 	import network
 
-	def get_machine_id() -> str:
+	def get_machine_guid() -> str:
 		_wlan = network.WLAN()
-		_mac = _wlan.config("mac")
-		return _mac
+		_mac_bytes = _wlan.config("mac")
+		_sha256 = hashlib.sha256()
+		_sha256.update(_mac_bytes)
+		_hashed_bytes = _sha256.digest()
+		_hashed_hex_string = _hashed_bytes.hex()
+		_guid = f"{_hashed_hex_string[0:8]}-{_hashed_hex_string[8:12]}-{_hashed_hex_string[12:16]}-{_hashed_hex_string[16:20]}-{_hashed_hex_string[20:32]}"
+		return _guid
 except ImportError:
 	import uuid
 
-	def get_machine_id() -> str:
-		_mac_hex = hex(uuid.getnode())
-		return _mac_hex
+	def get_machine_guid() -> str:
+		_node = uuid.getnode()
+		_guid = str(uuid.UUID(int=_node, version=4))
+		return _guid
 
 import time
 from typing import Callable, List, Tuple, Dict

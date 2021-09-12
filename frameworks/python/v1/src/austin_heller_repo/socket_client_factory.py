@@ -96,6 +96,7 @@ except ImportError:
 
 import time
 from typing import Callable, List, Tuple, Dict
+import re
 
 
 class ClientSocket():

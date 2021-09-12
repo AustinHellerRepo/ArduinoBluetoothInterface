@@ -102,7 +102,7 @@ class Dequeuer():
 								error_message_json=_error_message_json
 							)
 
-				_process_transmission_dequeue_thread = start_thread(_process_transmission_dequeue_thread_method, _transmission_dequeue, _api_interface)
+				_process_transmission_dequeue_thread = start_thread(_process_transmission_dequeue_thread_method, _transmission_dequeue, self.__to_devices_packet_bytes_length, _api_interface)
 				self.__process_transmission_dequeue_threads_semaphore.acquire()
 				self.__process_transmission_dequeue_threads.append(_process_transmission_dequeue_thread)
 				self.__process_transmission_dequeue_threads_semaphore.release()

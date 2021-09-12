@@ -1,1 +1,1 @@
-docker build -t dequeuer .
+docker build --no-cache -t dequeuer .

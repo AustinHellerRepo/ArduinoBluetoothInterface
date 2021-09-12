@@ -1,29 +1,19 @@
-FROM tiangolo/uvicorn-gunicorn-fastapi:python3.8
+FROM python:3.8.10
 
 RUN /usr/local/bin/python -m pip install --upgrade pip
-RUN apt update
-RUN apt install -y python3-brlapi
 
-#RUN wget -c https://sqlite.org/2021/sqlite-autoconf-3350400.tar.gz
-#RUN mkdir sqlite3
-#RUN tar xvfz sqlite-autoconf-3350400.tar.gz -C ./sqlite3/
-#RUN cd sqlite3/sqlite-autoconf-3350400/ \
-#    && ./configure \
-#    && make \
-#    && make install
+COPY ./requirements.txt /dequeuer/requirements.txt
 
-#WORKDIR /
-
-COPY ./requirements.txt /wifi_server/requirements.txt
-
-WORKDIR /wifi_server/
+WORKDIR /dequeuer/
 
 RUN pip install -r requirements.txt
 
-COPY ./app /wifi_server/app
+COPY ./app /dequeuer/app
 
-WORKDIR /wifi_server/app/
+WORKDIR /dequeuer/app/
 
-ENV PYTHONPATH "${PYTHONPATH}:/wifi_server"
+ENV PYTHONPATH "${PYTHONPATH}:/dequeuer"
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
+CMD ["/dequeuer/app/main.py"]
+
+ENTRYPOINT ["python"]

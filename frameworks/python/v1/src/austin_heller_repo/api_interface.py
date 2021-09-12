@@ -1,8 +1,16 @@
 from __future__ import annotations
 from typing import List, Tuple, Dict
 from enum import Enum, auto
-import requests
-import json
+
+try:
+	import urequests as requests
+except ImportError:
+	import requests
+
+try:
+	import ujson as json
+except ImportError:
+	import json
 
 
 class MethodTypeEnum(Enum):

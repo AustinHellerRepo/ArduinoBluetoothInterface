@@ -21,6 +21,9 @@ class Dequeuer():
 		self.__process_transmission_dequeue_threads = []  # type: List[threading.Thread]
 		self.__process_transmission_dequeue_threads_semaphore = Semaphore()
 
+	def is_running(self) -> bool:
+		return self.__is_running_process_thread
+
 	def start(self):
 
 		self.__is_running_process_thread = True

@@ -1,3 +1,3 @@
-docker container rm -f wifi_server_container
-docker run --name wifi_server_container -p 80:80 wifi_server
-docker stop wifi_server_container
+docker container rm -f dequeuer_container
+docker run --name dequeuer_container -p 28574:80 dequeuer
+docker stop dequeuer_container

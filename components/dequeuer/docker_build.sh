@@ -1,1 +1,1 @@
-docker build -t wifi_server .
+docker build -t dequeuer .

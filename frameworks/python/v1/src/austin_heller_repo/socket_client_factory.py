@@ -95,7 +95,6 @@ except ImportError:
 		return _guid
 
 import time
-from typing import Callable, List, Tuple, Dict
 import re
 
 
@@ -195,7 +194,7 @@ class ClientSocket():
 			self.__is_writing = False
 			self.__write_semaphore.release()
 
-	def read_async(self, callback: Callable[[str], None], delay_between_packets_seconds: float = 0):
+	def read_async(self, callback, delay_between_packets_seconds: float = 0):
 
 		def _read_thread_method():
 
@@ -295,7 +294,7 @@ class ClientSocketFactory():
 
 class ServerSocket():
 
-	def __init__(self, *, ip_address: str, port: int, packet_bytes_length: int, on_accepted_client_method: Callable[[ClientSocket], None]):
+	def __init__(self, *, ip_address: str, port: int, packet_bytes_length: int, on_accepted_client_method):
 
 		self.__ip_address = ip_address
 		self.__port = port
@@ -369,7 +368,7 @@ class ServerSocket():
 
 class ServerSocketFactory():
 
-	def __init__(self, *, ip_address: str, port: int, packet_bytes_length: int, on_accepted_client_method: Callable[[ClientSocket], None]):
+	def __init__(self, *, ip_address: str, port: int, packet_bytes_length: int, on_accepted_client_method):
 
 		self.__ip_address = ip_address
 		self.__port = port

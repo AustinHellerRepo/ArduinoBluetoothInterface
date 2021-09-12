@@ -1,5 +1,4 @@
-from esp32_processor_factory import SocketClientFactory, Esp32ProcessorFactory, Esp32Processor
-from typing import Dict
+from esp32_processor_factory import ServerSocketFactory, Esp32ProcessorFactory, Esp32Processor
 
 
 _ip_address = "0.0.0.0"

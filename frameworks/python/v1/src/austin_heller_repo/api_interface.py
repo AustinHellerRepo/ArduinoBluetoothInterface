@@ -78,7 +78,7 @@ class ApiInterface():
 			arguments_json_object=json_object
 		)
 
-	def send_device_announcement(self, *, device_guid: str, purpose_guid: str) -> Dict:
+	def send_device_announcement(self, *, device_guid: str, purpose_guid: str, socket_port: int) -> Dict:
 
 		return self._get_json_result_from_url(
 			method_type=MethodTypeEnum.Post,
@@ -87,7 +87,8 @@ class ApiInterface():
 			),
 			arguments_json_object={
 				"device_guid": device_guid,
-				"purpose_guid": purpose_guid
+				"purpose_guid": purpose_guid,
+				"socket_port": socket_port
 			}
 		)
 

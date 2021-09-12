@@ -60,10 +60,13 @@ class Client():
 
 	@staticmethod
 	def parse_row(*, row: Dict) -> Client:
-		return Client(
-			client_guid=row[0],
-			ip_address=row[1]
-		)
+		if len(row) != 2:
+			raise Exception(f"Unexpected number of columns in row. Expected 2, found {len(row)}.")
+		else:
+			return Client(
+				client_guid=row[0],
+				ip_address=row[1]
+			)
 
 
 class ApiEntrypointLog():
@@ -93,21 +96,29 @@ class ApiEntrypointLog():
 
 	@staticmethod
 	def parse_row(*, row: Dict) -> ApiEntrypointLog:
-		return ApiEntrypointLog(
-			api_entrypoint_log_id=row[0],
-			api_entrypoint_id=row[1],
-			request_client_guid=row[2],
-			input_json_string=row[3],
-			row_created_datetime=datetime.strptime(row[4], "%Y-%m-%d %H:%M:%S.%f")
-		)
+		if len(row) != 5:
+			raise Exception(f"Unexpected number of columns in row. Expected 5, found {len(row)}.")
+		else:
+			return ApiEntrypointLog(
+				api_entrypoint_log_id=row[0],
+				api_entrypoint_id=row[1],
+				request_client_guid=row[2],
+				input_json_string=row[3],
+				row_created_datetime=datetime.strptime(row[4], "%Y-%m-%d %H:%M:%S.%f")
+			)
 
 
 class Device():
 
-	def __init__(self, *, device_guid: str, purpose_guid: str):
+	def __init__(self, *, device_guid: str, purpose_guid: str, socket_port: int, last_known_client_guid: str, last_known_datetime: datetime):
 
 		self.__device_guid = device_guid
 		self.__purpose_guid = purpose_guid
+		self.__socket_port = socket_port
+		self.__last_known_client_guid = last_known_client_guid
+		self.__last_known_datetime = last_known_datetime
+
+		self.__last_known_client = None  # type: Client
 
 	def get_device_guid(self) -> str:
 		return self.__device_guid
@@ -115,18 +126,43 @@ class Device():
 	def get_purpose_guid(self) -> str:
 		return self.__purpose_guid
 
+	def get_socket_port(self) -> int:
+		return self.__socket_port
+
+	def get_last_known_client_guid(self) -> str:
+		return self.__last_known_client_guid
+
+	def get_last_known_datetime(self) -> datetime:
+		return self.__last_known_datetime
+
+	def set_last_known_client(self, *, last_known_client: Client):
+		self.__last_known_client = last_known_client
+
+	def get_last_known_client(self) -> Client:
+		return self.__last_known_client
+
 	def to_json(self) -> object:
 		return {
 			"device_guid": self.__device_guid,
-			"purpose_guid": self.__purpose_guid
+			"purpose_guid": self.__purpose_guid,
+			"socket_port": self.__socket_port,
+			"last_known_client_guid": self.__last_known_client_guid,
+			"last_known_datetime": self.__last_known_datetime.strftime("%Y-%m-%d %H:%M:%S.%f") if self.__last_known_datetime is not None else None,
+			"last_known_client": None if self.__last_known_client is None else self.__last_known_client.to_json()
 		}
 
 	@staticmethod
 	def parse_row(*, row: Dict) -> Device:
-		return Device(
-			device_guid=row[0],
-			purpose_guid=row[1]
-		)
+		if len(row) != 5:
+			raise Exception(f"Unexpected number of columns in row. Expected 5, found {len(row)}.")
+		else:
+			return Device(
+				device_guid=row[0],
+				purpose_guid=row[1],
+				socket_port=int(row[2]),
+				last_known_client_guid=row[3],
+				last_known_datetime=datetime.strptime(row[4], "%Y-%m-%d %H:%M:%S.%f"),
+			)
 
 
 class Queue():
@@ -145,9 +181,12 @@ class Queue():
 
 	@staticmethod
 	def parse_row(row: Dict) -> Queue:
-		return Queue(
-			queue_guid=row[0]
-		)
+		if len(row) != 1:
+			raise Exception(f"Unexpected number of columns in row. Expected 1, found {len(row)}.")
+		else:
+			return Queue(
+				queue_guid=row[0]
+			)
 
 
 class Dequeuer():
@@ -255,6 +294,9 @@ class Transmission():
 		self.__row_created_datetime = row_created_datetime
 		self.__is_retry_ready = is_retry_ready
 
+		self.__source_device = None  # type: Device
+		self.__destination_device = None  # type: Device
+
 	def get_transmission_guid(self) -> str:
 		return self.__transmission_guid
 
@@ -279,6 +321,18 @@ class Transmission():
 	def get_is_retry_ready(self) -> bool:
 		return self.__is_retry_ready
 
+	def set_source_device(self, *, source_device: Device):
+		self.__source_device = source_device
+
+	def get_source_device(self) -> Device:
+		return self.__source_device
+
+	def set_destination_device(self, *, destination_device: Device):
+		self.__destination_device = destination_device
+
+	def get_destination_device(self) -> Device:
+		return self.__destination_device
+
 	def to_json(self) -> object:
 		return {
 			"transmission_guid": self.__transmission_guid,
@@ -288,7 +342,9 @@ class Transmission():
 			"transmission_json_string": self.__transmission_json_string,
 			"destination_device_guid": self.__destination_device_guid,
 			"row_created_datetime": self.__row_created_datetime.strftime("%Y-%m-%d %H:%M:%S.%f") if self.__row_created_datetime is not None else None,
-			"is_retry_ready": self.__is_retry_ready
+			"is_retry_ready": self.__is_retry_ready,
+			"source_device": None if self.__source_device is None else self.__source_device.to_json(),
+			"destination_device": None if self.__destination_device is None else self.__destination_device.to_json()
 		}
 
 	@staticmethod
@@ -573,6 +629,7 @@ class Database():
 			(
 				device_guid GUID PRIMARY KEY,
 				purpose_guid GUID,
+				socket_port INTEGER,
 				last_known_client_guid GUID,
 				last_known_datetime TIMESTAMP,
 				row_created_datetime TIMESTAMP,
@@ -809,7 +866,7 @@ class Database():
 			VALUES (?, ?, ?, ?, ?)
 		''', (None, int(api_entrypoint), client_guid, input_json_string, _row_created_datetime))
 
-	def insert_device(self, *, device_guid: str, client_guid: str, purpose_guid: str) -> Device:
+	def insert_device(self, *, device_guid: str, client_guid: str, purpose_guid: str, socket_port: int) -> Device:
 
 		_insert_cursor = self.__connection.cursor()
 		_insert_cursor.execute('''
@@ -817,22 +874,24 @@ class Database():
 			(
 				device_guid,
 				purpose_guid,
+				socket_port,
 				last_known_client_guid,
 				last_known_datetime
 			)
-			VALUES (?, ?, ?, ?)
-		''', (device_guid, purpose_guid, client_guid, datetime.utcnow()))
+			VALUES (?, ?, ?, ?, ?)
+		''', (device_guid, purpose_guid, socket_port, client_guid, datetime.utcnow()))
 
 		_update_known_datetime_cursor = self.__connection.cursor()
 		_update_known_datetime_cursor.execute('''
 			UPDATE device
 			SET
 				purpose_guid = ?,
+				socket_port = ?,
 				last_known_client_guid = ?,
 				last_known_datetime = ?
 			WHERE
 				device_guid = ?
-		''', (purpose_guid, client_guid, datetime.utcnow(), device_guid))
+		''', (purpose_guid, socket_port, client_guid, datetime.utcnow(), device_guid))
 
 		_transmission_retry_cursor = self.__connection.cursor()
 		_transmission_retry_cursor.execute('''
@@ -862,9 +921,12 @@ class Database():
 			AND is_retry_ready = 0
 		''', (device_guid,))
 
-		_device = self.get_device(
+		_is_successful, _device = self.try_get_device(
 			device_guid=device_guid
 		)
+
+		if not _is_successful:
+			raise Exception(f"Failed to insert device with guid: \"{device_guid}\".")
 
 		return _device
 
@@ -893,8 +955,7 @@ class Database():
 		_select_cursor = self.__connection.cursor()
 		_select_result = _select_cursor.execute('''
 			SELECT
-				q.queue_guid,
-				q.row_created_datetime
+				q.queue_guid
 			FROM queue AS q
 			WHERE
 				q.queue_guid = ?
@@ -1109,7 +1170,10 @@ class Database():
 		_get_result = _get_cursor.execute('''
 			SELECT
 				d.device_guid,
-				d.purpose_guid
+				d.purpose_guid,
+				d.socket_port,
+				d.last_known_client_guid,
+				d.last_known_datetime
 			FROM device AS d
 		''')
 		_devices = []  # type: List[Device]
@@ -1118,27 +1182,17 @@ class Database():
 			_device = Device.parse_row(
 				row=_row
 			)
+			_is_successful, _last_known_client = self.try_get_client(
+				client_guid=_device.get_last_known_client_guid()
+			)
+			if not _is_successful:
+				raise Exception(f"Failed to find client guid \"{_device.get_last_known_client_guid()}\" for device guid \"{_device.get_device_guid()}\".")
+			else:
+				_device.set_last_known_client(
+					last_known_client=_last_known_client
+				)
 			_devices.append(_device)
 		return _devices
-
-	def get_device(self, *, device_guid: str) -> Device:
-		_get_cursor = self.__connection.cursor()
-		_get_result = _get_cursor.execute('''
-			SELECT
-				d.device_guid,
-				d.purpose_guid
-			FROM device AS d
-			WHERE
-				d.device_guid = ?
-		''', (device_guid,))
-		_rows = _get_result.fetchall()
-		if len(_rows) != 1:
-			raise Exception(f"Unexpected number of devices with guid: {len(_rows)} for guid \"{device_guid}\".")
-		_row = _rows[0]
-		_device = Device.parse_row(
-			row=_row
-		)
-		return _device
 
 	def insert_transmission(self, *, queue_guid: str, source_device_guid: str, client_guid: str, transmission_json_string: str, destination_device_guid: str) -> Transmission:
 
@@ -1199,7 +1253,57 @@ class Database():
 				row=_row
 			)
 
+			_is_successful, _destination_device = self.try_get_device(
+				device_guid=_transmission.get_destination_device_guid()
+			)
+
+			if not _is_successful:
+				raise Exception(f"Failed to find device with guid: {_transmission.get_destination_device_guid()}")
+			else:
+
+				_transmission.set_destination_device(
+					destination_device=_destination_device
+				)
+
 		return _transmission is not None, _transmission
+
+	def try_get_device(self, *, device_guid: str) -> Tuple[bool, Device]:
+
+		_get_cursor = self.__connection.cursor()
+		_get_result = _get_cursor.execute('''
+			SELECT
+				d.device_guid,
+				d.purpose_guid,
+				d.socket_port,
+				d.last_known_client_guid,
+				d.last_known_datetime
+			FROM device AS d
+			WHERE
+				d.device_guid = ?
+		''', (device_guid,))
+
+		_rows = _get_result.fetchall()
+		if len(_rows) == 0:
+			_device = None
+		elif len(_rows) > 1:
+			raise Exception(f"Unexpected number of rows. Expected 0 or 1, found {len(_rows)}.")
+		else:
+			_row = _rows[0]
+			_device = Device.parse_row(
+				row=_row
+			)
+
+			_is_successful, _last_known_client = self.try_get_client(
+				client_guid=_device.get_last_known_client_guid()
+			)
+			if not _is_successful:
+				raise Exception(f"Failed to find client guid \"{_device.get_last_known_client_guid()}\" for device guid \"{_device.get_device_guid()}\".")
+			else:
+				_device.set_last_known_client(
+					last_known_client=_last_known_client
+				)
+
+		return _device is not None, _device
 
 	def try_get_transmission_dequeue_by_dequeuer(self, *, dequeuer_guid: str) -> Tuple[bool, TransmissionDequeue]:
 
@@ -1866,7 +1970,10 @@ class Database():
 		_get_result = _get_cursor.execute('''
 			SELECT
 				d.device_guid,
-				d.purpose_guid
+				d.purpose_guid,
+				d.socket_port,
+				d.last_known_client_guid,
+				d.last_known_datetime
 			FROM device AS d
 			WHERE
 				d.purpose_guid = ?
@@ -1877,6 +1984,15 @@ class Database():
 			_device = Device.parse_row(
 				row=_row
 			)
+			_is_successful, _last_known_client = self.try_get_client(
+				client_guid=_device.get_last_known_client_guid()
+			)
+			if not _is_successful:
+				raise Exception(f"Failed to find client guid \"{_device.get_last_known_client_guid()}\" for device guid \"{_device.get_device_guid()}\".")
+			else:
+				_device.set_last_known_client(
+					last_known_client=_last_known_client
+				)
 			_devices.append(_device)
 		return _devices
 

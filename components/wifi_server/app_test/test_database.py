@@ -17,7 +17,8 @@ class DatabaseTest(unittest.TestCase):
 				_device = _database.insert_device(
 					device_guid="1202BF8A-D185-4C32-8931-C4315B0B87D9",
 					client_guid="8D825258-C1A3-43AF-A354-6C2EA7561F53",
-					purpose_guid="27C61F73-9436-4416-AD48-7329B899C212"
+					purpose_guid="27C61F73-9436-4416-AD48-7329B899C212",
+					socket_port=24576
 				)
 			self.assertIsNone(_device)
 			_all_devices = _database.get_all_devices()
@@ -32,7 +33,8 @@ class DatabaseTest(unittest.TestCase):
 			_device = _database.insert_device(
 				device_guid="1202BF8A-D185-4C32-8931-C4315B0B87D9",
 				client_guid=_client.get_client_guid(),
-				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212"
+				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_device)
 			_all_devices = _database.get_all_devices()
@@ -47,18 +49,22 @@ class DatabaseTest(unittest.TestCase):
 			_device = _database.insert_device(
 				device_guid="1202BF8A-D185-4C32-8931-C4315B0B87D9",
 				client_guid=_client.get_client_guid(),
-				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212"
+				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_device)
 			_other_device = _database.insert_device(
 				device_guid="1202BF8A-D185-4C32-8931-C4315B0B87D9",
 				client_guid=_client.get_client_guid(),
-				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212"
+				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_other_device)
 			self.assertEqual(_device.get_device_guid(), _other_device.get_device_guid())
 			self.assertEqual(_device.get_purpose_guid(), _other_device.get_purpose_guid())
-			self.assertEqual(_device.to_json(), _other_device.to_json())
+			self.assertEqual(_device.get_last_known_client_guid(), _other_device.get_last_known_client_guid())
+			self.assertNotEqual(_device.get_last_known_datetime(), _other_device.get_last_known_datetime())
+			self.assertNotEqual(_device.to_json(), _other_device.to_json())
 			_all_devices = _database.get_all_devices()
 			self.assertEqual(1, len(_all_devices))
 
@@ -72,21 +78,24 @@ class DatabaseTest(unittest.TestCase):
 			_device = _database.insert_device(
 				device_guid="1202BF8A-D185-4C32-8931-C4315B0B87D9",
 				client_guid=_client.get_client_guid(),
-				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212"
+				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_device)
 			_other_device = _database.insert_device(
 				device_guid="1202BF8A-D185-4C32-8931-C4315B0B87D9",
 				client_guid=_client.get_client_guid(),
-				purpose_guid="C439928B-A339-4550-8E2D-B5583C90FD40"
+				purpose_guid="C439928B-A339-4550-8E2D-B5583C90FD40",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_other_device)
 			self.assertEqual(_device.get_device_guid(), _other_device.get_device_guid())
 			self.assertNotEqual(_device.get_purpose_guid(), _other_device.get_purpose_guid())
 			self.assertNotEqual(_device.to_json(), _other_device.to_json())
-			_database_device = _database.get_device(
+			_is_successful, _database_device = _database.try_get_device(
 				device_guid=_device.get_device_guid()
 			)
+			self.assertTrue(_is_successful)
 			self.assertEqual(_device.get_device_guid(), _database_device.get_device_guid())
 			self.assertNotEqual(_device.get_purpose_guid(), _database_device.get_purpose_guid())
 			self.assertEqual(_other_device.get_purpose_guid(), _database_device.get_purpose_guid())
@@ -105,7 +114,8 @@ class DatabaseTest(unittest.TestCase):
 			_device = _database.insert_device(
 				device_guid="1202BF8A-D185-4C32-8931-C4315B0B87D9",
 				client_guid=_client.get_client_guid(),
-				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212"
+				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_device)
 			_other_client = _database.insert_client(
@@ -115,15 +125,17 @@ class DatabaseTest(unittest.TestCase):
 			_other_device = _database.insert_device(
 				device_guid="1202BF8A-D185-4C32-8931-C4315B0B87D9",
 				client_guid=_other_client.get_client_guid(),
-				purpose_guid="C439928B-A339-4550-8E2D-B5583C90FD40"
+				purpose_guid="C439928B-A339-4550-8E2D-B5583C90FD40",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_other_device)
 			self.assertEqual(_device.get_device_guid(), _other_device.get_device_guid())
 			self.assertNotEqual(_device.get_purpose_guid(), _other_device.get_purpose_guid())
 			self.assertNotEqual(_device.to_json(), _other_device.to_json())
-			_database_device = _database.get_device(
+			_is_successful, _database_device = _database.try_get_device(
 				device_guid=_device.get_device_guid()
 			)
+			self.assertTrue(_is_successful)
 			self.assertEqual(_device.get_device_guid(), _database_device.get_device_guid())
 			self.assertNotEqual(_device.get_purpose_guid(), _database_device.get_purpose_guid())
 			self.assertEqual(_other_device.get_purpose_guid(), _database_device.get_purpose_guid())
@@ -142,7 +154,8 @@ class DatabaseTest(unittest.TestCase):
 			_device = _database.insert_device(
 				device_guid="1202BF8A-D185-4C32-8931-C4315B0B87D9",
 				client_guid=_client.get_client_guid(),
-				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212"
+				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_device)
 			_other_client = _database.insert_client(
@@ -152,19 +165,23 @@ class DatabaseTest(unittest.TestCase):
 			_other_device = _database.insert_device(
 				device_guid="1202BF8A-D185-4C32-8931-C4315B0B87D9",
 				client_guid=_other_client.get_client_guid(),
-				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212"
+				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_other_device)
 			self.assertEqual(_device.get_device_guid(), _other_device.get_device_guid())
 			self.assertEqual(_device.get_purpose_guid(), _other_device.get_purpose_guid())
-			self.assertEqual(_device.to_json(), _other_device.to_json())
-			_database_device = _database.get_device(
+			self.assertNotEqual(_device.get_last_known_client_guid(), _other_device.get_last_known_client_guid())
+			self.assertNotEqual(_device.get_last_known_datetime(), _other_device.get_last_known_datetime())
+			self.assertNotEqual(_device.to_json(), _other_device.to_json())
+			_is_successful, _database_device = _database.try_get_device(
 				device_guid=_device.get_device_guid()
 			)
+			self.assertTrue(_is_successful)
 			self.assertEqual(_device.get_device_guid(), _database_device.get_device_guid())
 			self.assertEqual(_device.get_purpose_guid(), _database_device.get_purpose_guid())
 			self.assertEqual(_other_device.get_purpose_guid(), _database_device.get_purpose_guid())
-			self.assertEqual(_device.to_json(), _database_device.to_json())
+			self.assertNotEqual(_device.to_json(), _database_device.to_json())
 			self.assertEqual(_other_device.to_json(), _database_device.to_json())
 			_all_devices = _database.get_all_devices()
 			self.assertEqual(1, len(_all_devices))
@@ -179,7 +196,8 @@ class DatabaseTest(unittest.TestCase):
 			_device = _database.insert_device(
 				device_guid="1202BF8A-D185-4C32-8931-C4315B0B87D9",
 				client_guid=_client.get_client_guid(),
-				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212"
+				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_device)
 			_other_client = _database.insert_client(
@@ -189,7 +207,8 @@ class DatabaseTest(unittest.TestCase):
 			_other_device = _database.insert_device(
 				device_guid="B3D1577E-2874-4F0C-AFD7-254DB00F47CF",
 				client_guid=_other_client.get_client_guid(),
-				purpose_guid="B978714F-B6EB-4E6B-83EB-2BD9C702F753"
+				purpose_guid="B978714F-B6EB-4E6B-83EB-2BD9C702F753",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_other_device)
 			self.assertNotEqual(_device.get_device_guid(), _other_device.get_device_guid())
@@ -208,13 +227,15 @@ class DatabaseTest(unittest.TestCase):
 			_device = _database.insert_device(
 				device_guid="1202BF8A-D185-4C32-8931-C4315B0B87D9",
 				client_guid=_client.get_client_guid(),
-				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212"
+				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_device)
 			_other_device = _database.insert_device(
 				device_guid="B3D1577E-2874-4F0C-AFD7-254DB00F47CF",
 				client_guid=_client.get_client_guid(),
-				purpose_guid="B978714F-B6EB-4E6B-83EB-2BD9C702F753"
+				purpose_guid="B978714F-B6EB-4E6B-83EB-2BD9C702F753",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_other_device)
 			self.assertNotEqual(_device.get_device_guid(), _other_device.get_device_guid())
@@ -233,13 +254,15 @@ class DatabaseTest(unittest.TestCase):
 			_device = _database.insert_device(
 				device_guid="1202BF8A-D185-4C32-8931-C4315B0B87D9",
 				client_guid=_client.get_client_guid(),
-				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212"
+				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_device)
 			_other_device = _database.insert_device(
 				device_guid="B3D1577E-2874-4F0C-AFD7-254DB00F47CF",
 				client_guid=_client.get_client_guid(),
-				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212"
+				purpose_guid="27C61F73-9436-4416-AD48-7329B899C212",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_other_device)
 			self.assertNotEqual(_device.get_device_guid(), _other_device.get_device_guid())
@@ -310,7 +333,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -320,7 +344,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_transmission_client = _database.insert_client(
@@ -349,7 +374,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -359,7 +385,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_transmission_client = _database.insert_client(
@@ -405,7 +432,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -415,7 +443,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_transmission_client = _database.insert_client(
@@ -486,7 +515,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -496,7 +526,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_transmission_client = _database.insert_client(
@@ -575,7 +606,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -585,7 +617,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_transmission_client = _database.insert_client(
@@ -657,7 +690,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -667,7 +701,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_transmission_client = _database.insert_client(
@@ -720,7 +755,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -730,7 +766,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_transmission_client = _database.insert_client(
@@ -787,7 +824,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -797,7 +835,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_transmission_client = _database.insert_client(
@@ -846,7 +885,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -856,7 +896,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_transmission_client = _database.insert_client(
@@ -909,7 +950,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -919,7 +961,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_transmission_client = _database.insert_client(
@@ -969,7 +1012,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -979,7 +1023,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_transmission_client = _database.insert_client(
@@ -1042,7 +1087,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -1052,7 +1098,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_transmission_client = _database.insert_client(
@@ -1143,7 +1190,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -1153,7 +1201,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_transmission_client = _database.insert_client(
@@ -1243,7 +1292,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -1253,7 +1303,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_transmission_client = _database.insert_client(
@@ -1344,7 +1395,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -1354,7 +1406,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_transmission_client = _database.insert_client(
@@ -1441,7 +1494,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -1451,7 +1505,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_transmission_client = _database.insert_client(
@@ -1521,11 +1576,14 @@ class DatabaseTest(unittest.TestCase):
 			_same_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertEqual(_destination_device.get_device_guid(), _same_device.get_device_guid())
 			self.assertEqual(_destination_device.get_purpose_guid(), _same_device.get_purpose_guid())
-			self.assertEqual(_destination_device.to_json(), _same_device.to_json())
+			self.assertEqual(_destination_device.get_last_known_client_guid(), _same_device.get_last_known_client_guid())
+			self.assertNotEqual(_destination_device.get_last_known_datetime(), _same_device.get_last_known_datetime())
+			self.assertNotEqual(_destination_device.to_json(), _same_device.to_json())
 
 			_second_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
 				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
@@ -1544,7 +1602,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -1554,7 +1613,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_transmission_client = _database.insert_client(
@@ -1624,11 +1684,14 @@ class DatabaseTest(unittest.TestCase):
 			_same_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertEqual(_destination_device.get_device_guid(), _same_device.get_device_guid())
 			self.assertEqual(_destination_device.get_purpose_guid(), _same_device.get_purpose_guid())
-			self.assertEqual(_destination_device.to_json(), _same_device.to_json())
+			self.assertEqual(_destination_device.get_last_known_client_guid(), _same_device.get_last_known_client_guid())
+			self.assertNotEqual(_destination_device.get_last_known_datetime(), _same_device.get_last_known_datetime())
+			self.assertNotEqual(_destination_device.to_json(), _same_device.to_json())
 
 			_second_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
 				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
@@ -1648,7 +1711,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -1658,7 +1722,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_transmission_client = _database.insert_client(
@@ -1749,11 +1814,14 @@ class DatabaseTest(unittest.TestCase):
 			_same_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertEqual(_destination_device.get_device_guid(), _same_device.get_device_guid())
 			self.assertEqual(_destination_device.get_purpose_guid(), _same_device.get_purpose_guid())
-			self.assertEqual(_destination_device.to_json(), _same_device.to_json())
+			self.assertEqual(_destination_device.get_last_known_client_guid(), _same_device.get_last_known_client_guid())
+			self.assertNotEqual(_destination_device.get_last_known_datetime(), _same_device.get_last_known_datetime())
+			self.assertNotEqual(_destination_device.to_json(), _same_device.to_json())
 
 			_second_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
 				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
@@ -1792,7 +1860,8 @@ class DatabaseTest(unittest.TestCase):
 				_device = _database.insert_device(
 					device_guid=str(uuid.uuid4()),
 					client_guid=_client.get_client_guid(),
-					purpose_guid=str(uuid.uuid4())
+					purpose_guid=str(uuid.uuid4()),
+					socket_port=24576
 				)
 				_clients.append(_client)
 				_devices.append(_device)
@@ -1840,7 +1909,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="3E1AF46C-6D1E-4349-B6EC-00557DA6C47F",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="7B3316A1-89F4-49A0-A6B3-351CC5FE6D63"
+				purpose_guid="7B3316A1-89F4-49A0-A6B3-351CC5FE6D63",
+				socket_port=24576
 			)
 
 			_found_devices = _database.get_devices_by_purpose(
@@ -1857,7 +1927,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="C65EDB87-1F38-402E-A166-90411841AA29",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7"
+				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7",
+				socket_port=24576
 			)
 			_destination_client = _database.insert_client(
 				ip_address="127.0.0.2"
@@ -1865,7 +1936,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="3E1AF46C-6D1E-4349-B6EC-00557DA6C47F",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="7B3316A1-89F4-49A0-A6B3-351CC5FE6D63"
+				purpose_guid="7B3316A1-89F4-49A0-A6B3-351CC5FE6D63",
+				socket_port=24576
 			)
 
 			_found_devices = _database.get_devices_by_purpose(
@@ -1888,7 +1960,8 @@ class DatabaseTest(unittest.TestCase):
 				_device = _database.insert_device(
 					device_guid=str(uuid.uuid4()),
 					client_guid=_client.get_client_guid(),
-					purpose_guid=_purpose_guid
+					purpose_guid=_purpose_guid,
+					socket_port=24576
 				)
 
 			_found_devices = _database.get_devices_by_purpose(
@@ -1908,7 +1981,8 @@ class DatabaseTest(unittest.TestCase):
 				_device = _database.insert_device(
 					device_guid=str(uuid.uuid4()),
 					client_guid=_client.get_client_guid(),
-					purpose_guid=_purpose_guid
+					purpose_guid=_purpose_guid,
+					socket_port=24576
 				)
 
 			_found_devices = _database.get_devices_by_purpose(
@@ -1925,7 +1999,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="C65EDB87-1F38-402E-A166-90411841AA29",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7"
+				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7",
+				socket_port=24576
 			)
 			_destination_client = _database.insert_client(
 				ip_address="127.0.0.2"
@@ -1933,7 +2008,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="3E1AF46C-6D1E-4349-B6EC-00557DA6C47F",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="7B3316A1-89F4-49A0-A6B3-351CC5FE6D63"
+				purpose_guid="7B3316A1-89F4-49A0-A6B3-351CC5FE6D63",
+				socket_port=24576
 			)
 
 			_queue = _database.insert_queue(
@@ -2000,7 +2076,8 @@ class DatabaseTest(unittest.TestCase):
 				_connected_device = _database.insert_device(
 					device_guid="3E1AF46C-6D1E-4349-B6EC-00557DA6C47F",
 					client_guid=_destination_client.get_client_guid(),
-					purpose_guid="7B3316A1-89F4-49A0-A6B3-351CC5FE6D63"
+					purpose_guid="7B3316A1-89F4-49A0-A6B3-351CC5FE6D63",
+					socket_port=24576
 				)
 			_transmission_dequeue = _database.get_next_transmission_dequeue(
 				dequeuer_guid=_dequeuer.get_dequeuer_guid(),
@@ -2040,7 +2117,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="C65EDB87-1F38-402E-A166-90411841AA29",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7"
+				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7",
+				socket_port=24576
 			)
 			_destination_client = _database.insert_client(
 				ip_address="127.0.0.2"
@@ -2048,7 +2126,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="3E1AF46C-6D1E-4349-B6EC-00557DA6C47F",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="7B3316A1-89F4-49A0-A6B3-351CC5FE6D63"
+				purpose_guid="7B3316A1-89F4-49A0-A6B3-351CC5FE6D63",
+				socket_port=24576
 			)
 
 			_queue = _database.insert_queue(
@@ -2118,7 +2197,8 @@ class DatabaseTest(unittest.TestCase):
 			_reconnect_source_device = _database.insert_device(
 				device_guid="C65EDB87-1F38-402E-A166-90411841AA29",
 				client_guid=_reconnect_source_client.get_client_guid(),
-				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7"
+				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7",
+				socket_port=24576
 			)
 
 			_retry_failure_dequeue = _database.get_next_failed_transmission_dequeue(
@@ -2144,7 +2224,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="C65EDB87-1F38-402E-A166-90411841AA29",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7"
+				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7",
+				socket_port=24576
 			)
 			_destination_client = _database.insert_client(
 				ip_address="127.0.0.2"
@@ -2152,7 +2233,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="3E1AF46C-6D1E-4349-B6EC-00557DA6C47F",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="7B3316A1-89F4-49A0-A6B3-351CC5FE6D63"
+				purpose_guid="7B3316A1-89F4-49A0-A6B3-351CC5FE6D63",
+				socket_port=24576
 			)
 
 			_queue = _database.insert_queue(
@@ -2226,7 +2308,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="C65EDB87-1F38-402E-A166-90411841AA29",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7"
+				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7",
+				socket_port=24576
 			)
 			_first_destination_client = _database.insert_client(
 				ip_address="127.0.0.2"
@@ -2234,7 +2317,8 @@ class DatabaseTest(unittest.TestCase):
 			_first_destination_device = _database.insert_device(
 				device_guid="3E1AF46C-6D1E-4349-B6EC-00557DA6C47F",
 				client_guid=_first_destination_client.get_client_guid(),
-				purpose_guid="7B3316A1-89F4-49A0-A6B3-351CC5FE6D63"
+				purpose_guid="7B3316A1-89F4-49A0-A6B3-351CC5FE6D63",
+				socket_port=24576
 			)
 			_second_destination_client = _database.insert_client(
 				ip_address="127.0.0.3"
@@ -2242,7 +2326,8 @@ class DatabaseTest(unittest.TestCase):
 			_second_destination_device = _database.insert_device(
 				device_guid="0FC3A82A-7225-4BFA-B5E8-F3066E752839",
 				client_guid=_second_destination_client.get_client_guid(),
-				purpose_guid="7EAC6F9D-3958-4DF4-9577-BFEB8C4106F8"
+				purpose_guid="7EAC6F9D-3958-4DF4-9577-BFEB8C4106F8",
+				socket_port=24576
 			)
 
 			_queue = _database.insert_queue(
@@ -2348,7 +2433,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="C65EDB87-1F38-402E-A166-90411841AA29",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7"
+				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7",
+				socket_port=24576
 			)
 			_first_destination_client = _database.insert_client(
 				ip_address="127.0.0.2"
@@ -2356,7 +2442,8 @@ class DatabaseTest(unittest.TestCase):
 			_first_destination_device = _database.insert_device(
 				device_guid="3E1AF46C-6D1E-4349-B6EC-00557DA6C47F",
 				client_guid=_first_destination_client.get_client_guid(),
-				purpose_guid="7B3316A1-89F4-49A0-A6B3-351CC5FE6D63"
+				purpose_guid="7B3316A1-89F4-49A0-A6B3-351CC5FE6D63",
+				socket_port=24576
 			)
 			_second_destination_client = _database.insert_client(
 				ip_address="127.0.0.3"
@@ -2364,7 +2451,8 @@ class DatabaseTest(unittest.TestCase):
 			_second_destination_device = _database.insert_device(
 				device_guid="0FC3A82A-7225-4BFA-B5E8-F3066E752839",
 				client_guid=_second_destination_client.get_client_guid(),
-				purpose_guid="7EAC6F9D-3958-4DF4-9577-BFEB8C4106F8"
+				purpose_guid="7EAC6F9D-3958-4DF4-9577-BFEB8C4106F8",
+				socket_port=24576
 			)
 
 			_queue = _database.insert_queue(
@@ -2466,7 +2554,8 @@ class DatabaseTest(unittest.TestCase):
 			_reconnected_source_device = _database.insert_device(
 				device_guid="C65EDB87-1F38-402E-A166-90411841AA29",
 				client_guid=_reconnected_source_client.get_client_guid(),
-				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7"
+				purpose_guid="06D83FD4-FE47-4257-804A-7DBD9E9359C7",
+				socket_port=24576
 			)
 
 			_first_failed_transmission_dequeue = _database.get_next_failed_transmission_dequeue(
@@ -2501,7 +2590,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -2511,7 +2601,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_queue = _database.insert_queue(
@@ -2561,7 +2652,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -2571,7 +2663,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_queue = _database.insert_queue(
@@ -2633,7 +2726,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -2643,7 +2737,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_transmission_client = _database.insert_client(
@@ -2860,7 +2955,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -2870,7 +2966,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_transmission_client = _database.insert_client(
@@ -2946,7 +3043,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -2956,7 +3054,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_destination_device)
 			_transmission_client = _database.insert_client(
@@ -3088,7 +3187,8 @@ class DatabaseTest(unittest.TestCase):
 			_destination_device = _database.insert_device(
 				device_guid=_destination_device.get_device_guid(),
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid=_destination_device.get_purpose_guid()
+				purpose_guid=_destination_device.get_purpose_guid(),
+				socket_port=24576
 			)
 
 			# pulling the transaction again should not unblock the second transaction
@@ -3141,7 +3241,8 @@ class DatabaseTest(unittest.TestCase):
 			_source_device = _database.insert_device(
 				device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
 				client_guid=_source_client.get_client_guid(),
-				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D"
+				purpose_guid="6EABEE26-24C2-4698-8BBA-8707E0397C7D",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_source_device)
 			_destination_client = _database.insert_client(
@@ -3151,13 +3252,15 @@ class DatabaseTest(unittest.TestCase):
 			_first_destination_device = _database.insert_device(
 				device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_first_destination_device)
 			_second_destination_device = _database.insert_device(
 				device_guid="7B0C7428-AD10-4E0E-BB5E-6B38CF9AB7BA",
 				client_guid=_destination_client.get_client_guid(),
-				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5"
+				purpose_guid="330A6549-57C5-4DA6-8C1C-A698A61B7DB5",
+				socket_port=24576
 			)
 			self.assertIsNotNone(_second_destination_device)
 			_transmission_client = _database.insert_client(

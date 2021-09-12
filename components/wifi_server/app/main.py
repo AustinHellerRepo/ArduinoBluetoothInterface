@@ -131,6 +131,7 @@ def test_json(test_json_base_model: TestJsonBaseModel, request: Request):
 class ReceiveDeviceAnnouncementBaseModel(BaseModel):
 	device_guid: str
 	purpose_guid: str
+	socket_port: int
 
 
 @app.post("/v1/device/announce")
@@ -154,7 +155,8 @@ def v1_receive_device_announcement(receive_device_announcement_base_model: Recei
 		_device = _database.insert_device(
 			device_guid=receive_device_announcement_base_model.device_guid,
 			client_guid=_client.get_client_guid(),
-			purpose_guid=receive_device_announcement_base_model.purpose_guid
+			purpose_guid=receive_device_announcement_base_model.purpose_guid,
+			socket_port=receive_device_announcement_base_model.socket_port
 		)
 		_response_json = {
 			"device": _device.to_json()

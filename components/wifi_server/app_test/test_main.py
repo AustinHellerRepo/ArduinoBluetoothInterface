@@ -30,11 +30,11 @@ class MainTest(unittest.TestCase):
 
 	def test_announce_device_0(self):
 		_app = TestClient(app)
-		_response = _app.post("/v1/device/announce", json={"device_guid": "2061BABC-9CCE-4E48-9C7C-C09D92342678", "purpose_guid": "866FB619-E643-46CB-B508-1377EF43CEBC"})
+		_response = _app.post("/v1/device/announce", json={"device_guid": "2061BABC-9CCE-4E48-9C7C-C09D92342678", "purpose_guid": "866FB619-E643-46CB-B508-1377EF43CEBC", "socket_port": 25866})
 		self.assertEqual(200, _response.status_code)
 		_response_json = _response.json()
-		self.assertTrue(_response_json["is_successful"])
 		self.assertIsNone(_response_json["error"])
+		self.assertTrue(_response_json["is_successful"])
 		self.assertIsNotNone(_response_json["response"])
 		self.assertIsNotNone(_response_json["response"]["device"])
 		self.assertEqual("2061BABC-9CCE-4E48-9C7C-C09D92342678", _response_json["response"]["device"]["device_guid"])
@@ -49,7 +49,8 @@ class MainTest(unittest.TestCase):
 
 		_first_device_guid = "805FC328-943D-42BA-A81D-8486ADE0C4A1"
 		_first_device_purpose_guid = "71779DF6-B7AB-4815-9308-CD688B3F2F0D"
-		_response = _app.post("/v1/device/announce", json={"device_guid": _first_device_guid, "purpose_guid": _first_device_purpose_guid})
+		_first_device_socket_port = 27544
+		_response = _app.post("/v1/device/announce", json={"device_guid": _first_device_guid, "purpose_guid": _first_device_purpose_guid, "socket_port": _first_device_socket_port})
 		self.assertEqual(200, _response.status_code)
 		_first_device = _response.json()["response"]["device"]
 		self.assertIsNotNone(_first_device)
@@ -60,7 +61,8 @@ class MainTest(unittest.TestCase):
 
 		_second_device_guid = "FB144F0B-8A53-49E4-85A5-5349EAB4FBF1"
 		_second_device_purpose_guid = "B5155325-C1D6-4ED8-A7B4-BF52601D326C"
-		_response = _app.post("/v1/device/announce", json={"device_guid": _second_device_guid, "purpose_guid": _second_device_purpose_guid})
+		_second_device_socket_port = 23221
+		_response = _app.post("/v1/device/announce", json={"device_guid": _second_device_guid, "purpose_guid": _second_device_purpose_guid, "socket_port": _second_device_socket_port})
 		self.assertEqual(200, _response.status_code)
 		_second_device = _response.json()["response"]["device"]
 		self.assertIsNotNone(_second_device)
@@ -194,7 +196,7 @@ class MainTest(unittest.TestCase):
 
 		# reannounce destination device
 
-		_response = _app.post("/v1/device/announce", json={"device_guid": _second_device_guid, "purpose_guid": _second_device_purpose_guid})
+		_response = _app.post("/v1/device/announce", json={"device_guid": _second_device_guid, "purpose_guid": _second_device_purpose_guid, "socket_port": _second_device_socket_port})
 		self.assertEqual(200, _response.status_code)
 		_second_device = _response.json()["response"]["device"]
 		self.assertIsNotNone(_second_device)
@@ -248,7 +250,7 @@ class MainTest(unittest.TestCase):
 
 		# reannounce source device
 
-		_response = _app.post("/v1/device/announce", json={"device_guid": _first_device_guid, "purpose_guid": _first_device_purpose_guid})
+		_response = _app.post("/v1/device/announce", json={"device_guid": _first_device_guid, "purpose_guid": _first_device_purpose_guid, "socket_port": _first_device_socket_port})
 		self.assertEqual(200, _response.status_code)
 		_first_again_device = _response.json()["response"]["device"]
 		self.assertIsNotNone(_first_again_device)
@@ -289,3 +291,7 @@ class MainTest(unittest.TestCase):
 			_uuid = _response.json()["response"]["uuid"]
 			_match = re.search("^[A-F0-9]{8}\\-[A-F0-9]{4}\\-[A-F0-9]{4}\\-[A-F0-9]{4}\\-[A-F0-9]{12}$", _uuid)
 			self.assertIsNotNone(_match)
+
+
+if __name__ == "__main__":
+	unittest.main()

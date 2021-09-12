@@ -228,3 +228,15 @@ class ApiInterface():
 			),
 			arguments_json_object={}
 		)
+
+
+class ApiInterfaceFactory():
+
+	def __init__(self, *, api_base_url: str):
+
+		self.__api_base_url = api_base_url
+
+	def get_api_interface(self) -> ApiInterface:
+		return ApiInterface(
+			api_base_url=self.__api_base_url
+		)

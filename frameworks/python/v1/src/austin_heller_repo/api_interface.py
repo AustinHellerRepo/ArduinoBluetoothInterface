@@ -1,5 +1,3 @@
-from enum import Enum, auto
-
 try:
 	import urequests as requests
 except ImportError:
@@ -11,10 +9,9 @@ except ImportError:
 	import json
 
 
-class MethodTypeEnum(Enum):
-
-	Get = auto(),
-	Post = auto()
+class MethodTypeEnum():
+	Get = 0
+	Post = 1
 
 
 class ApiInterface():
@@ -23,7 +20,7 @@ class ApiInterface():
 
 		self.__api_base_url = api_base_url
 
-	def _get_json_result_from_url(self, *, method_type: MethodTypeEnum, url: str, arguments_json_object: dict) -> dict:
+	def _get_json_result_from_url(self, *, method_type, url: str, arguments_json_object: dict) -> dict:
 
 		print("Trying to " + str(method_type) + " to \"" + url + "\"...")
 

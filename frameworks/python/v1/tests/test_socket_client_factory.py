@@ -22,7 +22,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 			ip_address="0.0.0.0",
 			port=_port,
 			packet_bytes_length=_packet_bytes_length,
-			on_accepted_client_method=_on_accepted_client_method
+			listening_limit_total=1,
+			accept_timeout_seconds=0.2
 		)
 		self.assertIsNotNone(_server_socket_factory)
 		_server_socket = _server_socket_factory.get_server_socket()
@@ -40,14 +41,14 @@ class SocketClientFactoryTest(unittest.TestCase):
 			ip_address="0.0.0.0",
 			port=_port,
 			packet_bytes_length=_packet_bytes_length,
-			on_accepted_client_method=_on_accepted_client_method
+			listening_limit_total=1,
+			accept_timeout_seconds=0.2
 		)
 		self.assertIsNotNone(_server_socket_factory)
 		_server_socket = _server_socket_factory.get_server_socket()
 		self.assertIsNotNone(_server_socket)
 		_server_socket.start_accepting_clients(
-			clients_total=1,
-			accept_timeout_seconds=0.2
+			on_accepted_client_method=_on_accepted_client_method
 		)
 		_server_socket.stop_accepting_clients()
 
@@ -64,14 +65,14 @@ class SocketClientFactoryTest(unittest.TestCase):
 			ip_address="0.0.0.0",
 			port=_port,
 			packet_bytes_length=_packet_bytes_length,
-			on_accepted_client_method=_on_accepted_client_method
+			listening_limit_total=1,
+			accept_timeout_seconds=0.2
 		)
 		self.assertIsNotNone(_server_socket_factory)
 		_server_socket = _server_socket_factory.get_server_socket()
 		self.assertIsNotNone(_server_socket)
 		_server_socket.start_accepting_clients(
-			clients_total=1,
-			accept_timeout_seconds=0.2
+			on_accepted_client_method=_on_accepted_client_method
 		)
 		time.sleep(1)
 		_client_socket_factory = ClientSocketFactory(
@@ -99,14 +100,14 @@ class SocketClientFactoryTest(unittest.TestCase):
 			ip_address="0.0.0.0",
 			port=_port,
 			packet_bytes_length=_packet_bytes_length,
-			on_accepted_client_method=_on_accepted_client_method
+			listening_limit_total=_clients_total,
+			accept_timeout_seconds=0.2
 		)
 		self.assertIsNotNone(_server_socket_factory)
 		_server_socket = _server_socket_factory.get_server_socket()
 		self.assertIsNotNone(_server_socket)
 		_server_socket.start_accepting_clients(
-			clients_total=_clients_total,
-			accept_timeout_seconds=0.2
+			on_accepted_client_method=_on_accepted_client_method
 		)
 		time.sleep(1)
 		_client_socket_factory = ClientSocketFactory(
@@ -143,14 +144,14 @@ class SocketClientFactoryTest(unittest.TestCase):
 			ip_address="0.0.0.0",
 			port=_port,
 			packet_bytes_length=_packet_bytes_length,
-			on_accepted_client_method=_on_accepted_client_method
+			listening_limit_total=_clients_total,
+			accept_timeout_seconds=30
 		)
 		self.assertIsNotNone(_server_socket_factory)
 		_server_socket = _server_socket_factory.get_server_socket()
 		self.assertIsNotNone(_server_socket)
 		_server_socket.start_accepting_clients(
-			clients_total=_clients_total,
-			accept_timeout_seconds=30
+			on_accepted_client_method=_on_accepted_client_method
 		)
 		time.sleep(1)
 		_client_socket_factory = ClientSocketFactory(
@@ -203,14 +204,14 @@ class SocketClientFactoryTest(unittest.TestCase):
 			ip_address="0.0.0.0",
 			port=_port,
 			packet_bytes_length=_packet_bytes_length,
-			on_accepted_client_method=_on_accepted_client_method
+			listening_limit_total=1,
+			accept_timeout_seconds=0.2
 		)
 		self.assertIsNotNone(_server_socket_factory)
 		_server_socket = _server_socket_factory.get_server_socket()
 		self.assertIsNotNone(_server_socket)
 		_server_socket.start_accepting_clients(
-			clients_total=1,
-			accept_timeout_seconds=0.2
+			on_accepted_client_method=_on_accepted_client_method
 		)
 		time.sleep(1)
 		_client_socket_factory = ClientSocketFactory(
@@ -230,6 +231,7 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_actual_line = _server_sockets[0].read()
 		self.assertEqual(_expected_line, _actual_line)
 		_server_sockets[0].close()
+		_server_socket.close()
 
 	def test_client_messages_1(self):
 		# send multiple text messages from one client to the server
@@ -249,14 +251,14 @@ class SocketClientFactoryTest(unittest.TestCase):
 			ip_address="0.0.0.0",
 			port=_port,
 			packet_bytes_length=_packet_bytes_length,
-			on_accepted_client_method=_on_accepted_client_method
+			listening_limit_total=1,
+			accept_timeout_seconds=0.2
 		)
 		self.assertIsNotNone(_server_socket_factory)
 		_server_socket = _server_socket_factory.get_server_socket()
 		self.assertIsNotNone(_server_socket)
 		_server_socket.start_accepting_clients(
-			clients_total=1,
-			accept_timeout_seconds=0.2
+			on_accepted_client_method=_on_accepted_client_method
 		)
 		time.sleep(1)
 		_client_socket_factory = ClientSocketFactory(
@@ -278,6 +280,7 @@ class SocketClientFactoryTest(unittest.TestCase):
 			_actual_line = _server_sockets[0].read()
 			self.assertEqual(_expected_line, _actual_line)
 		_server_sockets[0].close()
+		_server_socket.close()
 
 	def test_client_messages_2(self):
 		# send multiple text messages with unusual characters from one client to the server
@@ -296,14 +299,14 @@ class SocketClientFactoryTest(unittest.TestCase):
 			ip_address="0.0.0.0",
 			port=_port,
 			packet_bytes_length=_packet_bytes_length,
-			on_accepted_client_method=_on_accepted_client_method
+			listening_limit_total=1,
+			accept_timeout_seconds=0.2
 		)
 		self.assertIsNotNone(_server_socket_factory)
 		_server_socket = _server_socket_factory.get_server_socket()
 		self.assertIsNotNone(_server_socket)
 		_server_socket.start_accepting_clients(
-			clients_total=1,
-			accept_timeout_seconds=0.2
+			on_accepted_client_method=_on_accepted_client_method
 		)
 		time.sleep(1)
 		_client_socket_factory = ClientSocketFactory(

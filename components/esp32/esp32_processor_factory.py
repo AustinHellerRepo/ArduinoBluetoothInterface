@@ -1,25 +1,26 @@
-from austin_heller_repo.socket_client_factory import ServerSocketFactory, ClientSocket
+from austin_heller_repo.socket_client_factory import ServerSocketFactory, ServerSocket, ClientSocket
 from austin_heller_repo.api_interface import ApiInterfaceFactory
 
 
 class Esp32Processor():
 
-	def __init__(self, *, socket_client_factory: SocketClientFactory, accepting_connections_total: int, processing_method):
+	def __init__(self, *, server_client_factory: ServerSocketFactory, accepting_connections_total: int, processing_method):
 
-		self.__socket_client_factory = socket_client_factory
+		self.__server_client_factory = server_client_factory
 		self.__accepting_connections_total = accepting_connections_total
 		self.__processing_method = processing_method
 
-		self.__socket_client = None  # type: SocketClient
+		self.__server_socket = None  # type: ServerSocket
 
 	def start(self):
 
 		if self.__socket_client is not None:
 			raise Exception(f"Cannot start without first stopping previous run.")
 		else:
-			self.__socket_client = self.__socket_client_factory.get_socket_client()
-			self.__socket_client.start_accepting_messages(
-				connections_total=self.__accepting_connections_total,
+			self.__server_socket = self.__server_client_factory.get_server_socket()
+			self.__server_socket.start_accepting_clients(
+				clients_total=self.__accepting_connections_total,
+				accept_timeout_seconds=
 				processing_method=self.__processing_method
 			)
 

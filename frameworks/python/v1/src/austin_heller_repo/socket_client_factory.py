@@ -294,12 +294,13 @@ class ClientSocketFactory():
 
 class ServerSocket():
 
-	def __init__(self, *, ip_address: str, port: int, packet_bytes_length: int, on_accepted_client_method):
+	def __init__(self, *, ip_address: str, port: int, packet_bytes_length: int, listening_limit_total: int, accept_timeout_seconds: float):
 
 		self.__ip_address = ip_address
 		self.__port = port
 		self.__packet_bytes_length = packet_bytes_length
-		self.__on_accepted_client_method = on_accepted_client_method
+		self.__listening_limit_total = listening_limit_total
+		self.__accept_timeout_seconds = accept_timeout_seconds
 
 		self.__bindable_address = None
 		self.__is_accepting = False
@@ -312,7 +313,7 @@ class ServerSocket():
 
 		self.__bindable_address = socket.getaddrinfo(self.__ip_address, self.__port, 0, socket.SOCK_STREAM)[0][-1]
 
-	def start_accepting_clients(self, *, clients_total: int, accept_timeout_seconds: float):
+	def start_accepting_clients(self, *, on_accepted_client_method):
 
 		if self.__is_accepting:
 			raise Exception("Cannot start accepting clients while already accepting.")
@@ -328,11 +329,11 @@ class ServerSocket():
 				)
 				on_accepted_client_method(_accepted_socket)
 
-			def _accepting_thread_method(packet_bytes_length, on_accepted_client_method):
+			def _accepting_thread_method(packet_bytes_length, on_accepted_client_method, listening_limit_total, accept_timeout_seconds):
 				self.__accepting_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 				self.__accepting_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 				self.__accepting_socket.bind(self.__bindable_address)
-				self.__accepting_socket.listen(clients_total)
+				self.__accepting_socket.listen(listening_limit_total)
 				self.__accepting_socket.settimeout(accept_timeout_seconds)
 				while self.__is_accepting:
 					try:
@@ -346,7 +347,7 @@ class ServerSocket():
 					if _is_threading_async:
 						time.sleep(0.01)
 
-			self.__accepting_thread = start_thread(_accepting_thread_method, self.__packet_bytes_length, self.__on_accepted_client_method)
+			self.__accepting_thread = start_thread(_accepting_thread_method, self.__packet_bytes_length, on_accepted_client_method, self.__listening_limit_total, self.__accept_timeout_seconds)
 
 	def stop_accepting_clients(self):
 
@@ -368,12 +369,18 @@ class ServerSocket():
 
 class ServerSocketFactory():
 
-	def __init__(self, *, ip_address: str, port: int, packet_bytes_length: int, on_accepted_client_method):
+	def __init__(self, *,
+				 ip_address: str,
+				 port: int,
+				 packet_bytes_length: int,
+				 listening_limit_total: int,
+				 accept_timeout_seconds: float):
 
 		self.__ip_address = ip_address
 		self.__port = port
 		self.__packet_bytes_length = packet_bytes_length
-		self.__on_accepted_client_method = on_accepted_client_method
+		self.__listening_limit_total = listening_limit_total
+		self.__accept_timeout_seconds = accept_timeout_seconds
 
 	def get_server_socket(self) -> ServerSocket:
 
@@ -381,5 +388,6 @@ class ServerSocketFactory():
 			ip_address=self.__ip_address,
 			port=self.__port,
 			packet_bytes_length=self.__packet_bytes_length,
-			on_accepted_client_method=self.__on_accepted_client_method
+			listening_limit_total=self.__listening_limit_total,
+			accept_timeout_seconds=self.__accept_timeout_seconds
 		)

@@ -4,9 +4,9 @@ from austin_heller_repo.api_interface import ApiInterfaceFactory
 
 class Esp32Processor():
 
-	def __init__(self, *, server_client_factory: ServerSocketFactory, accepting_connections_total: int, processing_method):
+	def __init__(self, *, server_socket_factory: ServerSocketFactory, accepting_connections_total: int, processing_method):
 
-		self.__server_client_factory = server_client_factory
+		self.__server_socket_factory = server_socket_factory
 		self.__accepting_connections_total = accepting_connections_total
 		self.__processing_method = processing_method
 
@@ -14,36 +14,34 @@ class Esp32Processor():
 
 	def start(self):
 
-		if self.__socket_client is not None:
+		if self.__server_socket is not None:
 			raise Exception(f"Cannot start without first stopping previous run.")
 		else:
-			self.__server_socket = self.__server_client_factory.get_server_socket()
+			self.__server_socket = self.__server_socket_factory.get_server_socket()
 			self.__server_socket.start_accepting_clients(
-				clients_total=self.__accepting_connections_total,
-				accept_timeout_seconds=
-				processing_method=self.__processing_method
+				on_accepted_client_method=self.__processing_method
 			)
 
 	def stop(self):
 
-		if self.__socket_client is None:
+		if self.__server_socket is None:
 			raise Exception(f"Cannot stop without first starting run.")
 		else:
-			self.__socket_client.stop_accepting_messages()
+			self.__server_socket.stop_accepting_clients()
 
 
 class Esp32ProcessorFactory():
 
-	def __init__(self, *, socket_client_factory: SocketClientFactory, accepting_connections_total: int, processing_method):
+	def __init__(self, *, server_socket_factory: ServerSocketFactory, accepting_connections_total: int, processing_method):
 
-		self.__socket_client_factory = socket_client_factory
+		self.__server_socket_factory = server_socket_factory
 		self.__accepting_connections_total = accepting_connections_total
 		self.__processing_method = processing_method
 
 	def get_esp32_processor(self) -> Esp32Processor:
 
 		return Esp32Processor(
-			socket_client_factory=self.__socket_client_factory,
+			server_socket_factory=self.__server_socket_factory,
 			accepting_connections_total=self.__accepting_connections_total,
 			processing_method=self.__processing_method
 		)

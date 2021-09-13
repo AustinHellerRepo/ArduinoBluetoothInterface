@@ -13,7 +13,7 @@ class SocketClientFactoryTest(unittest.TestCase):
 
 	def test_initialize_socket_client_0(self):
 
-		_packet_bytes_length = 4
+		_to_client_packet_bytes_length = 4
 
 		def _on_accepted_client_method(client_socket: ClientSocket):
 			raise Exception(f"Unexpected client found")
@@ -21,7 +21,7 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_server_socket_factory = ServerSocketFactory(
 			ip_address="0.0.0.0",
 			port=_port,
-			packet_bytes_length=_packet_bytes_length,
+			to_client_packet_bytes_length=_to_client_packet_bytes_length,
 			listening_limit_total=1,
 			accept_timeout_seconds=0.2
 		)
@@ -32,7 +32,7 @@ class SocketClientFactoryTest(unittest.TestCase):
 	def test_start_server_socket_0(self):
 		# start server socket and stop
 
-		_packet_bytes_length = 4
+		_to_client_packet_bytes_length = 4
 
 		def _on_accepted_client_method(client_socket: ClientSocket):
 			raise Exception(f"Unexpected client found")
@@ -40,7 +40,7 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_server_socket_factory = ServerSocketFactory(
 			ip_address="0.0.0.0",
 			port=_port,
-			packet_bytes_length=_packet_bytes_length,
+			to_client_packet_bytes_length=_to_client_packet_bytes_length,
 			listening_limit_total=1,
 			accept_timeout_seconds=0.2
 		)
@@ -55,7 +55,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 	def test_connect_sockets_0(self):
 		# create accepting socket and transmitting socket
 
-		_packet_bytes_length = 4
+		_to_client_packet_bytes_length = 4
+		_to_server_packet_bytes_length = 4
 
 		def _on_accepted_client_method(client_socket: ClientSocket):
 			print(f"Connected to client: {client_socket}")
@@ -64,7 +65,7 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_server_socket_factory = ServerSocketFactory(
 			ip_address="0.0.0.0",
 			port=_port,
-			packet_bytes_length=_packet_bytes_length,
+			to_client_packet_bytes_length=_to_client_packet_bytes_length,
 			listening_limit_total=1,
 			accept_timeout_seconds=0.2
 		)
@@ -78,7 +79,7 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_client_socket_factory = ClientSocketFactory(
 			ip_address="0.0.0.0",
 			port=_port,
-			packet_bytes_length=_packet_bytes_length
+			to_server_packet_bytes_length=_to_server_packet_bytes_length
 		)
 		self.assertIsNotNone(_client_socket_factory)
 		_client_socket = _client_socket_factory.get_client_socket()
@@ -89,7 +90,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 	def test_connect_sockets_1(self):
 		# create accepting socket and multiple client sockets
 
-		_packet_bytes_length = 4
+		_to_client_packet_bytes_length = 4
+		_to_server_packet_bytes_length = 4
 		_clients_total = 10
 
 		def _on_accepted_client_method(client_socket: ClientSocket):
@@ -99,7 +101,7 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_server_socket_factory = ServerSocketFactory(
 			ip_address="0.0.0.0",
 			port=_port,
-			packet_bytes_length=_packet_bytes_length,
+			to_client_packet_bytes_length=_to_client_packet_bytes_length,
 			listening_limit_total=_clients_total,
 			accept_timeout_seconds=0.2
 		)
@@ -113,7 +115,7 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_client_socket_factory = ClientSocketFactory(
 			ip_address="0.0.0.0",
 			port=_port,
-			packet_bytes_length=_packet_bytes_length
+			to_server_packet_bytes_length=_to_server_packet_bytes_length
 		)
 		self.assertIsNotNone(_client_socket_factory)
 		_client_sockets = []
@@ -129,7 +131,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 	def test_connect_sockets_2(self):
 		# create accepting socket and multiple client sockets but one too many
 
-		_packet_bytes_length = 4
+		_to_client_packet_bytes_length = 4
+		_to_server_packet_bytes_length = 4
 		_clients_total = 1
 
 		_accepted_client_index = 0
@@ -143,7 +146,7 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_server_socket_factory = ServerSocketFactory(
 			ip_address="0.0.0.0",
 			port=_port,
-			packet_bytes_length=_packet_bytes_length,
+			to_client_packet_bytes_length=_to_client_packet_bytes_length,
 			listening_limit_total=_clients_total,
 			accept_timeout_seconds=30
 		)
@@ -157,7 +160,7 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_client_socket_factory = ClientSocketFactory(
 			ip_address="0.0.0.0",
 			port=_port,
-			packet_bytes_length=_packet_bytes_length
+			to_server_packet_bytes_length=_to_server_packet_bytes_length
 		)
 		self.assertIsNotNone(_client_socket_factory)
 		_client_sockets = []
@@ -189,7 +192,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 	def test_client_messages_0(self):
 		# send basic text message from one client to the server
 
-		_packet_bytes_length = 4
+		_to_client_packet_bytes_length = 4
+		_to_server_packet_bytes_length = 4
 
 		_server_sockets = []  # type: List[ClientSocket]
 		_server_sockets_semaphore = Semaphore()
@@ -203,7 +207,7 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_server_socket_factory = ServerSocketFactory(
 			ip_address="0.0.0.0",
 			port=_port,
-			packet_bytes_length=_packet_bytes_length,
+			to_client_packet_bytes_length=_to_client_packet_bytes_length,
 			listening_limit_total=1,
 			accept_timeout_seconds=0.2
 		)
@@ -217,7 +221,7 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_client_socket_factory = ClientSocketFactory(
 			ip_address="0.0.0.0",
 			port=_port,
-			packet_bytes_length=_packet_bytes_length
+			to_server_packet_bytes_length=_to_server_packet_bytes_length
 		)
 		self.assertIsNotNone(_client_socket_factory)
 		_client_socket = _client_socket_factory.get_client_socket()
@@ -236,7 +240,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 	def test_client_messages_1(self):
 		# send multiple text messages from one client to the server
 
-		_packet_bytes_length = 4
+		_to_client_packet_bytes_length = 4
+		_to_server_packet_bytes_length = 4
 
 		_server_sockets = []  # type: List[ClientSocket]
 		_server_sockets_semaphore = Semaphore()
@@ -250,7 +255,7 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_server_socket_factory = ServerSocketFactory(
 			ip_address="0.0.0.0",
 			port=_port,
-			packet_bytes_length=_packet_bytes_length,
+			to_client_packet_bytes_length=_to_client_packet_bytes_length,
 			listening_limit_total=1,
 			accept_timeout_seconds=0.2
 		)
@@ -264,7 +269,7 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_client_socket_factory = ClientSocketFactory(
 			ip_address="0.0.0.0",
 			port=_port,
-			packet_bytes_length=_packet_bytes_length
+			to_server_packet_bytes_length=_to_server_packet_bytes_length
 		)
 		self.assertIsNotNone(_client_socket_factory)
 		_client_socket = _client_socket_factory.get_client_socket()
@@ -285,7 +290,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 	def test_client_messages_2(self):
 		# send multiple text messages with unusual characters from one client to the server
 
-		_packet_bytes_length = 1024 * 4
+		_to_client_packet_bytes_length = 1024 * 3
+		_to_server_packet_bytes_length = 1024 * 4
 		_server_sockets = []  # type: List[ClientSocket]
 		_server_sockets_semaphore = Semaphore()
 
@@ -298,7 +304,7 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_server_socket_factory = ServerSocketFactory(
 			ip_address="0.0.0.0",
 			port=_port,
-			packet_bytes_length=_packet_bytes_length,
+			to_client_packet_bytes_length=_to_client_packet_bytes_length,
 			listening_limit_total=1,
 			accept_timeout_seconds=0.2
 		)
@@ -312,7 +318,7 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_client_socket_factory = ClientSocketFactory(
 			ip_address="0.0.0.0",
 			port=_port,
-			packet_bytes_length=_packet_bytes_length
+			to_server_packet_bytes_length=_to_server_packet_bytes_length
 		)
 		self.assertIsNotNone(_client_socket_factory)
 		_client_socket = _client_socket_factory.get_client_socket()

@@ -229,7 +229,6 @@ class ClientSocket():
 		ClientSocket._read_index += 1
 		#print(f"{_read_index}: reading...")
 
-		_packet_byte_length = self.__packet_bytes_length
 		_packets_total_bytes = None
 		while _packets_total_bytes is None:
 			#print(f"{_read_index}: trying...")
@@ -277,28 +276,28 @@ class ClientSocket():
 
 class ClientSocketFactory():
 
-	def __init__(self, *, ip_address: str, port: int, packet_bytes_length: int):
+	def __init__(self, *, ip_address: str, port: int, to_server_packet_bytes_length: int):
 
 		self.__ip_address = ip_address
 		self.__port = port
-		self.__packet_bytes_length = packet_bytes_length
+		self.__to_server_packet_bytes_length = to_server_packet_bytes_length
 
 	def get_client_socket(self) -> ClientSocket:
 		_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		_socket.connect((self.__ip_address, self.__port))
 		return ClientSocket(
 			socket=_socket,
-			packet_bytes_length=self.__packet_bytes_length
+			packet_bytes_length=self.__to_server_packet_bytes_length
 		)
 
 
 class ServerSocket():
 
-	def __init__(self, *, ip_address: str, port: int, packet_bytes_length: int, listening_limit_total: int, accept_timeout_seconds: float):
+	def __init__(self, *, ip_address: str, port: int, to_client_packet_bytes_length: int, listening_limit_total: int, accept_timeout_seconds: float):
 
 		self.__ip_address = ip_address
 		self.__port = port
-		self.__packet_bytes_length = packet_bytes_length
+		self.__to_client_packet_bytes_length = to_client_packet_bytes_length
 		self.__listening_limit_total = listening_limit_total
 		self.__accept_timeout_seconds = accept_timeout_seconds
 
@@ -321,15 +320,15 @@ class ServerSocket():
 
 			self.__is_accepting = True
 
-			def _process_connection_thread_method(connection_socket, address, packet_bytes_length, on_accepted_client_method):
+			def _process_connection_thread_method(connection_socket, address, to_client_packet_bytes_length, on_accepted_client_method):
 
 				_accepted_socket = ClientSocket(
 					socket=connection_socket,
-					packet_bytes_length=packet_bytes_length
+					packet_bytes_length=to_client_packet_bytes_length
 				)
 				on_accepted_client_method(_accepted_socket)
 
-			def _accepting_thread_method(packet_bytes_length, on_accepted_client_method, listening_limit_total, accept_timeout_seconds):
+			def _accepting_thread_method(to_client_packet_bytes_length, on_accepted_client_method, listening_limit_total, accept_timeout_seconds):
 				self.__accepting_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 				self.__accepting_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 				self.__accepting_socket.bind(self.__bindable_address)
@@ -339,7 +338,7 @@ class ServerSocket():
 					try:
 						_connection_socket, _address = self.__accepting_socket.accept()
 						_connection_socket.setblocking(False)
-						_connection_thread = start_thread(_process_connection_thread_method, _connection_socket, _address, packet_bytes_length, on_accepted_client_method)
+						_connection_thread = start_thread(_process_connection_thread_method, _connection_socket, _address, to_client_packet_bytes_length, on_accepted_client_method)
 					except socket.timeout:
 						pass
 					except Exception as ex:
@@ -347,7 +346,7 @@ class ServerSocket():
 					if _is_threading_async:
 						time.sleep(0.01)
 
-			self.__accepting_thread = start_thread(_accepting_thread_method, self.__packet_bytes_length, on_accepted_client_method, self.__listening_limit_total, self.__accept_timeout_seconds)
+			self.__accepting_thread = start_thread(_accepting_thread_method, self.__to_client_packet_bytes_length, on_accepted_client_method, self.__listening_limit_total, self.__accept_timeout_seconds)
 
 	def stop_accepting_clients(self):
 
@@ -372,13 +371,13 @@ class ServerSocketFactory():
 	def __init__(self, *,
 				 ip_address: str,
 				 port: int,
-				 packet_bytes_length: int,
+				 to_client_packet_bytes_length: int,
 				 listening_limit_total: int,
 				 accept_timeout_seconds: float):
 
 		self.__ip_address = ip_address
 		self.__port = port
-		self.__packet_bytes_length = packet_bytes_length
+		self.__to_client_packet_bytes_length = to_client_packet_bytes_length
 		self.__listening_limit_total = listening_limit_total
 		self.__accept_timeout_seconds = accept_timeout_seconds
 
@@ -387,7 +386,7 @@ class ServerSocketFactory():
 		return ServerSocket(
 			ip_address=self.__ip_address,
 			port=self.__port,
-			packet_bytes_length=self.__packet_bytes_length,
+			to_client_packet_bytes_length=self.__to_client_packet_bytes_length,
 			listening_limit_total=self.__listening_limit_total,
 			accept_timeout_seconds=self.__accept_timeout_seconds
 		)

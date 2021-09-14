@@ -339,8 +339,8 @@ class ServerSocket():
 						_connection_socket, _address = self.__accepting_socket.accept()
 						_connection_socket.setblocking(False)
 						_connection_thread = start_thread(_process_connection_thread_method, _connection_socket, _address, to_client_packet_bytes_length, on_accepted_client_method)
-					except socket.timeout:
-						pass
+					#except socket.timeout:
+					#	pass
 					except Exception as ex:
 						print("ex: " + str(ex))
 					if _is_threading_async:

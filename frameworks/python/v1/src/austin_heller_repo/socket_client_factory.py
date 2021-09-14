@@ -342,7 +342,12 @@ class ServerSocket():
 					#except socket.timeout:
 					#	pass
 					except Exception as ex:
-						print("ex: " + str(ex))
+						if str(ex) == "[Errno 116] ETIMEDOUT":
+							pass
+						elif hasattr(socket, "timeout") and ex is socket.timeout:
+							pass
+						else:
+							print("ex: " + str(ex))
 					if _is_threading_async:
 						time.sleep(0.01)
 

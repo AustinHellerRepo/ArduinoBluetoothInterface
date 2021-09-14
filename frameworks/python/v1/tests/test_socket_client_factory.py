@@ -86,6 +86,7 @@ class SocketClientFactoryTest(unittest.TestCase):
 		self.assertIsNotNone(_client_socket)
 		_client_socket.close()
 		_server_socket.stop_accepting_clients()
+		_server_socket.close()
 
 	def test_connect_sockets_1(self):
 		# create accepting socket and multiple client sockets
@@ -127,6 +128,7 @@ class SocketClientFactoryTest(unittest.TestCase):
 			_client_socket = _client_sockets[_client_index]
 			_client_socket.close()
 		_server_socket.stop_accepting_clients()
+		_server_socket.close()
 
 	def test_connect_sockets_2(self):
 		# create accepting socket and multiple client sockets but one too many
@@ -326,8 +328,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_server_socket.stop_accepting_clients()
 
 		_expected_lines = ["test", "", "1234567890" * 10**7]
-		for _expected_line in _expected_lines:
-			_client_socket.write_async(_expected_line)
+		for _expected_line_index, _expected_line in enumerate(_expected_lines):
+			_client_socket.write_async(_expected_line, index=_expected_line_index)
 
 		self.assertEqual(1, len(_server_sockets))
 		_actual_lines = []
@@ -335,7 +337,7 @@ class SocketClientFactoryTest(unittest.TestCase):
 		def _read_callback(text: str):
 			_actual_lines.append(text)  # TODO is list.append thread-safe?
 		for _expected_line_index in range(len(_expected_lines)):
-			_server_sockets[0].read_async(_read_callback)
+			_server_sockets[0].read_async(_read_callback, index=_expected_line_index)
 
 		#print("waiting...")
 		time.sleep(1.0)
@@ -344,6 +346,13 @@ class SocketClientFactoryTest(unittest.TestCase):
 			time.sleep(0.1)
 
 		#print("finished")
+
+		self.assertEqual(3, len(_expected_lines))
+		self.assertEqual(3, len(_actual_lines))
+
+		#for _expected_line, _actual_line in zip(_expected_lines, _actual_lines):
+		#	print(f"len(_expected_line): {len(_expected_line)}")
+		#	print(f"len(_actual_line): {len(_actual_line)}")
 
 		for _expected_line, _actual_line in zip(_expected_lines, _actual_lines):
 			self.assertEqual(_expected_line, _actual_line)

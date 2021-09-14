@@ -644,3 +644,53 @@ def v1_get_uuid(request: Request):
 		"response": _response_json,
 		"error": _error_message
 	}
+
+
+class VerifyClientForDeviceBaseModel(BaseModel):
+	identifier_guid: str
+
+
+@app.post("/v1/device/verify")
+def v1_verify_client_for_device(verify_client_for_device: VerifyClientForDeviceBaseModel, request: Request):
+
+	log_api_entrypoint(
+		api_entrypoint=ApiEntrypoint.V1VerifyClientForDevice,
+		args_json=json.loads(verify_client_for_device.json()),
+		request=request
+	)
+
+	_is_successful = False
+	_response_json = None
+	_error_message = None
+
+	try:
+		_database = get_database()
+		_client = _database.insert_client(
+			ip_address=request.client.host
+		)
+
+		_dequeuer_is_successful = False
+		_reporter_is_successful = False
+
+		_dequeuer_is_successful, _dequeuer = _database.try_get_dequeuer(
+			dequeuer_guid=verify_client_for_device.identifier_guid
+		)
+		if not _dequeuer_is_successful:
+			_reporter_is_successful, _reporter = _database.try_get_reporter(
+				reporter_guid=verify_client_for_device.identifier_guid
+			)
+
+		_response_json = {
+			"is_dequeuer": _dequeuer_is_successful,
+			"is_reporter": _reporter_is_successful
+		}
+		_is_successful = True
+	except Exception as ex:
+		_error_message = str(ex)
+		traceback.print_exc()
+
+	return {
+		"is_successful": _is_successful,
+		"response": _response_json,
+		"error": _error_message
+	}

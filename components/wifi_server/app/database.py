@@ -36,7 +36,8 @@ class ApiEntrypoint(IntEnum):
 	V1ReceiveDequeuerAnnouncement = 12,
 	V1ReceiveReporterAnnouncement = 13,
 	TestPost = 14,
-	TestJson = 15
+	TestJson = 15,
+	V1VerifyClientForDevice = 16
 
 
 class Client():

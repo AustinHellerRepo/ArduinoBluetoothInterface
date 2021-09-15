@@ -100,9 +100,10 @@ import re
 
 class ReadWriteSocket():
 
-	def __init__(self, *, socket: socket.socket):
+	def __init__(self, *, socket: socket.socket, read_failed_delay_seconds: float):
 
 		self.__socket = socket
+		self.__read_failed_delay_seconds = read_failed_delay_seconds
 
 		self.__readable_socket = None
 
@@ -125,6 +126,9 @@ class ReadWriteSocket():
 			if _read_bytes is not None:
 				_bytes_packets.append(_read_bytes)
 				_remaining_bytes_length -= len(_read_bytes)
+			else:
+				if self.__read_failed_delay_seconds > 0:
+					time.sleep(self.__read_failed_delay_seconds)
 		_bytes = b"".join(_bytes_packets)
 		return _bytes
 
@@ -142,10 +146,11 @@ class ReadWriteSocket():
 
 class ClientSocket():
 
-	def __init__(self, *, socket: socket.socket, packet_bytes_length: int):
+	def __init__(self, *, socket: socket.socket, packet_bytes_length: int, read_failed_delay_seconds: float):
 
 		self.__socket = socket
 		self.__packet_bytes_length = packet_bytes_length
+		self.__read_failed_delay_seconds = read_failed_delay_seconds
 
 		self.__read_write_socket = None  # type: ReadWriteSocket
 		self.__is_writing = False
@@ -166,7 +171,8 @@ class ClientSocket():
 	def __initialize(self):
 
 		self.__read_write_socket = ReadWriteSocket(
-			socket=self.__socket
+			socket=self.__socket,
+			read_failed_delay_seconds=self.__read_failed_delay_seconds
 		)
 
 	def is_writing(self) -> bool:
@@ -181,7 +187,12 @@ class ClientSocket():
 		self.__writing_data_queue.append((text, delay_between_packets_seconds))
 		self.__writing_data_queue_semaphore.release()
 
+		_thread_started_semaphore = Semaphore()
+		_thread_started_semaphore.acquire()
+
 		def _write_thread_method():
+
+			_thread_started_semaphore.release()  # release block in parent thread
 
 			self.__write_semaphore.acquire()
 			self.__is_writing = True
@@ -190,7 +201,6 @@ class ClientSocket():
 			_text, _delay_between_packets_seconds = self.__writing_data_queue.pop(0)
 			self.__writing_data_queue_semaphore.release()
 
-			#print(f"writing #{index} with len {len(_text)}")
 			self.write(
 				text=_text,
 				delay_between_packets_seconds=_delay_between_packets_seconds,
@@ -213,7 +223,8 @@ class ClientSocket():
 			target=_write_thread_method
 		)
 
-	_write_index = 0
+		_thread_started_semaphore.acquire()  # block here until release in thread method
+		_thread_started_semaphore.release()
 
 	def write(self, text: str, delay_between_packets_seconds: float = 0, acquire_semaphore: bool = True):
 
@@ -221,21 +232,15 @@ class ClientSocket():
 			self.__write_semaphore.acquire()
 			self.__is_writing = True
 
-		_write_index = ClientSocket._write_index
-		ClientSocket._write_index += 1
-
 		_text_bytes = text.encode()
 		_text_bytes_length = len(_text_bytes)
-		#print(f"{_write_index}: _text_bytes_length: {_text_bytes_length}")
 		_packet_bytes_length = self.__packet_bytes_length
 		_packets_total = int((_text_bytes_length + _packet_bytes_length - 1)/_packet_bytes_length)
 		_packets_total_bytes = _packets_total.to_bytes(8, "big")
-		#print(f"{_write_index}: _packets_total_bytes: {_packets_total_bytes}")
 
 		self.__read_write_socket.write(_packets_total_bytes)
 
 		for _packet_index in range(_packets_total):
-			#print(f"{_write_index}: write: _packet_index: {_packet_index}/{_packets_total}")
 			_current_packet_bytes_length = min(_text_bytes_length - _packet_bytes_length * _packet_index, _packet_bytes_length)
 			_current_packet_bytes_length_bytes = _current_packet_bytes_length.to_bytes(8, "big")  # TODO fix based on possible maximum
 
@@ -243,7 +248,6 @@ class ClientSocket():
 
 			_current_text_bytes_index = _packet_index * _packet_bytes_length
 			_packet_bytes = _text_bytes[_current_text_bytes_index:_current_text_bytes_index + _current_packet_bytes_length]
-			#print(f"{_write_index}: _packet_bytes: {_packet_bytes}")
 
 			self.__read_write_socket.write(_packet_bytes)
 
@@ -263,7 +267,12 @@ class ClientSocket():
 		self.__reading_callback_queue.append((callback, delay_between_packets_seconds))
 		self.__reading_callback_queue_semaphore.release()
 
+		_thread_started_semaphore = Semaphore()
+		_thread_started_semaphore.acquire()
+
 		def _read_thread_method():
+
+			_thread_started_semaphore.release()  # release block in parent thread
 
 			self.__read_semaphore.acquire()
 			self.__is_reading = True
@@ -276,9 +285,7 @@ class ClientSocket():
 				delay_between_packets_seconds=_delay_between_packets_seconds,
 				acquire_semaphore=False
 			)
-			#print(f"calling back #{index} with len {len(_text)}")
 			_callback(_text)
-			#print(f"called back #{index}")
 
 			self.__reading_async_depth_semaphore.acquire()
 			self.__reading_async_depth -= 1
@@ -296,7 +303,8 @@ class ClientSocket():
 			target=_read_thread_method
 		)
 
-	_read_index = 0
+		_thread_started_semaphore.acquire()  # block here until release in thread method
+		_thread_started_semaphore.release()
 
 	def read(self, delay_between_packets_seconds: float = 0, acquire_semaphore: bool = True) -> str:
 
@@ -304,22 +312,15 @@ class ClientSocket():
 			self.__read_semaphore.acquire()
 			self.__is_reading = True
 
-		_read_index = ClientSocket._read_index
-		ClientSocket._read_index += 1
-		#print(f"{_read_index}: reading...")
-
 		_packets_total_bytes = None
 		while _packets_total_bytes is None:
-			#print(f"{_read_index}: trying...")
 			_packets_total_bytes = self.__read_write_socket.read(8)  # TODO only send the number of bytes required to transmit based on self.__packet_bytes_length
-			#print(f"{_read_index}: done: {_packets_total_bytes}")
 			if _packets_total_bytes is None:
 				if delay_between_packets_seconds > 0:
 					time.sleep(delay_between_packets_seconds)
 			elif len(_packets_total_bytes) != 8:
 				raise Exception("Unexpected number of bytes returned. Expected 8, found " + str(len(_packets_total_bytes)))
 		_packets_total = int.from_bytes(_packets_total_bytes, "big")
-		#print(f"{_read_index}: _packets_total: {_packets_total}")
 		_packets = []
 		if _packets_total != 0:
 			for _packet_index in range(_packets_total):
@@ -331,9 +332,7 @@ class ClientSocket():
 							time.sleep(delay_between_packets_seconds)
 					elif len(_text_bytes_length_string_bytes) != 8:
 						raise Exception("Unexpected number of bytes returned. Expected 8, found " + str(len(_text_bytes_length_string_bytes)))
-				#print(f"{_read_index}: read: _text_bytes_length_string_bytes: {_text_bytes_length_string_bytes}")
 				_text_bytes_length = int.from_bytes(_text_bytes_length_string_bytes, "big")
-				#print(f"{_packet_index}: _text_bytes_length: {_text_bytes_length}")
 				_text_bytes = None
 				while _text_bytes is None:
 					_text_bytes = self.__read_write_socket.read(_text_bytes_length)
@@ -342,12 +341,10 @@ class ClientSocket():
 							time.sleep(delay_between_packets_seconds)
 					elif len(_text_bytes) != _text_bytes_length:
 						raise Exception("Unexpected number of bytes returned. Expected " + str(_text_bytes_length) + ", found " + str(len(_text_bytes)))
-				#print(f"{_read_index}: _text_bytes: {_text_bytes}")
 				_packets.append(_text_bytes)
 				if delay_between_packets_seconds > 0:
 					time.sleep(delay_between_packets_seconds)
 		_text_bytes = b"".join(_packets)
-		#print(f"{_read_index}: _text_bytes: {_text_bytes}")
 
 		if acquire_semaphore:
 			self.__reading_async_depth_semaphore.acquire()
@@ -360,36 +357,38 @@ class ClientSocket():
 
 	def close(self):
 
-		#print(f"closing client socket...")
 		self.__read_write_socket.close()
 
 
 class ClientSocketFactory():
 
-	def __init__(self, *, ip_address: str, port: int, to_server_packet_bytes_length: int):
+	def __init__(self, *, ip_address: str, port: int, to_server_packet_bytes_length: int, server_read_failed_delay_seconds: float):
 
 		self.__ip_address = ip_address
 		self.__port = port
 		self.__to_server_packet_bytes_length = to_server_packet_bytes_length
+		self.__server_read_failed_delay_seconds = server_read_failed_delay_seconds
 
 	def get_client_socket(self) -> ClientSocket:
 		_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		_socket.connect((self.__ip_address, self.__port))
 		return ClientSocket(
 			socket=_socket,
-			packet_bytes_length=self.__to_server_packet_bytes_length
+			packet_bytes_length=self.__to_server_packet_bytes_length,
+			read_failed_delay_seconds=self.__server_read_failed_delay_seconds
 		)
 
 
 class ServerSocket():
 
-	def __init__(self, *, ip_address: str, port: int, to_client_packet_bytes_length: int, listening_limit_total: int, accept_timeout_seconds: float):
+	def __init__(self, *, ip_address: str, port: int, to_client_packet_bytes_length: int, listening_limit_total: int, accept_timeout_seconds: float, client_read_failed_delay_seconds: float):
 
 		self.__ip_address = ip_address
 		self.__port = port
 		self.__to_client_packet_bytes_length = to_client_packet_bytes_length
 		self.__listening_limit_total = listening_limit_total
 		self.__accept_timeout_seconds = accept_timeout_seconds
+		self.__client_read_failed_delay_seconds = client_read_failed_delay_seconds
 
 		self.__bindable_address = None
 		self.__is_accepting = False
@@ -410,15 +409,16 @@ class ServerSocket():
 
 			self.__is_accepting = True
 
-			def _process_connection_thread_method(connection_socket, address, to_client_packet_bytes_length, on_accepted_client_method):
+			def _process_connection_thread_method(connection_socket, address, to_client_packet_bytes_length, on_accepted_client_method, client_read_failed_delay_seconds: float):
 
 				_accepted_socket = ClientSocket(
 					socket=connection_socket,
-					packet_bytes_length=to_client_packet_bytes_length
+					packet_bytes_length=to_client_packet_bytes_length,
+					read_failed_delay_seconds=client_read_failed_delay_seconds
 				)
 				on_accepted_client_method(_accepted_socket)
 
-			def _accepting_thread_method(to_client_packet_bytes_length, on_accepted_client_method, listening_limit_total, accept_timeout_seconds):
+			def _accepting_thread_method(to_client_packet_bytes_length, on_accepted_client_method, listening_limit_total, accept_timeout_seconds, client_read_failed_delay_seconds):
 				self.__accepting_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 				self.__accepting_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 				self.__accepting_socket.bind(self.__bindable_address)
@@ -428,9 +428,7 @@ class ServerSocket():
 					try:
 						_connection_socket, _address = self.__accepting_socket.accept()
 						_connection_socket.setblocking(False)
-						_connection_thread = start_thread(_process_connection_thread_method, _connection_socket, _address, to_client_packet_bytes_length, on_accepted_client_method)
-					#except socket.timeout:
-					#	pass
+						_connection_thread = start_thread(_process_connection_thread_method, _connection_socket, _address, to_client_packet_bytes_length, on_accepted_client_method, client_read_failed_delay_seconds)
 					except Exception as ex:
 						if str(ex) == "[Errno 116] ETIMEDOUT":
 							pass
@@ -441,7 +439,7 @@ class ServerSocket():
 					if _is_threading_async:
 						time.sleep(0.01)
 
-			self.__accepting_thread = start_thread(_accepting_thread_method, self.__to_client_packet_bytes_length, on_accepted_client_method, self.__listening_limit_total, self.__accept_timeout_seconds)
+			self.__accepting_thread = start_thread(_accepting_thread_method, self.__to_client_packet_bytes_length, on_accepted_client_method, self.__listening_limit_total, self.__accept_timeout_seconds, self.__client_read_failed_delay_seconds)
 
 	def stop_accepting_clients(self):
 
@@ -454,7 +452,6 @@ class ServerSocket():
 
 	def close(self):
 
-		#print(f"closing server socket...")
 		if self.__is_accepting:
 			raise Exception("Cannot close without first stopping accepting clients.")
 		else:
@@ -468,13 +465,15 @@ class ServerSocketFactory():
 				 port: int,
 				 to_client_packet_bytes_length: int,
 				 listening_limit_total: int,
-				 accept_timeout_seconds: float):
+				 accept_timeout_seconds: float,
+				 client_read_failed_delay_seconds: float):
 
 		self.__ip_address = ip_address
 		self.__port = port
 		self.__to_client_packet_bytes_length = to_client_packet_bytes_length
 		self.__listening_limit_total = listening_limit_total
 		self.__accept_timeout_seconds = accept_timeout_seconds
+		self.__client_read_failed_delay_seconds = client_read_failed_delay_seconds
 
 	def get_server_socket(self) -> ServerSocket:
 
@@ -483,5 +482,6 @@ class ServerSocketFactory():
 			port=self.__port,
 			to_client_packet_bytes_length=self.__to_client_packet_bytes_length,
 			listening_limit_total=self.__listening_limit_total,
-			accept_timeout_seconds=self.__accept_timeout_seconds
+			accept_timeout_seconds=self.__accept_timeout_seconds,
+			client_read_failed_delay_seconds=self.__client_read_failed_delay_seconds
 		)

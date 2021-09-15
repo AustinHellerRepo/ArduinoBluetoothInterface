@@ -23,7 +23,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 			port=_port,
 			to_client_packet_bytes_length=_to_client_packet_bytes_length,
 			listening_limit_total=1,
-			accept_timeout_seconds=0.2
+			accept_timeout_seconds=0.2,
+			client_read_failed_delay_seconds=0.1
 		)
 		self.assertIsNotNone(_server_socket_factory)
 		_server_socket = _server_socket_factory.get_server_socket()
@@ -42,7 +43,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 			port=_port,
 			to_client_packet_bytes_length=_to_client_packet_bytes_length,
 			listening_limit_total=1,
-			accept_timeout_seconds=0.2
+			accept_timeout_seconds=0.2,
+			client_read_failed_delay_seconds=0.1
 		)
 		self.assertIsNotNone(_server_socket_factory)
 		_server_socket = _server_socket_factory.get_server_socket()
@@ -67,7 +69,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 			port=_port,
 			to_client_packet_bytes_length=_to_client_packet_bytes_length,
 			listening_limit_total=1,
-			accept_timeout_seconds=0.2
+			accept_timeout_seconds=0.2,
+			client_read_failed_delay_seconds=0.1
 		)
 		self.assertIsNotNone(_server_socket_factory)
 		_server_socket = _server_socket_factory.get_server_socket()
@@ -79,7 +82,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_client_socket_factory = ClientSocketFactory(
 			ip_address="0.0.0.0",
 			port=_port,
-			to_server_packet_bytes_length=_to_server_packet_bytes_length
+			to_server_packet_bytes_length=_to_server_packet_bytes_length,
+			server_read_failed_delay_seconds=0.1
 		)
 		self.assertIsNotNone(_client_socket_factory)
 		_client_socket = _client_socket_factory.get_client_socket()
@@ -104,7 +108,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 			port=_port,
 			to_client_packet_bytes_length=_to_client_packet_bytes_length,
 			listening_limit_total=_clients_total,
-			accept_timeout_seconds=0.2
+			accept_timeout_seconds=0.2,
+			client_read_failed_delay_seconds=0.1
 		)
 		self.assertIsNotNone(_server_socket_factory)
 		_server_socket = _server_socket_factory.get_server_socket()
@@ -116,7 +121,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_client_socket_factory = ClientSocketFactory(
 			ip_address="0.0.0.0",
 			port=_port,
-			to_server_packet_bytes_length=_to_server_packet_bytes_length
+			to_server_packet_bytes_length=_to_server_packet_bytes_length,
+			server_read_failed_delay_seconds=0.1
 		)
 		self.assertIsNotNone(_client_socket_factory)
 		_client_sockets = []
@@ -150,7 +156,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 			port=_port,
 			to_client_packet_bytes_length=_to_client_packet_bytes_length,
 			listening_limit_total=_clients_total,
-			accept_timeout_seconds=30
+			accept_timeout_seconds=30,
+			client_read_failed_delay_seconds=0.1
 		)
 		self.assertIsNotNone(_server_socket_factory)
 		_server_socket = _server_socket_factory.get_server_socket()
@@ -162,7 +169,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_client_socket_factory = ClientSocketFactory(
 			ip_address="0.0.0.0",
 			port=_port,
-			to_server_packet_bytes_length=_to_server_packet_bytes_length
+			to_server_packet_bytes_length=_to_server_packet_bytes_length,
+			server_read_failed_delay_seconds=0.1
 		)
 		self.assertIsNotNone(_client_socket_factory)
 		_client_sockets = []
@@ -211,7 +219,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 			port=_port,
 			to_client_packet_bytes_length=_to_client_packet_bytes_length,
 			listening_limit_total=1,
-			accept_timeout_seconds=0.2
+			accept_timeout_seconds=0.2,
+			client_read_failed_delay_seconds=0.1
 		)
 		self.assertIsNotNone(_server_socket_factory)
 		_server_socket = _server_socket_factory.get_server_socket()
@@ -223,7 +232,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_client_socket_factory = ClientSocketFactory(
 			ip_address="0.0.0.0",
 			port=_port,
-			to_server_packet_bytes_length=_to_server_packet_bytes_length
+			to_server_packet_bytes_length=_to_server_packet_bytes_length,
+			server_read_failed_delay_seconds=0.1
 		)
 		self.assertIsNotNone(_client_socket_factory)
 		_client_socket = _client_socket_factory.get_client_socket()
@@ -259,7 +269,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 			port=_port,
 			to_client_packet_bytes_length=_to_client_packet_bytes_length,
 			listening_limit_total=1,
-			accept_timeout_seconds=0.2
+			accept_timeout_seconds=0.2,
+			client_read_failed_delay_seconds=0.1
 		)
 		self.assertIsNotNone(_server_socket_factory)
 		_server_socket = _server_socket_factory.get_server_socket()
@@ -271,7 +282,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_client_socket_factory = ClientSocketFactory(
 			ip_address="0.0.0.0",
 			port=_port,
-			to_server_packet_bytes_length=_to_server_packet_bytes_length
+			to_server_packet_bytes_length=_to_server_packet_bytes_length,
+			server_read_failed_delay_seconds=0.1
 		)
 		self.assertIsNotNone(_client_socket_factory)
 		_client_socket = _client_socket_factory.get_client_socket()
@@ -308,7 +320,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 			port=_port,
 			to_client_packet_bytes_length=_to_client_packet_bytes_length,
 			listening_limit_total=1,
-			accept_timeout_seconds=0.2
+			accept_timeout_seconds=0.2,
+			client_read_failed_delay_seconds=0.1
 		)
 		self.assertIsNotNone(_server_socket_factory)
 		_server_socket = _server_socket_factory.get_server_socket()
@@ -320,7 +333,8 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_client_socket_factory = ClientSocketFactory(
 			ip_address="0.0.0.0",
 			port=_port,
-			to_server_packet_bytes_length=_to_server_packet_bytes_length
+			to_server_packet_bytes_length=_to_server_packet_bytes_length,
+			server_read_failed_delay_seconds=0.1
 		)
 		self.assertIsNotNone(_client_socket_factory)
 		_client_socket = _client_socket_factory.get_client_socket()

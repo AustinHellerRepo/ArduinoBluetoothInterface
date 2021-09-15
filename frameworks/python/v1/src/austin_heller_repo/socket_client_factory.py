@@ -312,35 +312,14 @@ class ClientSocket():
 			self.__read_semaphore.acquire()
 			self.__is_reading = True
 
-		_packets_total_bytes = None
-		while _packets_total_bytes is None:
-			_packets_total_bytes = self.__read_write_socket.read(8)  # TODO only send the number of bytes required to transmit based on self.__packet_bytes_length
-			if _packets_total_bytes is None:
-				if delay_between_packets_seconds > 0:
-					time.sleep(delay_between_packets_seconds)
-			elif len(_packets_total_bytes) != 8:
-				raise Exception("Unexpected number of bytes returned. Expected 8, found " + str(len(_packets_total_bytes)))
+		_packets_total_bytes = self.__read_write_socket.read(8)  # TODO only send the number of bytes required to transmit based on self.__packet_bytes_length
 		_packets_total = int.from_bytes(_packets_total_bytes, "big")
 		_packets = []
 		if _packets_total != 0:
 			for _packet_index in range(_packets_total):
-				_text_bytes_length_string_bytes = None
-				while _text_bytes_length_string_bytes is None:
-					_text_bytes_length_string_bytes = self.__read_write_socket.read(8)
-					if _text_bytes_length_string_bytes is None:
-						if delay_between_packets_seconds > 0:
-							time.sleep(delay_between_packets_seconds)
-					elif len(_text_bytes_length_string_bytes) != 8:
-						raise Exception("Unexpected number of bytes returned. Expected 8, found " + str(len(_text_bytes_length_string_bytes)))
+				_text_bytes_length_string_bytes = self.__read_write_socket.read(8)
 				_text_bytes_length = int.from_bytes(_text_bytes_length_string_bytes, "big")
-				_text_bytes = None
-				while _text_bytes is None:
-					_text_bytes = self.__read_write_socket.read(_text_bytes_length)
-					if _text_bytes is None:
-						if delay_between_packets_seconds > 0:
-							time.sleep(delay_between_packets_seconds)
-					elif len(_text_bytes) != _text_bytes_length:
-						raise Exception("Unexpected number of bytes returned. Expected " + str(_text_bytes_length) + ", found " + str(len(_text_bytes)))
+				_text_bytes = self.__read_write_socket.read(_text_bytes_length)
 				_packets.append(_text_bytes)
 				if delay_between_packets_seconds > 0:
 					time.sleep(delay_between_packets_seconds)

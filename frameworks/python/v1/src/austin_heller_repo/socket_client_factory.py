@@ -181,7 +181,7 @@ class ClientSocket():
 	def is_reading(self) -> bool:
 		return self.__is_reading or self.__reading_async_depth > 0
 
-	def write_async(self, text: str, delay_between_packets_seconds: float = 0, index: int = 0):
+	def write_async(self, text: str, delay_between_packets_seconds: float = 0):
 
 		self.__writing_data_queue_semaphore.acquire()
 		self.__writing_data_queue.append((text, delay_between_packets_seconds))

@@ -153,18 +153,18 @@ class ClientSocket():
 		self.__read_failed_delay_seconds = read_failed_delay_seconds
 
 		self.__read_write_socket = None  # type: ReadWriteSocket
-		self.__is_writing = False
-		self.__is_reading = False
-		self.__write_semaphore = Semaphore()
-		self.__read_semaphore = Semaphore()
 		self.__writing_async_depth = 0
 		self.__writing_async_depth_semaphore = Semaphore()
 		self.__reading_async_depth = 0
 		self.__reading_async_depth_semaphore = Semaphore()
 		self.__writing_data_queue = []
 		self.__writing_data_queue_semaphore = Semaphore()
+		self.__is_writing_thread_running = False
+		self.__write_started_semaphore = Semaphore()
 		self.__reading_callback_queue = []
 		self.__reading_callback_queue_semaphore = Semaphore()
+		self.__is_reading_thread_running = False
+		self.__read_started_semaphore = Semaphore()
 
 		self.__initialize()
 
@@ -176,163 +176,186 @@ class ClientSocket():
 		)
 
 	def is_writing(self) -> bool:
-		return self.__is_writing or self.__writing_async_depth > 0
+		return self.__writing_async_depth > 0
 
 	def is_reading(self) -> bool:
-		return self.__is_reading or self.__reading_async_depth > 0
+		return self.__reading_async_depth > 0
 
-	def write_async(self, text: str, delay_between_packets_seconds: float = 0):
+	def __write(self, *, delay_between_packets_seconds: float, text, is_async: bool):
 
+		_blocking_semaphore = None
 		self.__writing_data_queue_semaphore.acquire()
-		self.__writing_data_queue.append((text, delay_between_packets_seconds))
+		if not is_async:
+			_blocking_semaphore = Semaphore()
+			_blocking_semaphore.acquire()
+		self.__writing_data_queue.append((delay_between_packets_seconds, text, _blocking_semaphore))
+		_is_writing_thread_needed = not self.__is_writing_thread_running
+		if _is_writing_thread_needed:
+			self.__is_writing_thread_running = True
 		self.__writing_data_queue_semaphore.release()
 
-		_thread_started_semaphore = Semaphore()
-		_thread_started_semaphore.acquire()
+		def _writing_thread_method():
 
-		def _write_thread_method():
+			_is_running = True
+			while _is_running:
 
-			_thread_started_semaphore.release()  # release block in parent thread
+				self.__writing_data_queue_semaphore.acquire()
+				if len(self.__writing_data_queue) == 0:
+					self.__is_writing_thread_running = False
+					_is_running = False
+					self.__writing_data_queue_semaphore.release()
+					self.__writing_async_depth_semaphore.acquire()
+					self.__writing_async_depth -= 1
+					self.__writing_async_depth_semaphore.release()
+				else:
+					_delay_between_packets_seconds, _text, _blocking_semaphore = self.__writing_data_queue.pop(0)
+					self.__writing_data_queue_semaphore.release()
 
-			self.__write_semaphore.acquire()
-			self.__is_writing = True
+					_text_bytes = _text.encode()
+					_text_bytes_length = len(_text_bytes)
+					_packet_bytes_length = self.__packet_bytes_length
+					_packets_total = int((_text_bytes_length + _packet_bytes_length - 1) / _packet_bytes_length)
+					_packets_total_bytes = _packets_total.to_bytes(8, "big")
 
-			self.__writing_data_queue_semaphore.acquire()
-			_text, _delay_between_packets_seconds = self.__writing_data_queue.pop(0)
-			self.__writing_data_queue_semaphore.release()
+					self.__read_write_socket.write(_packets_total_bytes)
 
-			self.write(
-				text=_text,
-				delay_between_packets_seconds=_delay_between_packets_seconds,
-				acquire_semaphore=False
-			)
+					for _packet_index in range(_packets_total):
+						_current_packet_bytes_length = min(_text_bytes_length - _packet_bytes_length * _packet_index, _packet_bytes_length)
+						_current_packet_bytes_length_bytes = _current_packet_bytes_length.to_bytes(8, "big")  # TODO fix based on possible maximum
 
+						self.__read_write_socket.write(_current_packet_bytes_length_bytes)
+
+						_current_text_bytes_index = _packet_index * _packet_bytes_length
+						_packet_bytes = _text_bytes[_current_text_bytes_index:_current_text_bytes_index + _current_packet_bytes_length]
+
+						self.__read_write_socket.write(_packet_bytes)
+
+						if delay_between_packets_seconds > 0:
+							time.sleep(delay_between_packets_seconds)
+
+					if _blocking_semaphore is not None:
+						_blocking_semaphore.release()
+
+				time.sleep(0)
+
+		if _is_writing_thread_needed:
 			self.__writing_async_depth_semaphore.acquire()
-			self.__writing_async_depth -= 1
-			if self.__writing_async_depth == 0:
-				self.__is_writing = False
+			self.__writing_async_depth += 1
 			self.__writing_async_depth_semaphore.release()
+			_writing_thread = start_thread(_writing_thread_method)
 
-			self.__write_semaphore.release()
+		if not is_async:
+			_blocking_semaphore.acquire()
+			_blocking_semaphore.release()
 
-		self.__writing_async_depth_semaphore.acquire()
-		self.__writing_async_depth += 1  # in this moment, the socket "is writing" until all threads are done
-		self.__writing_async_depth_semaphore.release()
+	def write_async(self, text, delay_between_packets_seconds: float = 0):
 
-		_write_thread = start_thread(
-			target=_write_thread_method
+		self.__write(
+			delay_between_packets_seconds=delay_between_packets_seconds,
+			text=text,
+			is_async=True
 		)
 
-		_thread_started_semaphore.acquire()  # block here until release in thread method
-		_thread_started_semaphore.release()
+	def write(self, text: str, delay_between_packets_seconds: float = 0):
 
-	def write(self, text: str, delay_between_packets_seconds: float = 0, acquire_semaphore: bool = True):
+		self.__write(
+			delay_between_packets_seconds=delay_between_packets_seconds,
+			text=text,
+			is_async=False
+		)
 
-		if acquire_semaphore:
-			self.__write_semaphore.acquire()
-			self.__is_writing = True
+	def __read(self, *, delay_between_packets_seconds: float, callback, is_async: bool):
 
-		_text_bytes = text.encode()
-		_text_bytes_length = len(_text_bytes)
-		_packet_bytes_length = self.__packet_bytes_length
-		_packets_total = int((_text_bytes_length + _packet_bytes_length - 1)/_packet_bytes_length)
-		_packets_total_bytes = _packets_total.to_bytes(8, "big")
-
-		self.__read_write_socket.write(_packets_total_bytes)
-
-		for _packet_index in range(_packets_total):
-			_current_packet_bytes_length = min(_text_bytes_length - _packet_bytes_length * _packet_index, _packet_bytes_length)
-			_current_packet_bytes_length_bytes = _current_packet_bytes_length.to_bytes(8, "big")  # TODO fix based on possible maximum
-
-			self.__read_write_socket.write(_current_packet_bytes_length_bytes)
-
-			_current_text_bytes_index = _packet_index * _packet_bytes_length
-			_packet_bytes = _text_bytes[_current_text_bytes_index:_current_text_bytes_index + _current_packet_bytes_length]
-
-			self.__read_write_socket.write(_packet_bytes)
-
-			if delay_between_packets_seconds > 0:
-				time.sleep(delay_between_packets_seconds)
-
-		if acquire_semaphore:
-			self.__writing_async_depth_semaphore.acquire()
-			if self.__writing_async_depth == 0:
-				self.__is_writing = False
-			self.__writing_async_depth_semaphore.release()
-			self.__write_semaphore.release()
-
-	def read_async(self, callback, delay_between_packets_seconds: float = 0, index: int = 0):
-
+		_blocking_semaphore = None
 		self.__reading_callback_queue_semaphore.acquire()
-		self.__reading_callback_queue.append((callback, delay_between_packets_seconds))
+		if not is_async:
+			_blocking_semaphore = Semaphore()
+			_blocking_semaphore.acquire()
+		self.__reading_callback_queue.append((delay_between_packets_seconds, callback, _blocking_semaphore))
+		_is_reading_thread_needed = not self.__is_reading_thread_running
+		if _is_reading_thread_needed:
+			self.__is_reading_thread_running = True
 		self.__reading_callback_queue_semaphore.release()
 
-		_thread_started_semaphore = Semaphore()
-		_thread_started_semaphore.acquire()
+		def _reading_thread_method():
 
-		def _read_thread_method():
+			_is_running = True
+			while _is_running:
 
-			_thread_started_semaphore.release()  # release block in parent thread
+				self.__reading_callback_queue_semaphore.acquire()
+				if len(self.__reading_callback_queue) == 0:
+					self.__is_reading_thread_running = False
+					_is_running = False
+					self.__reading_callback_queue_semaphore.release()
+					self.__reading_async_depth_semaphore.acquire()
+					self.__reading_async_depth -= 1
+					self.__reading_async_depth_semaphore.release()
+				else:
+					_delay_between_packets_seconds, _callback, _blocking_semaphore = self.__reading_callback_queue.pop(0)
+					self.__reading_callback_queue_semaphore.release()
 
-			self.__read_semaphore.acquire()
-			self.__is_reading = True
+					_packets_total_bytes = self.__read_write_socket.read(8)  # TODO only send the number of bytes required to transmit based on self.__packet_bytes_length
+					_packets_total = int.from_bytes(_packets_total_bytes, "big")
+					_packets = []
+					if _packets_total != 0:
+						for _packet_index in range(_packets_total):
+							_text_bytes_length_string_bytes = self.__read_write_socket.read(8)
+							_text_bytes_length = int.from_bytes(_text_bytes_length_string_bytes, "big")
+							_text_bytes = self.__read_write_socket.read(_text_bytes_length)
+							_packets.append(_text_bytes)
 
-			self.__reading_callback_queue_semaphore.acquire()
-			_callback, _delay_between_packets_seconds = self.__reading_callback_queue.pop(0)
-			self.__reading_callback_queue_semaphore.release()
+							if delay_between_packets_seconds > 0:
+								time.sleep(delay_between_packets_seconds)
 
-			_text = self.read(
-				delay_between_packets_seconds=_delay_between_packets_seconds,
-				acquire_semaphore=False
-			)
-			_callback(_text)
+					_text_bytes = b"".join(_packets)
+					_text = _text_bytes.decode()
 
+					_callback(_text)
+
+					if _blocking_semaphore is not None:
+						_blocking_semaphore.release()
+
+				time.sleep(0)
+
+		if _is_reading_thread_needed:
 			self.__reading_async_depth_semaphore.acquire()
-			self.__reading_async_depth -= 1
-			if self.__reading_async_depth == 0:
-				self.__is_reading = False
+			self.__reading_async_depth += 1
 			self.__reading_async_depth_semaphore.release()
+			_reading_thread = start_thread(_reading_thread_method)
 
-			self.__read_semaphore.release()
+		if not is_async:
+			_blocking_semaphore.acquire()
+			_blocking_semaphore.release()
 
-		self.__reading_async_depth_semaphore.acquire()
-		self.__reading_async_depth += 1
-		self.__reading_async_depth_semaphore.release()
+	def read_async(self, callback, delay_between_packets_seconds: float = 0):
 
-		_read_thread = start_thread(
-			target=_read_thread_method
+		self.__read(
+			delay_between_packets_seconds=delay_between_packets_seconds,
+			callback=callback,
+			is_async=True
 		)
 
-		_thread_started_semaphore.acquire()  # block here until release in thread method
-		_thread_started_semaphore.release()
+	def read(self, delay_between_packets_seconds: float = 0) -> str:
 
-	def read(self, delay_between_packets_seconds: float = 0, acquire_semaphore: bool = True) -> str:
+		_text = None
+		_is_callback_successful = False
 
-		if acquire_semaphore:
-			self.__read_semaphore.acquire()
-			self.__is_reading = True
+		def _callback(text: str):
+			nonlocal _text
+			nonlocal _is_callback_successful
+			_text = text
+			_is_callback_successful = True
 
-		_packets_total_bytes = self.__read_write_socket.read(8)  # TODO only send the number of bytes required to transmit based on self.__packet_bytes_length
-		_packets_total = int.from_bytes(_packets_total_bytes, "big")
-		_packets = []
-		if _packets_total != 0:
-			for _packet_index in range(_packets_total):
-				_text_bytes_length_string_bytes = self.__read_write_socket.read(8)
-				_text_bytes_length = int.from_bytes(_text_bytes_length_string_bytes, "big")
-				_text_bytes = self.__read_write_socket.read(_text_bytes_length)
-				_packets.append(_text_bytes)
-				if delay_between_packets_seconds > 0:
-					time.sleep(delay_between_packets_seconds)
-		_text_bytes = b"".join(_packets)
+		self.__read(
+			delay_between_packets_seconds=delay_between_packets_seconds,
+			callback=_callback,
+			is_async=False
+		)
 
-		if acquire_semaphore:
-			self.__reading_async_depth_semaphore.acquire()
-			if self.__reading_async_depth == 0:
-				self.__is_reading = False
-			self.__reading_async_depth_semaphore.release()
-			self.__read_semaphore.release()
+		if not _is_callback_successful:
+			raise Exception(f"Read process failed to block sync method before returning.")
 
-		return _text_bytes.decode()
+		return _text
 
 	def close(self):
 
@@ -415,10 +438,14 @@ class ServerSocket():
 							pass
 						else:
 							print("ex: " + str(ex))
+							self.__is_accepting = False
 					if _is_threading_async:
 						time.sleep(0.01)
 
 			self.__accepting_thread = start_thread(_accepting_thread_method, self.__to_client_packet_bytes_length, on_accepted_client_method, self.__listening_limit_total, self.__accept_timeout_seconds, self.__client_read_failed_delay_seconds)
+
+	def is_accepting_clients(self) -> bool:
+		return self.__is_accepting
 
 	def stop_accepting_clients(self):
 

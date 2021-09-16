@@ -1,4 +1,4 @@
-from austin_heller_repo.socket_client_factory import ServerSocketFactory, ServerSocket, ClientSocket, json
+from austin_heller_repo.socket_client_factory import ServerSocketFactory, ServerSocket, ClientSocket, json, time
 from austin_heller_repo.api_interface import ApiInterfaceFactory
 
 
@@ -41,12 +41,17 @@ class Esp32Processor():
 				on_accepted_client_method=_process_client_socket
 			)
 
+	def is_running(self) -> bool:
+		return self.__server_socket.is_accepting_clients()
+
 	def stop(self):
 
 		if self.__server_socket is None:
 			raise Exception(f"Cannot stop without first starting run.")
 		else:
-			self.__server_socket.stop_accepting_clients()
+			if self.__server_socket.is_accepting_clients():
+				self.__server_socket.stop_accepting_clients()
+			self.__server_socket.close()
 
 
 class Esp32ProcessorFactory():

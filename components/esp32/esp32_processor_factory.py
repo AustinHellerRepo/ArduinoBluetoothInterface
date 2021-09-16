@@ -21,11 +21,6 @@ class Esp32Processor():
 
 			# connect to the wifi
 
-			if os.path.exists(self.__wifi_settings_json_file_path):
-				_error = "Failed to find wifi settings file at path \"" + self.__wifi_settings_json_file_path + "\""
-				print(_error)
-				raise Exception(_error)
-
 			with open(self.__wifi_settings_json_file_path, "r") as _wifi_settings_file_handle:
 				_wifi_settings_json_string = _wifi_settings_file_handle.read()
 			_wifi_settings_json = json.loads(_wifi_settings_json_string)
@@ -49,7 +44,7 @@ class Esp32Processor():
 				print(_error)
 				raise Exception(_error)
 			else:
-				_connection_timeout_seconds = _wifi_settings_json["connection_timeout_seconds"]
+				_connection_timeout_seconds = float(_wifi_settings_json["connection_timeout_seconds"])
 
 			_sta_if = network.WLAN(network.STA_IF)
 			if _sta_if.isconnected():
@@ -115,5 +110,6 @@ class Esp32ProcessorFactory():
 
 		return Esp32Processor(
 			server_socket_factory=self.__server_socket_factory,
-			accepting_connections_total=self.__accepting_connections_total
+			accepting_connections_total=self.__accepting_connections_total,
+			wifi_settings_json_file_path=self.__wifi_settings_json_file_path
 		)

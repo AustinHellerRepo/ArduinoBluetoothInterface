@@ -181,6 +181,7 @@ else:
 							"connection_timeout_seconds": _ssid_connection_timeout_seconds
 						}))
 					_local_wifi_settings_file_object.close()
+					print(f"Copying \"wifi_settings.json\"...")
 					_copy_file_to_device(
 						source_file_path=_local_wifi_settings_file_object.name,
 						destination_file_path="wifi_settings.json"

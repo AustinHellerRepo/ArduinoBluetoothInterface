@@ -21,7 +21,8 @@ _server_socket_factory = ServerSocketFactory(
 
 _processor_factory = Esp32ProcessorFactory(
 	server_socket_factory=_server_socket_factory,
-	accepting_connections_total=_connections_total
+	accepting_connections_total=_connections_total,
+	wifi_settings_json_file_path=_wifi_settings_file_path
 )
 
 _processor = _processor_factory.get_esp32_processor()

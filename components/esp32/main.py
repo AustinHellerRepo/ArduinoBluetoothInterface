@@ -8,6 +8,7 @@ _to_dequeuer_or_reporter_packet_bytes_length = 1024
 _listening_limit_total = 10
 _accept_timeout_seconds = 1.0
 _client_read_failed_delay_seconds = 0.1
+_wifi_settings_file_path = "/wifi.json"
 
 _server_socket_factory = ServerSocketFactory(
 	ip_address=_ip_address,
@@ -25,8 +26,3 @@ _processor_factory = Esp32ProcessorFactory(
 
 _processor = _processor_factory.get_esp32_processor()
 _processor.start()
-
-while _processor.is_running():
-	time.sleep(1.0)
-
-_processor.stop()

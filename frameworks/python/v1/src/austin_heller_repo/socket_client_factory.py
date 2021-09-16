@@ -96,6 +96,7 @@ except ImportError:
 
 import time
 import re
+import os
 
 
 class ReadWriteSocket():

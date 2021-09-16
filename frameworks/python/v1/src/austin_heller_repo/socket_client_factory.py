@@ -153,10 +153,10 @@ class ClientSocket():
 		self.__read_failed_delay_seconds = read_failed_delay_seconds
 
 		self.__read_write_socket = None  # type: ReadWriteSocket
-		self.__writing_async_depth = 0
-		self.__writing_async_depth_semaphore = Semaphore()
-		self.__reading_async_depth = 0
-		self.__reading_async_depth_semaphore = Semaphore()
+		self.__writing_threads_running_total = 0
+		self.__writing_threads_running_total_semaphore = Semaphore()
+		self.__reading_threads_running_total = 0
+		self.__reading_threads_running_total_semaphore = Semaphore()
 		self.__writing_data_queue = []
 		self.__writing_data_queue_semaphore = Semaphore()
 		self.__is_writing_thread_running = False
@@ -176,10 +176,10 @@ class ClientSocket():
 		)
 
 	def is_writing(self) -> bool:
-		return self.__writing_async_depth > 0
+		return self.__writing_threads_running_total > 0
 
 	def is_reading(self) -> bool:
-		return self.__reading_async_depth > 0
+		return self.__reading_threads_running_total > 0
 
 	def __write(self, *, delay_between_packets_seconds: float, text, is_async: bool):
 
@@ -204,9 +204,9 @@ class ClientSocket():
 					self.__is_writing_thread_running = False
 					_is_running = False
 					self.__writing_data_queue_semaphore.release()
-					self.__writing_async_depth_semaphore.acquire()
-					self.__writing_async_depth -= 1
-					self.__writing_async_depth_semaphore.release()
+					self.__writing_threads_running_total_semaphore.acquire()
+					self.__writing_threads_running_total -= 1
+					self.__writing_threads_running_total_semaphore.release()
 				else:
 					_delay_between_packets_seconds, _text, _blocking_semaphore = self.__writing_data_queue.pop(0)
 					self.__writing_data_queue_semaphore.release()
@@ -236,12 +236,12 @@ class ClientSocket():
 					if _blocking_semaphore is not None:
 						_blocking_semaphore.release()
 
-				time.sleep(0)
+				time.sleep(0)  # permit other threads to take action
 
 		if _is_writing_thread_needed:
-			self.__writing_async_depth_semaphore.acquire()
-			self.__writing_async_depth += 1
-			self.__writing_async_depth_semaphore.release()
+			self.__writing_threads_running_total_semaphore.acquire()
+			self.__writing_threads_running_total += 1
+			self.__writing_threads_running_total_semaphore.release()
 			_writing_thread = start_thread(_writing_thread_method)
 
 		if not is_async:
@@ -287,9 +287,9 @@ class ClientSocket():
 					self.__is_reading_thread_running = False
 					_is_running = False
 					self.__reading_callback_queue_semaphore.release()
-					self.__reading_async_depth_semaphore.acquire()
-					self.__reading_async_depth -= 1
-					self.__reading_async_depth_semaphore.release()
+					self.__reading_threads_running_total_semaphore.acquire()
+					self.__reading_threads_running_total -= 1
+					self.__reading_threads_running_total_semaphore.release()
 				else:
 					_delay_between_packets_seconds, _callback, _blocking_semaphore = self.__reading_callback_queue.pop(0)
 					self.__reading_callback_queue_semaphore.release()
@@ -315,12 +315,12 @@ class ClientSocket():
 					if _blocking_semaphore is not None:
 						_blocking_semaphore.release()
 
-				time.sleep(0)
+				time.sleep(0)  # permit other threads to take action
 
 		if _is_reading_thread_needed:
-			self.__reading_async_depth_semaphore.acquire()
-			self.__reading_async_depth += 1
-			self.__reading_async_depth_semaphore.release()
+			self.__reading_threads_running_total_semaphore.acquire()
+			self.__reading_threads_running_total += 1
+			self.__reading_threads_running_total_semaphore.release()
 			_reading_thread = start_thread(_reading_thread_method)
 
 		if not is_async:

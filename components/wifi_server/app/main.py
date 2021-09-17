@@ -7,6 +7,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 import asyncio
 from pydantic import BaseModel
+from austin_heller_repo.socket_client_factory import ClientSocketFactory, ClientSocket
 
 
 try:
@@ -216,7 +217,8 @@ def v1_list_available_devices(list_available_devices_base_model: ListAvailableDe
 
 class ReceiveDequeuerAnnouncementBaseModel(BaseModel):
 	dequeuer_guid: str
-	# TODO add is_informed_of_enqueue: bool
+	is_informed_of_enqueue: bool
+	listening_port: int
 
 
 @app.post("/v1/dequeuer/announce")
@@ -239,7 +241,8 @@ def v1_receive_dequeuer_announcement(receive_dequeuer_announcement_base_model: R
 		)
 		_dequeuer = _database.insert_dequeuer(
 			dequeuer_guid=receive_dequeuer_announcement_base_model.dequeuer_guid,
-			is_informed_of_enqueue=False,
+			is_informed_of_enqueue=receive_dequeuer_announcement_base_model.is_informed_of_enqueue,
+			listening_port=receive_dequeuer_announcement_base_model.listening_port,
 			client_guid=_client.get_client_guid()
 		)
 		_response_json = {
@@ -334,6 +337,15 @@ def v1_receive_device_transmission(receive_device_transmission_base_model: Recei
 			transmission_json_string=receive_device_transmission_base_model.transmission_json_string,
 			destination_device_guid=receive_device_transmission_base_model.destination_device_guid
 		)
+
+		_responsive_dequeuers = _database.get_all_responsive_dequeuers()
+		for _responsive_dequeuer in _responsive_dequeuers:
+			_client_socket_factory = ClientSocketFactory(
+				ip_address=_responsive_dequeuer.get_last_known_client().get_ip_address(),
+				port=
+			)
+
+
 		_response_json = {
 			"transmission": _transmission.to_json()
 		}

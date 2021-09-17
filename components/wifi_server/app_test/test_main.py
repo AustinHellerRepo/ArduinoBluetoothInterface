@@ -119,7 +119,7 @@ class MainTest(unittest.TestCase):
 		_dequeuer_guid = "20E5EF95-2D4C-44D7-B750-98A413A6613B"
 
 		_dequeuer_before_datetime = datetime.utcnow()
-		_response = _app.post("/v1/dequeuer/announce", json={"dequeuer_guid": _dequeuer_guid})
+		_response = _app.post("/v1/dequeuer/announce", json={"dequeuer_guid": _dequeuer_guid, "is_informed_of_enqueue": False, "listening_port": None})
 		_dequeuer_after_datetime = datetime.utcnow()
 		self.assertEqual(200, _response.status_code)
 		_dequeuer = _response.json()["response"]["dequeuer"]
@@ -291,6 +291,74 @@ class MainTest(unittest.TestCase):
 		_uuid = _response.json()["response"]["uuid"]
 		_match = re.search("^[A-F0-9]{8}\\-[A-F0-9]{4}\\-[A-F0-9]{4}\\-[A-F0-9]{4}\\-[A-F0-9]{12}$", _uuid)
 		self.assertIsNotNone(_match)
+
+	def test_sending_notification_to_dequeuer_0(self):
+		# create source, destination, and dequeuer then enqueue one message
+		_app = TestClient(app)
+
+		# introduce source device
+
+		_first_device_guid = "805FC328-943D-42BA-A81D-8486ADE0C4A1"
+		_first_device_purpose_guid = "71779DF6-B7AB-4815-9308-CD688B3F2F0D"
+		_first_device_socket_port = 27544
+		_response = _app.post("/v1/device/announce", json={"device_guid": _first_device_guid, "purpose_guid": _first_device_purpose_guid, "socket_port": _first_device_socket_port})
+		self.assertEqual(200, _response.status_code)
+		_first_device = _response.json()["response"]["device"]
+		self.assertIsNotNone(_first_device)
+		self.assertEqual(_first_device_guid, _first_device["device_guid"])
+		self.assertEqual(_first_device_purpose_guid, _first_device["purpose_guid"])
+
+		# introduce destination device
+
+		_second_device_guid = "FB144F0B-8A53-49E4-85A5-5349EAB4FBF1"
+		_second_device_purpose_guid = "B5155325-C1D6-4ED8-A7B4-BF52601D326C"
+		_second_device_socket_port = 23221
+		_response = _app.post("/v1/device/announce", json={"device_guid": _second_device_guid, "purpose_guid": _second_device_purpose_guid, "socket_port": _second_device_socket_port})
+		self.assertEqual(200, _response.status_code)
+		_second_device = _response.json()["response"]["device"]
+		self.assertIsNotNone(_second_device)
+		self.assertEqual(_second_device_guid, _second_device["device_guid"])
+		self.assertEqual(_second_device_purpose_guid, _second_device["purpose_guid"])
+
+		# pretend that the source device does not know about the destination device
+
+		_response = _app.post("/v1/device/list", json={"purpose_guid": _second_device_purpose_guid})
+		self.assertEqual(200, _response.status_code)
+		_discovered_destination_devices = _response.json()["response"]["devices"]
+		self.assertEqual(1, len(_discovered_destination_devices))
+		self.assertEqual(_second_device_guid, _discovered_destination_devices[0]["device_guid"])
+
+		# setup dequeuer
+
+		_dequeuer_guid = "10C54083-FBC2-4777-A8EA-CF26EDFD24EB"
+
+		_dequeuer_before_datetime = datetime.utcnow()
+		_response = _app.post("/v1/dequeuer/announce", json={"dequeuer_guid": _dequeuer_guid, "is_informed_of_enqueue": True, "listening_port": 26733})
+		_dequeuer_after_datetime = datetime.utcnow()
+		self.assertEqual(200, _response.status_code)
+		_dequeuer = _response.json()["response"]["dequeuer"]
+		self.assertEqual(_dequeuer_guid, _dequeuer["dequeuer_guid"])
+		self.assertEqual(True, _dequeuer["is_responsive"])
+		self.assertLess(_dequeuer_before_datetime, datetime.strptime(_dequeuer["responsive_update_datetime"], "%Y-%m-%d %H:%M:%S.%f"))
+		self.assertGreater(_dequeuer_after_datetime, datetime.strptime(_dequeuer["responsive_update_datetime"], "%Y-%m-%d %H:%M:%S.%f"))
+
+		_queue_guid = "AB6CC751-2F38-44D8-918D-4FF7F26B213D"
+		_first_transmission_json_string = json.dumps({
+			"test": True
+		})
+		_first_transmission_enqueue_post_params = {
+			"queue_guid": _queue_guid,
+			"source_device_guid": _first_device_guid,
+			"transmission_json_string": _first_transmission_json_string,
+			"destination_device_guid": _discovered_destination_devices[0]["device_guid"]
+		}
+		_response = _app.post("/v1/transmission/enqueue", json=_first_transmission_enqueue_post_params)
+		self.assertEqual(200, _response.status_code)
+		_first_transmission = _response.json()["response"]["transmission"]
+		self.assertEqual(_first_transmission_enqueue_post_params["queue_guid"], _first_transmission["queue_guid"])
+		self.assertEqual(_first_transmission_enqueue_post_params["source_device_guid"], _first_transmission["source_device_guid"])
+		self.assertEqual(_first_transmission_enqueue_post_params["transmission_json_string"], _first_transmission["transmission_json_string"])
+		self.assertEqual(_first_transmission_enqueue_post_params["destination_device_guid"], _first_transmission["destination_device_guid"])
 
 
 if __name__ == "__main__":

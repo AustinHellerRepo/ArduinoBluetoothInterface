@@ -9,3 +9,4 @@ six==1.16.0
 starlette==0.14.2
 typing-extensions==3.10.0.2
 urllib3==1.26.6
+git+https://github.com/AustinHellerRepo/DeviceMessagingSystem#subdirectory=frameworks/python/v1

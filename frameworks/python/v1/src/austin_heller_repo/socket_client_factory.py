@@ -147,12 +147,14 @@ class ReadWriteSocket():
 
 class ClientSocket():
 
-	def __init__(self, *, socket: socket.socket, packet_bytes_length: int, read_failed_delay_seconds: float):
+	def __init__(self, *, packet_bytes_length: int, read_failed_delay_seconds: float, socket=None):
 
-		self.__socket = socket
 		self.__packet_bytes_length = packet_bytes_length
 		self.__read_failed_delay_seconds = read_failed_delay_seconds
 
+		self.__ip_address = None  # type: str
+		self.__port = None  # type: int
+		self.__socket = socket  # type: socket.socket
 		self.__read_write_socket = None  # type: ReadWriteSocket
 		self.__writing_threads_running_total = 0
 		self.__writing_threads_running_total_semaphore = Semaphore()
@@ -170,6 +172,23 @@ class ClientSocket():
 		self.__initialize()
 
 	def __initialize(self):
+
+		if self.__socket is not None:
+			self.__read_write_socket = ReadWriteSocket(
+				socket=self.__socket,
+				read_failed_delay_seconds=self.__read_failed_delay_seconds
+			)
+
+	def connect_to_server(self, *, ip_address: str, port: int):
+
+		if self.__socket is not None:
+			raise Exception(f"Cannot connect while already connected.")
+
+		self.__ip_address = ip_address
+		self.__port = port
+
+		self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.__socket.connect((self.__ip_address, self.__port))
 
 		self.__read_write_socket = ReadWriteSocket(
 			socket=self.__socket,
@@ -365,18 +384,13 @@ class ClientSocket():
 
 class ClientSocketFactory():
 
-	def __init__(self, *, ip_address: str, port: int, to_server_packet_bytes_length: int, server_read_failed_delay_seconds: float):
+	def __init__(self, *, to_server_packet_bytes_length: int, server_read_failed_delay_seconds: float):
 
-		self.__ip_address = ip_address
-		self.__port = port
 		self.__to_server_packet_bytes_length = to_server_packet_bytes_length
 		self.__server_read_failed_delay_seconds = server_read_failed_delay_seconds
 
 	def get_client_socket(self) -> ClientSocket:
-		_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		_socket.connect((self.__ip_address, self.__port))
 		return ClientSocket(
-			socket=_socket,
 			packet_bytes_length=self.__to_server_packet_bytes_length,
 			read_failed_delay_seconds=self.__server_read_failed_delay_seconds
 		)
@@ -384,27 +398,21 @@ class ClientSocketFactory():
 
 class ServerSocket():
 
-	def __init__(self, *, ip_address: str, port: int, to_client_packet_bytes_length: int, listening_limit_total: int, accept_timeout_seconds: float, client_read_failed_delay_seconds: float):
+	def __init__(self, *, to_client_packet_bytes_length: int, listening_limit_total: int, accept_timeout_seconds: float, client_read_failed_delay_seconds: float):
 
-		self.__ip_address = ip_address
-		self.__port = port
 		self.__to_client_packet_bytes_length = to_client_packet_bytes_length
 		self.__listening_limit_total = listening_limit_total
 		self.__accept_timeout_seconds = accept_timeout_seconds
 		self.__client_read_failed_delay_seconds = client_read_failed_delay_seconds
 
+		self.__host_ip_address = None  # type: str
+		self.__host_port = None  # type: int
 		self.__bindable_address = None
 		self.__is_accepting = False
 		self.__accepting_thread = None  # type: threading.Thread
 		self.__accepting_socket = None
 
-		self.__initialize()
-
-	def __initialize(self):
-
-		self.__bindable_address = socket.getaddrinfo(self.__ip_address, self.__port, 0, socket.SOCK_STREAM)[0][-1]
-
-	def start_accepting_clients(self, *, on_accepted_client_method):
+	def start_accepting_clients(self, *, host_ip_address: str, host_port: int, on_accepted_client_method):
 
 		if self.__is_accepting:
 			raise Exception("Cannot start accepting clients while already accepting.")
@@ -412,12 +420,16 @@ class ServerSocket():
 
 			self.__is_accepting = True
 
+			self.__host_ip_address = host_ip_address
+			self.__host_port = host_port
+			self.__bindable_address = socket.getaddrinfo(self.__host_ip_address, self.__host_port, 0, socket.SOCK_STREAM)[0][-1]
+
 			def _process_connection_thread_method(connection_socket, address, to_client_packet_bytes_length, on_accepted_client_method, client_read_failed_delay_seconds: float):
 
 				_accepted_socket = ClientSocket(
-					socket=connection_socket,
 					packet_bytes_length=to_client_packet_bytes_length,
-					read_failed_delay_seconds=client_read_failed_delay_seconds
+					read_failed_delay_seconds=client_read_failed_delay_seconds,
+					socket=connection_socket
 				)
 				on_accepted_client_method(_accepted_socket)
 
@@ -468,15 +480,11 @@ class ServerSocket():
 class ServerSocketFactory():
 
 	def __init__(self, *,
-				 ip_address: str,
-				 port: int,
 				 to_client_packet_bytes_length: int,
 				 listening_limit_total: int,
 				 accept_timeout_seconds: float,
 				 client_read_failed_delay_seconds: float):
 
-		self.__ip_address = ip_address
-		self.__port = port
 		self.__to_client_packet_bytes_length = to_client_packet_bytes_length
 		self.__listening_limit_total = listening_limit_total
 		self.__accept_timeout_seconds = accept_timeout_seconds
@@ -485,8 +493,6 @@ class ServerSocketFactory():
 	def get_server_socket(self) -> ServerSocket:
 
 		return ServerSocket(
-			ip_address=self.__ip_address,
-			port=self.__port,
 			to_client_packet_bytes_length=self.__to_client_packet_bytes_length,
 			listening_limit_total=self.__listening_limit_total,
 			accept_timeout_seconds=self.__accept_timeout_seconds,

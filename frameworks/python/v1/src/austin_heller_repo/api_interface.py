@@ -109,7 +109,7 @@ class ApiInterface():
 			}
 		)
 
-	def send_dequeuer_announcement(self, *, dequeuer_guid: str) -> dict:
+	def send_dequeuer_announcement(self, *, dequeuer_guid: str, is_informed_of_enqueue: bool, listening_port: int) -> dict:
 
 		return self._get_json_result_from_url(
 			method_type=MethodTypeEnum.Post,
@@ -117,7 +117,9 @@ class ApiInterface():
 				url_part="/v1/dequeuer/announce"
 			),
 			arguments_json_object={
-				"dequeuer_guid": dequeuer_guid
+				"dequeuer_guid": dequeuer_guid,
+				"is_informed_of_enqueue": is_informed_of_enqueue,
+				"listening_port": listening_port
 			}
 		)
 

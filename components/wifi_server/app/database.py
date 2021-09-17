@@ -192,15 +192,24 @@ class Queue():
 
 class Dequeuer():
 
-	def __init__(self, *, dequeuer_guid: str, is_responsive: bool, responsive_update_datetime: datetime, is_informed_of_enqueue: bool):
+	def __init__(self, *, dequeuer_guid: str, wifi_server_token_guid: str, is_responsive: bool, responsive_update_datetime: datetime, is_informed_of_enqueue: bool, listening_port: int, last_known_client_guid: str, last_known_datetime: datetime):
 
 		self.__dequeuer_guid = dequeuer_guid
+		self.__wifi_server_token_guid = wifi_server_token_guid
 		self.__is_responsive = is_responsive
 		self.__responsive_update_datetime = responsive_update_datetime
 		self.__is_informed_of_enqueue = is_informed_of_enqueue
+		self.__listening_port = listening_port
+		self.__last_known_client_guid = last_known_client_guid
+		self.__last_known_datetime = last_known_datetime
+
+		self.__last_known_client = None  # type: Client
 
 	def get_dequeuer_guid(self) -> str:
 		return self.__dequeuer_guid
+
+	def get_wifi_server_token_guid(self) -> str:
+		return self.__wifi_server_token_guid
 
 	def get_is_responsive(self) -> bool:
 		return self.__is_responsive
@@ -211,24 +220,48 @@ class Dequeuer():
 	def get_is_informed_of_enqueue(self) -> bool:
 		return self.__is_informed_of_enqueue
 
+	def get_listening_port(self) -> int:
+		return self.__listening_port
+
+	def get_last_known_client_guid(self) -> str:
+		return self.__last_known_client_guid
+
+	def get_last_known_datetime(self) -> datetime:
+		return self.__last_known_datetime
+
+	def set_last_known_client(self, *, last_known_client: Client):
+		self.__last_known_client = last_known_client
+
+	def get_last_known_client(self) -> Client:
+		return self.__last_known_client
+
 	def to_json(self) -> object:
 		return {
 			"dequeuer_guid": self.__dequeuer_guid,
+			"wifi_server_token_guid": self.__wifi_server_token_guid,
 			"is_responsive": self.__is_responsive,
 			"responsive_update_datetime": self.__responsive_update_datetime,
-			"is_informed_of_enqueue": self.__is_informed_of_enqueue
+			"is_informed_of_enqueue": self.__is_informed_of_enqueue,
+			"listening_port": self.__listening_port,
+			"last_known_client_guid": self.__last_known_client_guid,
+			"last_known_datetime": self.__last_known_datetime.strftime("%Y-%m-%d %H:%M:%S.%f") if self.__last_known_datetime is not None else None,
+			"last_known_client": None if self.__last_known_client is None else self.__last_known_client.to_json()
 		}
 
 	@staticmethod
 	def parse_row(*, row: Dict) -> Dequeuer:
-		if len(row) != 4:
-			raise Exception(f"Unexpected number of columns in row. Expected 4, found {len(row)}.")
+		if len(row) != 8:
+			raise Exception(f"Unexpected number of columns in row. Expected 8, found {len(row)}.")
 		else:
 			return Dequeuer(
 				dequeuer_guid=row[0],
-				is_responsive=row[1],
-				responsive_update_datetime=row[2],
-				is_informed_of_enqueue=row[3]
+				wifi_server_token_guid=row[1],
+				is_responsive=row[2],
+				responsive_update_datetime=row[3],
+				is_informed_of_enqueue=row[4],
+				listening_port=row[5],
+				last_known_client_guid=row[6],
+				last_known_datetime=datetime.strptime(row[7], "%Y-%m-%d %H:%M:%S.%f")
 			)
 
 
@@ -643,9 +676,11 @@ class Database():
 			CREATE TABLE dequeuer
 			(
 				dequeuer_guid GUID PRIMARY KEY,
+				wifi_server_token_guid GUID,
 				is_responsive BIT,
 				responsive_update_datetime TIMESTAMP,
 				is_informed_of_enqueue BIT,
+				listening_port INTEGER,
 				last_known_client_guid GUID,
 				last_known_datetime TIMESTAMP,
 				row_created_datetime TIMESTAMP,
@@ -976,9 +1011,13 @@ class Database():
 
 		return _queue
 
-	def insert_dequeuer(self, *, dequeuer_guid: str, is_informed_of_enqueue: bool, client_guid: str) -> Dequeuer:
+	def insert_dequeuer(self, *, dequeuer_guid: str, is_informed_of_enqueue: bool, listening_port: int or None, client_guid: str) -> Dequeuer:
 
-		_responsive_update_datetime = datetime.utcnow()
+		if is_informed_of_enqueue and listening_port is None:
+			raise Exception(f"Dequeuer cannot be informed of enqueue without supplying the port it is listening on.")
+
+		_update_datetime = datetime.utcnow()
+		_wifi_server_token_guid = str(uuid.uuid4())
 
 		_insert_cursor = self.__connection.cursor()
 
@@ -989,14 +1028,16 @@ class Database():
 			INSERT OR IGNORE INTO dequeuer
 			(
 				dequeuer_guid,
+				wifi_server_token_guid,
 				is_responsive,
 				responsive_update_datetime,
 				is_informed_of_enqueue,
+				listening_port,
 				last_known_client_guid,
 				last_known_datetime
 			)
-			VALUES (?, ?, ?, ?, ?, ?)
-		''', (dequeuer_guid, True, _responsive_update_datetime, is_informed_of_enqueue, client_guid, datetime.utcnow()))
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		''', (dequeuer_guid, _wifi_server_token_guid, True, _update_datetime, is_informed_of_enqueue, listening_port, client_guid, _update_datetime))
 		_insert_cursor.execute('''
 			UPDATE dequeuer
 			SET
@@ -1005,7 +1046,17 @@ class Database():
 			WHERE
 				dequeuer_guid = ?
 				AND is_responsive != 1
-		''', (_responsive_update_datetime, dequeuer_guid))
+		''', (_update_datetime, dequeuer_guid))
+		_insert_cursor.execute('''
+			UPDATE dequeuer
+			SET
+				is_informed_of_enqueue = ?,
+				listening_port = ?,
+				last_known_client_guid = ?,
+				last_known_datetime = ?			
+			WHERE
+				dequeuer_guid = ?
+		''', (is_informed_of_enqueue, listening_port, client_guid, _update_datetime, dequeuer_guid))
 		_insert_cursor.execute('''
 			COMMIT
 		''')
@@ -1025,9 +1076,13 @@ class Database():
 		_get_result = _get_cursor.execute('''
 			SELECT
 				d.dequeuer_guid,
+				d.wifi_server_token_guid,
 				d.is_responsive,
 				d.responsive_update_datetime,
-				d.is_informed_of_enqueue
+				d.is_informed_of_enqueue,
+				d.listening_port,
+				d.last_known_client_guid,
+				d.last_known_datetime
 			FROM dequeuer AS d
 			WHERE
 				d.dequeuer_guid = ?
@@ -1045,6 +1100,17 @@ class Database():
 				row=_row
 			)
 
+			_is_successful, _last_known_client = self.try_get_client(
+				client_guid=_dequeuer.get_last_known_client_guid()
+			)
+			if not _is_successful:
+				raise Exception(
+					f"Failed to find client guid \"{_dequeuer.get_last_known_client_guid()}\" for dequeuer guid \"{_dequeuer.get_dequeuer_guid()}\".")
+			else:
+				_dequeuer.set_last_known_client(
+					last_known_client=_last_known_client
+				)
+
 		return _dequeuer is not None, _dequeuer
 
 	def get_all_responsive_dequeuers(self) -> List[Dequeuer]:
@@ -1053,9 +1119,13 @@ class Database():
 		_get_result = _get_cursor.execute('''
 			SELECT
 				d.dequeuer_guid,
+				d.wifi_server_token_guid,
 				d.is_responsive,
 				d.responsive_update_datetime,
-				d.is_informed_of_enqueue
+				d.is_informed_of_enqueue,
+				d.listening_port,
+				d.last_known_client_guid,
+				d.last_known_datetime
 			FROM dequeuer AS d
 			WHERE
 				d.is_responsive = 1
@@ -1068,6 +1138,18 @@ class Database():
 			_dequeuer = Dequeuer.parse_row(
 				row=_row
 			)
+
+			_is_successful, _last_known_client = self.try_get_client(
+				client_guid=_dequeuer.get_last_known_client_guid()
+			)
+			if not _is_successful:
+				raise Exception(
+					f"Failed to find client guid \"{_dequeuer.get_last_known_client_guid()}\" for dequeuer guid \"{_dequeuer.get_dequeuer_guid()}\".")
+			else:
+				_dequeuer.set_last_known_client(
+					last_known_client=_last_known_client
+				)
+
 			_dequeuers.append(_dequeuer)
 		return _dequeuers
 

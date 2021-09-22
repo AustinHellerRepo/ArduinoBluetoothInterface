@@ -3,7 +3,6 @@ pyproject.toml
 setup.cfg
 src/austin_heller_repo/__init__.py
 src/austin_heller_repo/api_interface.py
-src/austin_heller_repo/socket_client_factory.py
 src/device_messaging_system_austinhellerrepo.egg-info/PKG-INFO
 src/device_messaging_system_austinhellerrepo.egg-info/SOURCES.txt
 src/device_messaging_system_austinhellerrepo.egg-info/dependency_links.txt

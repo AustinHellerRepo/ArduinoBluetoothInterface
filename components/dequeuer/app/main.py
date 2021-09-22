@@ -1,6 +1,6 @@
 import sys
 from app.dequeuer import Dequeuer
-from austin_heller_repo.socket_client_factory import get_machine_guid, re, ServerSocketFactory, ClientSocket, json, time
+from austin_heller_repo.socket_client_factory import get_machine_guid, re, ServerSocketFactory, ClientSocketFactory, json, time
 from austin_heller_repo.api_interface import ApiInterfaceFactory
 
 
@@ -39,12 +39,15 @@ else:
 	)
 
 	_server_socket_factory = ServerSocketFactory(
-		ip_address="0.0.0.0",
-		port=_listening_port,
 		to_client_packet_bytes_length=_to_wifi_server_packet_bytes_length,
 		listening_limit_total=_listening_limit_total,
 		accept_timeout_seconds=_accept_timeout_seconds,
-		client_read_failed_delay_seconds=_device_read_failed_delay_seconds
+		client_read_failed_delay_seconds=_wifi_server_read_failed_delay_seconds
+	)
+
+	_client_socket_factory = ClientSocketFactory(
+		to_server_packet_bytes_length=_to_devices_packet_bytes_length,
+		server_read_failed_delay_seconds=_device_read_failed_delay_seconds
 	)
 
 	_dequeuer = Dequeuer(
@@ -52,10 +55,8 @@ else:
 		queue_guids=_queue_guids,
 		api_interface_factory=_api_interface_factory,
 		server_socket_factory=_server_socket_factory,
+		client_socket_factory=_client_socket_factory,
 		wifi_server_polling_seconds=_wifi_server_polling_seconds,
-		to_devices_packet_bytes_length=_to_devices_packet_bytes_length,
-		to_wifi_server_packet_bytes_length=_to_wifi_server_packet_bytes_length,
-		device_read_failed_delay_seconds=_wifi_server_read_failed_delay_seconds,
 		is_informed_of_enqueue=(_listening_port != 0),
 		listening_port=(None if _listening_port == 0 else _listening_port)
 	)

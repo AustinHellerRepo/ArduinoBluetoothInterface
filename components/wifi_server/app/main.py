@@ -218,7 +218,7 @@ def v1_list_available_devices(list_available_devices_base_model: ListAvailableDe
 class ReceiveDequeuerAnnouncementBaseModel(BaseModel):
 	dequeuer_guid: str
 	is_informed_of_enqueue: bool
-	listening_port: int
+	listening_port: int = None
 
 
 @app.post("/v1/dequeuer/announce")
@@ -338,13 +338,30 @@ def v1_receive_device_transmission(receive_device_transmission_base_model: Recei
 			destination_device_guid=receive_device_transmission_base_model.destination_device_guid
 		)
 
-		_responsive_dequeuers = _database.get_all_responsive_dequeuers()
-		for _responsive_dequeuer in _responsive_dequeuers:
+		_responsive_dequeuers = _database.get_all_responsive_dequeuers(
+			queue_guid=_transmission.get_queue_guid()
+		)
+
+		if len(_responsive_dequeuers) != 0:
+
+			_to_dequeuer_packet_bytes_length = 4096
+			_dequeuer_read_failed_delay_seconds = 0.1
+
 			_client_socket_factory = ClientSocketFactory(
-				ip_address=_responsive_dequeuer.get_last_known_client().get_ip_address(),
-				port=
+				to_server_packet_bytes_length=_to_dequeuer_packet_bytes_length,
+				server_read_failed_delay_seconds=_dequeuer_read_failed_delay_seconds
 			)
 
+			for _responsive_dequeuer in _responsive_dequeuers:
+				_client_socket = _client_socket_factory.get_client_socket()
+				_client_socket.connect_to_server(
+					ip_address=_responsive_dequeuer.get_last_known_client().get_ip_address(),
+					port=_responsive_dequeuer.get_listening_port()
+				)
+				_client_socket.write(json.dumps({
+					"queue_guid": _transmission.get_queue_guid()
+				}))
+				_client_socket.close()
 
 		_response_json = {
 			"transmission": _transmission.to_json()
@@ -484,6 +501,9 @@ def v1_failed_transmission(failed_transmission_base_model: FailedTransmissionBas
 			transmission_dequeue_guid=failed_transmission_base_model.transmission_dequeue_guid,
 			error_message_json_string=failed_transmission_base_model.error_message_json_string
 		)
+
+		# TODO broadcast to reporters
+
 		_response_json = {
 			"transmission_dequeue_error_transmission": _transmission_dequeue_error_transmission.to_json()
 		}

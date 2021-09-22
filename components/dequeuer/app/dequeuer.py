@@ -1,6 +1,6 @@
 from __future__ import annotations
 from austin_heller_repo.api_interface import ApiInterfaceFactory, ApiInterface
-from austin_heller_repo.socket_client_factory import ServerSocketFactory, ServerSocket, start_thread, ClientSocketFactory, ClientSocket, json, threading, Semaphore
+from austin_heller_repo.socket_client_factory import ServerSocketFactory, ServerSocket, start_thread, ClientSocketFactory, ClientSocket, json, threading, Semaphore, ThreadDelay
 from typing import List, Tuple, Dict, Callable
 import time
 
@@ -9,24 +9,20 @@ class Dequeuer():
 
 	def __init__(self, *,
 				 dequeuer_guid: str,
-				 queue_guids: List[str],
+				 queue_guid: str,
 				 api_interface_factory: ApiInterfaceFactory,
 				 server_socket_factory: ServerSocketFactory,
+				 client_socket_factory: ClientSocketFactory,
 				 wifi_server_polling_seconds: float,
-				 to_devices_packet_bytes_length: int,
-				 to_wifi_server_packet_bytes_length: int,
-				 device_read_failed_delay_seconds: float,
 				 is_informed_of_enqueue: bool,
 				 listening_port: int):
 
 		self.__dequeuer_guid = dequeuer_guid
-		self.__queue_guids = queue_guids
+		self.__queue_guid = queue_guid
 		self.__api_interface_factory = api_interface_factory
 		self.__server_socket_factory = server_socket_factory
+		self.__client_socket_factory = client_socket_factory
 		self.__wifi_server_polling_seconds = wifi_server_polling_seconds
-		self.__to_devices_packet_bytes_length = to_devices_packet_bytes_length
-		self.__to_wifi_server_packet_bytes_length = to_wifi_server_packet_bytes_length
-		self.__device_read_failed_delay_seconds = device_read_failed_delay_seconds
 		self.__is_informed_of_enqueue = is_informed_of_enqueue
 		self.__listening_port = listening_port
 
@@ -36,10 +32,82 @@ class Dequeuer():
 		self.__process_transmission_dequeue_threads = []  # type: List[threading.Thread]
 		self.__process_transmission_dequeue_threads_semaphore = Semaphore()
 
+		self.__start_semaphore = Semaphore()
+		self.__is_running_transmission_dequeue_thread = False
+		self.__transmission_dequeue_thread = None
+		self.__transmission_dequeue_thread_delay = None
+		self.__wifi_server_token_guid = None  # type: str
+
 	def is_running(self) -> bool:
 		return self.__is_running_process_thread
 
 	def start(self):
+
+		self.__start_semaphore.acquire()
+		if self.__transmission_dequeue_thread is not None:
+			raise Exception("Cannot start without first stopping.")
+		else:
+
+			def _on_accepted_wifi_server_client_method(client_socket: ClientSocket) -> bool:
+				# wifi server connected to dequeuer to inform them that a transmission is available
+				_is_client_valid = None
+				try:
+					_wifi_server_json_string = client_socket.read()
+					client_socket.close()
+
+					_is_client_valid = False
+
+					_wifi_server_json = json.loads(_wifi_server_json_string)
+
+					if "wifi_server_token_guid" not in _wifi_server_json:
+						_error = "Missing wifi_server_token_guid from client socket json object. \"" + _wifi_server_json_string + "\"."
+						print(_error)
+					else:
+						_wifi_server_token_guid = _wifi_server_json["wifi_server_token_guid"]
+						if _wifi_server_token_guid != self.__wifi_server_token_guid:
+							_error = "Invalid wifi server token: \"" + _wifi_server_token_guid + "\"."
+							print(_error)
+						else:
+							self.__transmission_dequeue_thread_delay.try_abort()
+							_is_client_valid = True
+				except Exception as ex:
+					print("ex: " + str(ex))
+				return _is_client_valid
+
+			self.__server_socket = self.__server_socket_factory.get_server_socket()
+			self.__server_socket.start_accepting_clients(
+				host_ip_address="0.0.0.0",
+				host_port=self.__listening_port,
+				on_accepted_client_method=_on_accepted_wifi_server_client_method
+			)
+
+			def _transmission_dequeue_thread_method():
+				while self.__is_running_transmission_dequeue_thread and not self.try_announce_dequeuer():
+					self.__transmission_dequeue_thread_delay.try_sleep(self.__wifi_server_polling_seconds)
+				while self.__is_running_transmission_dequeue_thread:
+					_is_normal_sleep = self.__transmission_dequeue_thread_delay.try_sleep(self.__wifi_server_polling_seconds)
+					_found_transmission_dequeue = self.try_process_next_transmission_dequeue(
+						queue_guid=self.__queue_guid
+					)
+			self.__transmission_dequeue_thread = start_thread(_transmission_dequeue_thread_method)
+
+		self.__start_semaphore.release()
+
+	def stop(self):
+
+		self.__start_semaphore.acquire()
+		if self.__transmission_dequeue_thread is None:
+			raise Exception("Cannot stop without first starting.")
+		else:
+
+			self.__is_running_transmission_dequeue_thread = False
+			self.__transmission_dequeue_thread_delay.try_abort()
+			self.__transmission_dequeue_thread.join()
+			self.__transmission_dequeue_thread = None
+
+		self.__start_semaphore.release()
+
+	def BACKUP_start(self):
 
 		self.__is_running_process_thread = True
 
@@ -64,25 +132,36 @@ class Dequeuer():
 
 			self.__server_socket = self.__server_socket_factory.get_server_socket()
 			self.__server_socket.start_accepting_clients(
+				host_ip_address="0.0.0.0",
+				host_port=self.__listening_port,
 				on_accepted_client_method=_on_accepted_wifi_server_client_method
 			)
 
 			def _process_thread_method():
-				_is_successful = self.try_announce_dequeuer()
-				if _is_successful:
-					_process_dequeue_index = 0
-					while self.__is_running_process_thread:
-						for _queue_guid in self.__queue_guids:
-							_is_successful = self.try_process_next_transmission_dequeue(
-								queue_guid=_queue_guid
-							)
-							if _is_successful:
-								print(f"Processed transmission dequeue #{_process_dequeue_index}")
-								_process_dequeue_index += 1
+				try:
+					_annouce_is_successful = False
+					while not _annouce_is_successful:
+						_annouce_is_successful = self.try_announce_dequeuer()
+						if not _annouce_is_successful:
 							time.sleep(self.__wifi_server_polling_seconds)
-						self.join_completed_transmission_dequeue_threads()
-				self.__is_running_process_thread = False
-				self.join_all_transmission_dequeue_threads()
+						else:
+							_process_dequeue_index = 0
+							while self.__is_running_process_thread:
+								for _queue_guid in self.__queue_guids:
+									_dequeue_is_successful = self.try_process_next_transmission_dequeue(
+										queue_guid=_queue_guid
+									)
+									if not _dequeue_is_successful:
+										time.sleep(self.__wifi_server_polling_seconds)
+									else:
+										print(f"Processed transmission dequeue #{_process_dequeue_index}")
+										_process_dequeue_index += 1
+								self.join_completed_transmission_dequeue_threads()
+					self.__is_running_process_thread = False
+					self.join_all_transmission_dequeue_threads()
+				except Exception as ex:
+					print("ex: " + str(ex))
+					self.__is_running_process_thread = False
 
 			self.__process_thread = start_thread(_process_thread_method)
 
@@ -119,19 +198,21 @@ class Dequeuer():
 						_destination_client = _destination_device["last_known_client"]
 						_ip_address = _destination_client["ip_address"]
 						_port = _destination_device["socket_port"]
-						_client_socket_factory = ClientSocketFactory(
+						_client_socket = self.__client_socket_factory.get_client_socket()
+						_client_socket.connect_to_server(
 							ip_address=_ip_address,
-							port=_port,
-							to_server_packet_bytes_length=self.__to_devices_packet_bytes_length,
-							server_read_failed_delay_seconds=self.__device_read_failed_delay_seconds
+							port=_port
 						)
-						_client_socket = _client_socket_factory.get_client_socket()
 						_transmission_json_string = _transmission["transmission_json_string"]
 						_client_socket.write(_transmission_json_string)
 						_client_socket.close()
 						api_interface.update_transmission_as_completed(
 							transmission_dequeue_guid=_transmission_dequeue_guid
 						)
+
+						# force the dequeuer to immediately dequeue next transmission
+						self.__transmission_dequeue_thread_delay.try_abort()
+
 					except Exception as ex:
 						print(f"ex: {ex}")
 						_error_message_json = {"exception": str(ex), "transmission_dequeue_guid": _transmission_dequeue_guid}
@@ -147,7 +228,8 @@ class Dequeuer():
 				self.__process_transmission_dequeue_threads_semaphore.acquire()
 				self.__process_transmission_dequeue_threads.append(_process_transmission_dequeue_thread)
 				self.__process_transmission_dequeue_threads_semaphore.release()
-			_is_successful = True
+
+				_is_successful = True
 		except Exception as ex:
 			print(f"try_process_next_transmission_dequeue: ex: {ex}")
 		return _is_successful
@@ -159,6 +241,8 @@ class Dequeuer():
 			print(_error)
 			raise Exception(_error)
 		else:
+			self.__server_socket.stop_accepting_clients()
+			self.__server_socket.close()
 			self.__is_running_process_thread = False
 			self.__process_thread.join()
 

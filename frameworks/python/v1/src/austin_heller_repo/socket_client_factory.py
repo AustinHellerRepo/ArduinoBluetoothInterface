@@ -97,6 +97,95 @@ except ImportError:
 import time
 import re
 import os
+from datetime import datetime
+
+
+class BooleanReference():
+
+	def __init__(self, value: bool):
+		self.__value = value
+
+	def get(self) -> bool:
+		return self.__value
+
+	def set(self, value: bool):
+		self.__value = value
+
+
+class ThreadDelay():
+
+	def __init__(self):
+
+		self.__abort_semaphore = Semaphore()
+		self.__is_sleeping = False
+		self.__is_sleeping_semaphore = Semaphore()
+		self.__is_aborted = None  # type: BooleanReference
+		self.__is_completed = None  # type: BooleanReference
+		self.__sleep_block_semaphore = Semaphore()
+
+	def try_sleep(self, *, seconds: float) -> bool:
+
+		self.__is_sleeping_semaphore.acquire()
+		_is_already_sleeping = None
+		if not self.__is_sleeping:
+			self.__is_sleeping = True
+			self.__is_aborted = BooleanReference(False)
+			self.__is_completed = BooleanReference(False)
+			_is_already_sleeping = False
+		else:
+			_is_already_sleeping = True
+		self.__is_sleeping_semaphore.release()
+
+		if _is_already_sleeping:
+			raise Exception("ThreadDelay instance already used for sleeping.")
+		else:
+
+			_is_completed_normally = False
+			_is_aborted = self.__is_aborted  # type: BooleanReference
+			_is_completed = self.__is_completed  # type: BooleanReference
+
+			def _sleep_thread_method():
+				nonlocal _is_completed_normally
+				nonlocal seconds
+				nonlocal _is_aborted
+				nonlocal _is_completed
+				print(f"{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')}: sleeping for {seconds}")
+				time.sleep(seconds)
+				print(f"{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')}: slept for {seconds}")
+				self.__abort_semaphore.acquire()
+				if not _is_aborted.get() and not _is_completed.get():
+					print(f"{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')}: self.__is_aborted: {self.__is_aborted} - self.__is_completed: {self.__is_completed}")
+					_is_completed_normally = True
+					_is_completed.set(True)
+					self.__is_sleeping = False
+					print(f"{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')}: releasing in sleep")
+					self.__sleep_block_semaphore.release()
+				else:
+					print(f"{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')}: already aborted")
+				self.__abort_semaphore.release()
+
+			self.__sleep_block_semaphore.acquire()
+			_sleep_thread = start_thread(_sleep_thread_method)
+
+			self.__sleep_block_semaphore.acquire()
+			self.__sleep_block_semaphore.release()
+
+			return _is_completed_normally
+
+	def try_abort(self) -> bool:
+
+		self.__abort_semaphore.acquire()
+		if not self.__is_aborted.get() and not self.__is_completed.get():
+			self.__is_aborted.set(True)
+			self.__is_sleeping = False
+			_is_aborted = True
+			print(f"{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')}: releasing in abort")
+			self.__sleep_block_semaphore.release()
+		else:
+			_is_aborted = False
+		self.__abort_semaphore.release()
+
+		return _is_aborted
 
 
 class ReadWriteSocket():
@@ -411,6 +500,7 @@ class ServerSocket():
 		self.__is_accepting = False
 		self.__accepting_thread = None  # type: threading.Thread
 		self.__accepting_socket = None
+		self.__blocked_client_addresses = []
 
 	def start_accepting_clients(self, *, host_ip_address: str, host_port: int, on_accepted_client_method):
 
@@ -426,12 +516,15 @@ class ServerSocket():
 
 			def _process_connection_thread_method(connection_socket, address, to_client_packet_bytes_length, on_accepted_client_method, client_read_failed_delay_seconds: float):
 
-				_accepted_socket = ClientSocket(
-					packet_bytes_length=to_client_packet_bytes_length,
-					read_failed_delay_seconds=client_read_failed_delay_seconds,
-					socket=connection_socket
-				)
-				on_accepted_client_method(_accepted_socket)
+				if address not in self.__blocked_client_addresses:
+					_accepted_socket = ClientSocket(
+						packet_bytes_length=to_client_packet_bytes_length,
+						read_failed_delay_seconds=client_read_failed_delay_seconds,
+						socket=connection_socket
+					)
+					_is_valid_client = on_accepted_client_method(_accepted_socket)
+					if _is_valid_client == False:
+						self.__blocked_client_addresses.append(address)
 
 			def _accepting_thread_method(to_client_packet_bytes_length, on_accepted_client_method, listening_limit_total, accept_timeout_seconds, client_read_failed_delay_seconds):
 				self.__accepting_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

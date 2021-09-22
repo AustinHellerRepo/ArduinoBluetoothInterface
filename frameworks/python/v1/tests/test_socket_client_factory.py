@@ -1,10 +1,10 @@
 from __future__ import annotations
-from src.austin_heller_repo.socket_client_factory import ServerSocketFactory, ClientSocket, ClientSocketFactory, Semaphore, get_machine_guid
+from src.austin_heller_repo.socket_client_factory import ServerSocketFactory, ClientSocket, ClientSocketFactory, Semaphore, get_machine_guid, ThreadDelay, start_thread
 import unittest
 import time
 from datetime import datetime
 import threading
-from typing import List
+from typing import List, Tuple
 
 _port = 28776
 
@@ -472,3 +472,69 @@ class SocketClientFactoryTest(unittest.TestCase):
 		_first_guid = get_machine_guid()
 		_second_guid = get_machine_guid()
 		self.assertEqual(_first_guid, _second_guid)
+
+	def test_thread_delay_0(self):
+		# test starting and stopping multiple times
+		_thread_delay = ThreadDelay()
+		_is_sleeping = True
+		_is_aborting = True
+		_abort_seconds = [0.5, 1.5, 0.5]
+		_sleep_seconds = [1.0, 1.0, 1.0, 1.0]
+
+		# sleep  ---!-------#---!---!-------#
+		# abort  ---#-----------#---#
+		#       0   .   1   .   2   .   3
+
+		_expected_abort_outcome = [
+			(0.5, True),
+			(1.5, True),
+			(0.5, True)
+		]
+		_expected_sleep_outcome = [
+			(0.5, False),
+			(1.0, True),
+			(0.5, False),
+			(0.5, False)
+		]
+
+		_actual_abort_outcome = []  # type: List[Tuple[float, bool]]
+		_actual_sleep_outcome = []  # type: List[Tuple[float, bool]]
+
+		def _sleep():
+			for _sleep_index in range(len(_sleep_seconds)):
+				#print(f"{_sleep_index}: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')}: sleeping for {_sleep_seconds[_sleep_index]}")
+				_start_datetime = datetime.utcnow()
+				_is_sleep_completed_normally = _thread_delay.try_sleep(
+					seconds=_sleep_seconds[_sleep_index]
+				)
+				_end_datetime = datetime.utcnow()
+				_difference = round((_end_datetime - _start_datetime).total_seconds() * 2)/2
+				_actual_sleep_outcome.append((_difference, _is_sleep_completed_normally))
+				#print(f"{_sleep_index}: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')}: sleep {_is_sleep_completed_normally}")
+				_sleep_index += 1
+
+		def _abort():
+			for _abort_index in range(len(_abort_seconds)):
+				#print(f"{_abort_index}: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')}: aborting after {_abort_seconds[_abort_index]}")
+				_start_datetime = datetime.utcnow()
+				time.sleep(_abort_seconds[_abort_index])
+				_is_sleep_aborted = _thread_delay.try_abort()
+				_end_datetime = datetime.utcnow()
+				_difference = round((_end_datetime - _start_datetime).total_seconds() * 2)/2
+				_actual_abort_outcome.append((_difference, _is_sleep_aborted))
+				#print(f"{_abort_index}: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')}: aborted {_is_sleep_aborted}")
+				_abort_index += 1
+
+		_sleep_thread = start_thread(_sleep)
+		_abort_thread = start_thread(_abort)
+
+		time.sleep(2.6)
+
+		self.assertEqual(len(_expected_sleep_outcome), len(_actual_sleep_outcome))
+		self.assertEqual(len(_expected_abort_outcome), len(_actual_abort_outcome))
+
+		for _index in range(len(_expected_sleep_outcome)):
+			self.assertEqual(_expected_sleep_outcome[_index], _actual_sleep_outcome[_index])
+
+		for _index in range(len(_expected_abort_outcome)):
+			self.assertEqual(_expected_abort_outcome[_index], _actual_abort_outcome[_index])

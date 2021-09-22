@@ -2731,12 +2731,16 @@ class DatabaseTest(unittest.TestCase):
 				client_guid=_dequeue_client.get_client_guid(),
 				transmission_dequeue_guid=_first_transmission_dequeue.get_transmission_dequeue_guid()
 			)
-			_first_responsive_dequeuers = _database.get_all_responsive_dequeuers()
+			_first_responsive_dequeuers = _database.get_all_responsive_dequeuers(
+				queue_guid=_queue.get_queue_guid()
+			)
 			self.assertEqual(1, len(_first_responsive_dequeuers))
 			_database.set_dequeuer_unresponsive(
 				dequeuer_guid="136B7D8A-573E-45D3-B075-567ADBFE1DDE"
 			)
-			_second_responsive_dequeuers = _database.get_all_responsive_dequeuers()
+			_second_responsive_dequeuers = _database.get_all_responsive_dequeuers(
+				queue_guid=_queue.get_queue_guid()
+			)
 			self.assertEqual(0, len(_second_responsive_dequeuers))
 			_same_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="136B7D8A-573E-45D3-B075-567ADBFE1DDE",
@@ -2744,7 +2748,9 @@ class DatabaseTest(unittest.TestCase):
 				listening_port=27587,
 				client_guid=_dequeue_client.get_client_guid()
 			)
-			_third_responsive_dequeuers = _database.get_all_responsive_dequeuers()
+			_third_responsive_dequeuers = _database.get_all_responsive_dequeuers(
+				queue_guid=_queue.get_queue_guid()
+			)
 			self.assertEqual(0, len(_third_responsive_dequeuers))
 
 	def test_dequeuer_unresponsive_1(self):
@@ -2808,12 +2814,16 @@ class DatabaseTest(unittest.TestCase):
 				client_guid=_dequeue_client.get_client_guid(),
 				transmission_dequeue_guid=_first_transmission_dequeue.get_transmission_dequeue_guid()
 			)
-			_first_responsive_dequeuers = _database.get_all_responsive_dequeuers()
+			_first_responsive_dequeuers = _database.get_all_responsive_dequeuers(
+				queue_guid=_queue.get_queue_guid()
+			)
 			self.assertEqual(1, len(_first_responsive_dequeuers))
 			_database.set_dequeuer_unresponsive(
 				dequeuer_guid="136B7D8A-573E-45D3-B075-567ADBFE1DDE"
 			)
-			_second_responsive_dequeuers = _database.get_all_responsive_dequeuers()
+			_second_responsive_dequeuers = _database.get_all_responsive_dequeuers(
+				queue_guid=_queue.get_queue_guid()
+			)
 			self.assertEqual(0, len(_second_responsive_dequeuers))
 			_same_dequeuer = _database.insert_dequeuer(
 				dequeuer_guid="136B7D8A-573E-45D3-B075-567ADBFE1DDE",
@@ -2822,7 +2832,9 @@ class DatabaseTest(unittest.TestCase):
 				client_guid=_dequeue_client.get_client_guid()
 			)
 			self.assertEqual(17654, _same_dequeuer.get_listening_port())
-			_third_responsive_dequeuers = _database.get_all_responsive_dequeuers()
+			_third_responsive_dequeuers = _database.get_all_responsive_dequeuers(
+				queue_guid=_queue.get_queue_guid()
+			)
 			self.assertEqual(1, len(_third_responsive_dequeuers))
 
 	def test_reporter_unresponsive_0(self):

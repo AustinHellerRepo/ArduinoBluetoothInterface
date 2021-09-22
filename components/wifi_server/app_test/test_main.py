@@ -6,6 +6,7 @@ import unittest
 import json
 import re
 from datetime import datetime
+import time
 
 
 class MainTest(unittest.TestCase):
@@ -359,6 +360,18 @@ class MainTest(unittest.TestCase):
 		self.assertEqual(_first_transmission_enqueue_post_params["source_device_guid"], _first_transmission["source_device_guid"])
 		self.assertEqual(_first_transmission_enqueue_post_params["transmission_json_string"], _first_transmission["transmission_json_string"])
 		self.assertEqual(_first_transmission_enqueue_post_params["destination_device_guid"], _first_transmission["destination_device_guid"])
+
+		# wait for transmission to be pulled by dequeuer docker container and for failure to transmit to destination to return
+
+		_dequeuer_timeout_seconds = 10.0
+		time.sleep(_dequeuer_timeout_seconds)
+
+		# pull first transmission
+
+		_response = _app.post("/v1/transmission/dequeue", json={"dequeuer_guid": _dequeuer_guid, "queue_guid": _queue_guid})  # TODO
+		self.assertEqual(200, _response.status_code)
+		_first_transmission_dequeue = _response.json()["response"]["transmission_dequeue"]
+		self.assertIsNone(_first_transmission_dequeue)  # the dequeue docker container should have pulled this
 
 
 if __name__ == "__main__":

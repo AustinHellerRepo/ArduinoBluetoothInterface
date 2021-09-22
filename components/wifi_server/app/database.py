@@ -1113,7 +1113,7 @@ class Database():
 
 		return _dequeuer is not None, _dequeuer
 
-	def get_all_responsive_dequeuers(self) -> List[Dequeuer]:
+	def get_all_responsive_dequeuers(self, *, queue_guid: str) -> List[Dequeuer]:
 
 		_get_cursor = self.__connection.cursor()
 		_get_result = _get_cursor.execute('''
@@ -1130,7 +1130,18 @@ class Database():
 			WHERE
 				d.is_responsive = 1
 				AND d.is_informed_of_enqueue = 1
-		''')
+				AND EXISTS (
+					SELECT 1
+					FROM transmission_dequeue AS td_inner
+					INNER JOIN transmission AS t_inner
+					ON
+						t_inner.transmission_guid = td_inner.transmission_guid
+					WHERE
+						td_inner.dequeuer_guid = d.dequeuer_guid
+						--AND td_inner.row_created_datetime >= d.responsive_update_datetime
+						AND t_inner.queue_guid = ?
+				)
+		''', (queue_guid,))
 
 		_dequeuers = []  # type: List[Dequeuer]
 		_rows = _get_result.fetchall()

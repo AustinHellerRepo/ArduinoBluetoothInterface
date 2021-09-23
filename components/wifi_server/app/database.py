@@ -4,6 +4,7 @@ import sqlite3
 import uuid
 from datetime import datetime
 from typing import Tuple, List, Dict
+import threading
 
 
 class Purpose(IntEnum):
@@ -470,9 +471,10 @@ class Database():
 	def __init__(self):
 
 		#self.__connection = sqlite3.connect(":memory:;foreign keys=true;")
-		self.__connection = sqlite3.connect(":memory:")
-		self.__connection.isolation_level = None
+		self.__connection = sqlite3.connect(":memory:", check_same_thread=False)
 
+		self.__connection_semaphore = threading.Semaphore()
+		self.__connection.isolation_level = None
 		self.__drop_tables_if_exist = False
 
 		self.__initialize()
@@ -666,33 +668,47 @@ class Database():
 		''')
 
 	def dispose(self):
+
+		self.__connection_semaphore.acquire()
+
 		self.__connection.close()
+
+		self.__connection_semaphore.release()
 
 	def insert_client(self, *, ip_address: str) -> Client:
 
-		_client_guid = str(uuid.uuid4()).upper()
+		self.__connection_semaphore.acquire()
 
-		_insert_cursor = self.__connection.cursor()
-		_insert_cursor.execute('''
-			INSERT OR IGNORE INTO client
-			(
-				client_guid,
-				ip_address
-			)
-			VALUES (?, ?)
-		''', (_client_guid, ip_address))
+		try:
+			_client_guid = str(uuid.uuid4()).upper()
 
-		_get_guid_cursor = self.__connection.cursor()
-		_get_guid_result = _get_guid_cursor.execute('''
-			SELECT
-				c.client_guid,
-				c.ip_address
-			FROM client AS c
-			WHERE
-				ip_address = ?
-		''', (ip_address, ))
+			_insert_cursor = self.__connection.cursor()
+			_insert_cursor.execute('''
+				INSERT OR IGNORE INTO client
+				(
+					client_guid,
+					ip_address
+				)
+				VALUES (?, ?)
+			''', (_client_guid, ip_address))
 
-		_rows = _get_guid_result.fetchall()
+			_get_guid_cursor = self.__connection.cursor()
+			_get_guid_result = _get_guid_cursor.execute('''
+				SELECT
+					c.client_guid,
+					c.ip_address
+				FROM client AS c
+				WHERE
+					ip_address = ?
+			''', (ip_address, ))
+
+			_rows = _get_guid_result.fetchall()
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
+
 		if len(_rows) != 1:
 			raise Exception(f"Unexpected number of rows. Expected 1, found {len(_rows)}.")
 		else:
@@ -704,75 +720,91 @@ class Database():
 
 	def insert_api_entrypoint_log(self, *, client_guid: str, api_entrypoint: ApiEntrypoint, input_json_string: str):
 
-		_row_created_datetime = datetime.utcnow()
+		self.__connection_semaphore.acquire()
 
-		_insert_cursor = self.__connection.cursor()
-		_insert_cursor.execute('''
-			INSERT INTO api_entrypoint_log
-			(
-				api_entrypoint_log_id,
-				api_entrypoint_id,
-				request_client_guid,
-				input_json_string,
-				row_created_datetime
-			)
-			VALUES (?, ?, ?, ?, ?)
-		''', (None, int(api_entrypoint), client_guid, input_json_string, _row_created_datetime))
+		try:
+			_row_created_datetime = datetime.utcnow()
+
+			_insert_cursor = self.__connection.cursor()
+			_insert_cursor.execute('''
+				INSERT INTO api_entrypoint_log
+				(
+					api_entrypoint_log_id,
+					api_entrypoint_id,
+					request_client_guid,
+					input_json_string,
+					row_created_datetime
+				)
+				VALUES (?, ?, ?, ?, ?)
+			''', (None, int(api_entrypoint), client_guid, input_json_string, _row_created_datetime))
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
 
 	def insert_device(self, *, device_guid: str, client_guid: str, purpose_guid: str, socket_port: int) -> Device:
 
-		_insert_cursor = self.__connection.cursor()
-		_insert_cursor.execute('''
-			INSERT OR IGNORE INTO device
-			(
-				device_guid,
-				purpose_guid,
-				socket_port,
-				last_known_client_guid,
-				last_known_datetime
-			)
-			VALUES (?, ?, ?, ?, ?)
-		''', (device_guid, purpose_guid, socket_port, client_guid, datetime.utcnow()))
+		self.__connection_semaphore.acquire()
 
-		_update_known_datetime_cursor = self.__connection.cursor()
-		_update_known_datetime_cursor.execute('''
-			UPDATE device
-			SET
-				purpose_guid = ?,
-				socket_port = ?,
-				last_known_client_guid = ?,
-				last_known_datetime = ?
-			WHERE
-				device_guid = ?
-		''', (purpose_guid, socket_port, client_guid, datetime.utcnow(), device_guid))
+		try:
+			_insert_cursor = self.__connection.cursor()
+			_insert_cursor.execute('''
+				INSERT OR IGNORE INTO device
+				(
+					device_guid,
+					purpose_guid,
+					socket_port,
+					last_known_client_guid,
+					last_known_datetime
+				)
+				VALUES (?, ?, ?, ?, ?)
+			''', (device_guid, purpose_guid, socket_port, client_guid, datetime.utcnow()))
 
-		_transmission_retry_cursor = self.__connection.cursor()
-		_transmission_retry_cursor.execute('''
-			UPDATE transmission
-			SET
-				is_retry_ready = 1
-			WHERE
-				is_retry_ready = 0
-				AND destination_device_guid = ?
-		''', (device_guid,))
-
-		_error_retry_cursor = self.__connection.cursor()
-		_error_retry_cursor.execute('''
-			UPDATE transmission_dequeue_error_transmission
-			SET
-				is_retry_ready = 1
-			WHERE EXISTS (
-				SELECT 1
-				FROM transmission_dequeue AS td
-				INNER JOIN transmission AS t
-				ON
-					t.transmission_guid = td.transmission_guid
+			_update_known_datetime_cursor = self.__connection.cursor()
+			_update_known_datetime_cursor.execute('''
+				UPDATE device
+				SET
+					purpose_guid = ?,
+					socket_port = ?,
+					last_known_client_guid = ?,
+					last_known_datetime = ?
 				WHERE
-					td.transmission_dequeue_guid = transmission_dequeue_error_transmission.transmission_dequeue_guid
-					AND t.source_device_guid = ?
-			)
-			AND is_retry_ready = 0
-		''', (device_guid,))
+					device_guid = ?
+			''', (purpose_guid, socket_port, client_guid, datetime.utcnow(), device_guid))
+
+			_transmission_retry_cursor = self.__connection.cursor()
+			_transmission_retry_cursor.execute('''
+				UPDATE transmission
+				SET
+					is_retry_ready = 1
+				WHERE
+					is_retry_ready = 0
+					AND destination_device_guid = ?
+			''', (device_guid,))
+
+			_error_retry_cursor = self.__connection.cursor()
+			_error_retry_cursor.execute('''
+				UPDATE transmission_dequeue_error_transmission
+				SET
+					is_retry_ready = 1
+				WHERE EXISTS (
+					SELECT 1
+					FROM transmission_dequeue AS td
+					INNER JOIN transmission AS t
+					ON
+						t.transmission_guid = td.transmission_guid
+					WHERE
+						td.transmission_dequeue_guid = transmission_dequeue_error_transmission.transmission_dequeue_guid
+						AND t.source_device_guid = ?
+				)
+				AND is_retry_ready = 0
+			''', (device_guid,))
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
 
 		_is_successful, _device = self.try_get_device(
 			device_guid=device_guid
@@ -785,17 +817,25 @@ class Database():
 
 	def insert_queue(self, *, queue_guid: str) -> Queue:
 
-		_row_created_datetime = datetime.utcnow()
+		self.__connection_semaphore.acquire()
 
-		_insert_cursor = self.__connection.cursor()
-		_insert_cursor.execute('''
-			INSERT OR IGNORE INTO queue
-			(
-				queue_guid,
-				row_created_datetime
-			)
-			VALUES (?, ?)
-		''', (queue_guid, _row_created_datetime))
+		try:
+			_row_created_datetime = datetime.utcnow()
+
+			_insert_cursor = self.__connection.cursor()
+			_insert_cursor.execute('''
+				INSERT OR IGNORE INTO queue
+				(
+					queue_guid,
+					row_created_datetime
+				)
+				VALUES (?, ?)
+			''', (queue_guid, _row_created_datetime))
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
 
 		_queue = self.get_queue(
 			queue_guid=queue_guid
@@ -805,16 +845,24 @@ class Database():
 
 	def get_queue(self, *, queue_guid: str) -> Queue:
 
-		_select_cursor = self.__connection.cursor()
-		_select_result = _select_cursor.execute('''
-			SELECT
-				q.queue_guid
-			FROM queue AS q
-			WHERE
-				q.queue_guid = ?
-		''', (queue_guid,))
+		self.__connection_semaphore.acquire()
 
-		_rows = _select_result.fetchall()
+		try:
+			_select_cursor = self.__connection.cursor()
+			_select_result = _select_cursor.execute('''
+				SELECT
+					q.queue_guid
+				FROM queue AS q
+				WHERE
+					q.queue_guid = ?
+			''', (queue_guid,))
+
+			_rows = _select_result.fetchall()
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
 
 		if len(_rows) != 1:
 			raise Exception(f"Unexpected number of rows. Expected 1, found {len(_rows)}.")
@@ -829,53 +877,78 @@ class Database():
 		return _queue
 
 	def get_all_devices(self) -> List[Device]:
-		_get_cursor = self.__connection.cursor()
-		_get_result = _get_cursor.execute('''
-			SELECT
-				d.device_guid,
-				d.purpose_guid,
-				d.socket_port,
-				d.last_known_client_guid,
-				d.last_known_datetime
-			FROM device AS d
-		''')
+
+		self.__connection_semaphore.acquire()
+
+		try:
+			_get_cursor = self.__connection.cursor()
+			_get_result = _get_cursor.execute('''
+				SELECT
+					d.device_guid,
+					d.purpose_guid,
+					d.socket_port,
+					d.last_known_client_guid,
+					d.last_known_datetime
+				FROM device AS d
+			''')
+
+			_rows = _get_result.fetchall()
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
+
 		_devices = []  # type: List[Device]
-		_rows = _get_result.fetchall()
+
 		for _row in _rows:
+
 			_device = Device.parse_row(
 				row=_row
 			)
+
 			_is_successful, _last_known_client = self.try_get_client(
 				client_guid=_device.get_last_known_client_guid()
 			)
+
 			if not _is_successful:
 				raise Exception(f"Failed to find client guid \"{_device.get_last_known_client_guid()}\" for device guid \"{_device.get_device_guid()}\".")
 			else:
 				_device.set_last_known_client(
 					last_known_client=_last_known_client
 				)
+
 			_devices.append(_device)
+
 		return _devices
 
 	def insert_transmission(self, *, queue_guid: str, source_device_guid: str, client_guid: str, transmission_json_string: str, destination_device_guid: str) -> Transmission:
 
-		_transmission_guid = str(uuid.uuid4()).upper()
-		_row_created_datetime = datetime.utcnow()
+		self.__connection_semaphore.acquire()
 
-		_insert_cursor = self.__connection.cursor()
-		_insert_cursor.execute('''
-			INSERT INTO transmission
-			(
-				transmission_guid,
-				queue_guid,
-				source_device_guid,
-				request_client_guid,
-				transmission_json_string,
-				destination_device_guid,
-				row_created_datetime,
-				is_retry_ready
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-		''', (_transmission_guid, queue_guid, source_device_guid, client_guid, transmission_json_string, destination_device_guid, _row_created_datetime, None))
+		try:
+			_transmission_guid = str(uuid.uuid4()).upper()
+			_row_created_datetime = datetime.utcnow()
+
+			_insert_cursor = self.__connection.cursor()
+			_insert_cursor.execute('''
+				INSERT INTO transmission
+				(
+					transmission_guid,
+					queue_guid,
+					source_device_guid,
+					request_client_guid,
+					transmission_json_string,
+					destination_device_guid,
+					row_created_datetime,
+					is_retry_ready
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			''', (_transmission_guid, queue_guid, source_device_guid, client_guid, transmission_json_string, destination_device_guid, _row_created_datetime, None))
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
 
 		_is_successful, _transmission = self.try_get_transmission(
 			transmission_guid=_transmission_guid
@@ -888,23 +961,32 @@ class Database():
 
 	def try_get_transmission(self, *, transmission_guid: str) -> Tuple[bool, Transmission]:
 
-		_get_cursor = self.__connection.cursor()
-		_get_result = _get_cursor.execute('''
-			SELECT
-				transmission_guid,
-				queue_guid,
-				source_device_guid,
-				request_client_guid,
-				transmission_json_string,
-				destination_device_guid,
-				row_created_datetime,
-				is_retry_ready
-			FROM transmission
-			WHERE
-				transmission_guid = ?
-		''', (transmission_guid,))
+		self.__connection_semaphore.acquire()
 
-		_rows = _get_result.fetchall()
+		try:
+			_get_cursor = self.__connection.cursor()
+			_get_result = _get_cursor.execute('''
+				SELECT
+					transmission_guid,
+					queue_guid,
+					source_device_guid,
+					request_client_guid,
+					transmission_json_string,
+					destination_device_guid,
+					row_created_datetime,
+					is_retry_ready
+				FROM transmission
+				WHERE
+					transmission_guid = ?
+			''', (transmission_guid,))
+
+			_rows = _get_result.fetchall()
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
+
 		if len(_rows) == 0:
 			_transmission = None
 		elif len(_rows) > 1:
@@ -932,20 +1014,29 @@ class Database():
 
 	def try_get_device(self, *, device_guid: str) -> Tuple[bool, Device]:
 
-		_get_cursor = self.__connection.cursor()
-		_get_result = _get_cursor.execute('''
-			SELECT
-				d.device_guid,
-				d.purpose_guid,
-				d.socket_port,
-				d.last_known_client_guid,
-				d.last_known_datetime
-			FROM device AS d
-			WHERE
-				d.device_guid = ?
-		''', (device_guid,))
+		self.__connection_semaphore.acquire()
 
-		_rows = _get_result.fetchall()
+		try:
+			_get_cursor = self.__connection.cursor()
+			_get_result = _get_cursor.execute('''
+				SELECT
+					d.device_guid,
+					d.purpose_guid,
+					d.socket_port,
+					d.last_known_client_guid,
+					d.last_known_datetime
+				FROM device AS d
+				WHERE
+					d.device_guid = ?
+			''', (device_guid,))
+
+			_rows = _get_result.fetchall()
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
+
 		if len(_rows) == 0:
 			_device = None
 		elif len(_rows) > 1:
@@ -970,20 +1061,29 @@ class Database():
 
 	def try_get_transmission_dequeue(self, *, transmission_dequeue_guid: str) -> Tuple[bool, TransmissionDequeue]:
 
-		_get_cursor = self.__connection.cursor()
-		_get_result = _get_cursor.execute('''
-			SELECT
-				transmission_dequeue_guid,
-				transmission_guid,
-				request_client_guid,
-				destination_client_guid,
-				row_created_datetime
-			FROM transmission_dequeue
-			WHERE
-				transmission_dequeue_guid = ?
-		''', (transmission_dequeue_guid,))
+		self.__connection_semaphore.acquire()
 
-		_rows = _get_result.fetchall()
+		try:
+			_get_cursor = self.__connection.cursor()
+			_get_result = _get_cursor.execute('''
+				SELECT
+					transmission_dequeue_guid,
+					transmission_guid,
+					request_client_guid,
+					destination_client_guid,
+					row_created_datetime
+				FROM transmission_dequeue
+				WHERE
+					transmission_dequeue_guid = ?
+			''', (transmission_dequeue_guid,))
+
+			_rows = _get_result.fetchall()
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
+
 		if len(_rows) == 0:
 			_transmission_dequeue = None
 		elif len(_rows) > 1:
@@ -1011,150 +1111,182 @@ class Database():
 
 	def get_next_transmission_dequeue(self, *, client_guid: str) -> TransmissionDequeue:
 
-		_transmission_dequeue_guid = str(uuid.uuid4()).upper()
-		_row_created_datetime = datetime.utcnow()
+		self.__connection_semaphore.acquire()
 
-		_insert_cursor = self.__connection.cursor()
-		_insert_cursor.execute('''
-			BEGIN
-		''')
-		_insert_cursor.execute('''
-			INSERT INTO transmission_dequeue
-			(
-				transmission_dequeue_guid,
-				transmission_guid,
-				request_client_guid,
-				destination_client_guid,
-				row_created_datetime
-			)
-			SELECT
-				?,
-				t.transmission_guid,
-				?,
-				d.last_known_client_guid,
-				?
-			FROM transmission AS t
-			INNER JOIN device AS d 
-			ON 
-				d.device_guid = t.destination_device_guid
-			WHERE
+		try:
+			_transmission_dequeue_guid = str(uuid.uuid4()).upper()
+			_row_created_datetime = datetime.utcnow()
+
+			_insert_cursor = self.__connection.cursor()
+			_insert_cursor.execute('''
+				BEGIN
+			''')
+			_insert_cursor.execute('''
+				INSERT INTO transmission_dequeue
 				(
-					NOT EXISTS ( -- there does not exist an active transmission
-						SELECT 1
-						FROM transmission_dequeue AS td_inner
-						WHERE
-							td_inner.transmission_guid = t.transmission_guid
-					)
-					OR
-					( -- or this specific transmission needs to be retransmitted
-						t.is_retry_ready = 1
-					)
+					transmission_dequeue_guid,
+					transmission_guid,
+					request_client_guid,
+					destination_client_guid,
+					row_created_datetime
 				)
-				AND
-				( -- there does not exist an earlier transmission that is not yet in a terminal state
-					NOT EXISTS (
-						SELECT 1
-						FROM transmission AS t_earlier
-						WHERE
-							t_earlier.row_created_datetime < t.row_created_datetime
-							AND
-							( -- an earlier destination device or queued transmission
-								t_earlier.destination_device_guid = t.destination_device_guid
-								OR
-								t_earlier.queue_guid = t.queue_guid
-							)
-							AND
-							( -- the transmission is not in a terminal state
-								NOT EXISTS ( -- not in a normal complete state
-									SELECT 1
-									FROM transmission_dequeue AS td_earlier
-									INNER JOIN transmission_complete AS tc_earlier
-									ON
-										tc_earlier.transmission_dequeue_guid = td_earlier.transmission_dequeue_guid
-									WHERE
-										td_earlier.transmission_guid = t_earlier.transmission_guid
-								)
-								AND NOT EXISTS ( -- not in an failed transmission completed where a retry was not requested (basically cancelling the transmission after it failed to be sent to the destination)
-									SELECT 1
-									FROM transmission_dequeue AS td_earlier
-									INNER JOIN transmission_dequeue_error_transmission AS tdet_earlier
-									ON
-										tdet_earlier.transmission_dequeue_guid = td_earlier.transmission_dequeue_guid
-									INNER JOIN transmission_dequeue_error_transmission_dequeue AS tdetd_earlier
-									ON
-										tdetd_earlier.transmission_dequeue_error_transmission_guid = tdet_earlier.transmission_dequeue_error_transmission_guid
-									INNER JOIN transmission_dequeue_error_transmission_complete AS tdetc_earlier
-									ON
-										tdetc_earlier.transmission_dequeue_error_transmission_dequeue_guid = tdetd_earlier.transmission_dequeue_error_transmission_dequeue_guid
-									WHERE
-										td_earlier.transmission_guid = t_earlier.transmission_guid
-										AND tdetc_earlier.is_retry_requested = 0
-								)
-							)
-							-- entries in the transmission_dequeue_error_transmission_error table are not valid terminal conditions because the transmissions may need to be received sequentially via a retry
+				SELECT
+					?,
+					t.transmission_guid,
+					?,
+					d.last_known_client_guid,
+					?
+				FROM transmission AS t
+				INNER JOIN device AS d 
+				ON 
+					d.device_guid = t.destination_device_guid
+				WHERE
+					(
+						NOT EXISTS ( -- there does not exist an active transmission
+							SELECT 1
+							FROM transmission_dequeue AS td_inner
+							WHERE
+								td_inner.transmission_guid = t.transmission_guid
+						)
+						OR
+						( -- or this specific transmission needs to be retransmitted
+							t.is_retry_ready = 1
+						)
 					)
-				)
-			ORDER BY
-				t.row_created_datetime
-			LIMIT 1
-		''', (_transmission_dequeue_guid, client_guid, _row_created_datetime))
+					AND
+					( -- there does not exist an earlier transmission that is not yet in a terminal state
+						NOT EXISTS (
+							SELECT 1
+							FROM transmission AS t_earlier
+							WHERE
+								t_earlier.row_created_datetime < t.row_created_datetime
+								AND
+								( -- an earlier destination device or queued transmission
+									t_earlier.destination_device_guid = t.destination_device_guid
+									OR
+									t_earlier.queue_guid = t.queue_guid
+								)
+								AND
+								( -- the transmission is not in a terminal state
+									NOT EXISTS ( -- not in a normal complete state
+										SELECT 1
+										FROM transmission_dequeue AS td_earlier
+										INNER JOIN transmission_complete AS tc_earlier
+										ON
+											tc_earlier.transmission_dequeue_guid = td_earlier.transmission_dequeue_guid
+										WHERE
+											td_earlier.transmission_guid = t_earlier.transmission_guid
+									)
+									AND NOT EXISTS ( -- not in an failed transmission completed where a retry was not requested (basically cancelling the transmission after it failed to be sent to the destination)
+										SELECT 1
+										FROM transmission_dequeue AS td_earlier
+										INNER JOIN transmission_dequeue_error_transmission AS tdet_earlier
+										ON
+											tdet_earlier.transmission_dequeue_guid = td_earlier.transmission_dequeue_guid
+										INNER JOIN transmission_dequeue_error_transmission_dequeue AS tdetd_earlier
+										ON
+											tdetd_earlier.transmission_dequeue_error_transmission_guid = tdet_earlier.transmission_dequeue_error_transmission_guid
+										INNER JOIN transmission_dequeue_error_transmission_complete AS tdetc_earlier
+										ON
+											tdetc_earlier.transmission_dequeue_error_transmission_dequeue_guid = tdetd_earlier.transmission_dequeue_error_transmission_dequeue_guid
+										WHERE
+											td_earlier.transmission_guid = t_earlier.transmission_guid
+											AND tdetc_earlier.is_retry_requested = 0
+									)
+								)
+								-- entries in the transmission_dequeue_error_transmission_error table are not valid terminal conditions because the transmissions may need to be received sequentially via a retry
+						)
+					)
+				ORDER BY
+					t.row_created_datetime
+				LIMIT 1
+			''', (_transmission_dequeue_guid, client_guid, _row_created_datetime))
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
 
 		_is_successful, _transmission_dequeue = self.try_get_transmission_dequeue(
 			transmission_dequeue_guid=_transmission_dequeue_guid
 		)
 
-		if _is_successful:
+		self.__connection_semaphore.acquire()
 
-			if _transmission_dequeue.get_transmission().get_is_retry_ready():
-				_insert_cursor.execute('''
-					UPDATE transmission
-					SET
-						is_retry_ready = NULL
-					WHERE
-						transmission_guid = ?
-				''', (_transmission_dequeue.get_transmission_guid(),))
+		try:
+			if _is_successful:
 
-		_insert_cursor.execute('''
-			COMMIT
-		''')
+				if _transmission_dequeue.get_transmission().get_is_retry_ready():
+					_insert_cursor.execute('''
+						UPDATE transmission
+						SET
+							is_retry_ready = NULL
+						WHERE
+							transmission_guid = ?
+					''', (_transmission_dequeue.get_transmission_guid(),))
+
+			_insert_cursor.execute('''
+				COMMIT
+			''')
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
 
 		return _transmission_dequeue
 
 	def transmission_completed(self, *, client_guid: str, transmission_dequeue_guid: str):
 
-		_transmission_complete_guid = str(uuid.uuid4()).upper()
-		_row_created_datetime = datetime.utcnow()
+		self.__connection_semaphore.acquire()
 
-		_insert_cursor = self.__connection.cursor()
-		_insert_cursor.execute('''
-			INSERT INTO transmission_complete
-			(
-				transmission_complete_guid,
-				transmission_dequeue_guid,
-				request_client_guid,
-				row_created_datetime
-			)
-			VALUES (?, ?, ?, ?)
-		''', (_transmission_complete_guid, transmission_dequeue_guid, client_guid, _row_created_datetime))
+		try:
+			_transmission_complete_guid = str(uuid.uuid4()).upper()
+			_row_created_datetime = datetime.utcnow()
+
+			_insert_cursor = self.__connection.cursor()
+			_insert_cursor.execute('''
+				INSERT INTO transmission_complete
+				(
+					transmission_complete_guid,
+					transmission_dequeue_guid,
+					request_client_guid,
+					row_created_datetime
+				)
+				VALUES (?, ?, ?, ?)
+			''', (_transmission_complete_guid, transmission_dequeue_guid, client_guid, _row_created_datetime))
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
 
 	def transmission_failed(self, *, client_guid: str, transmission_dequeue_guid: str, error_message_json_string: str) -> TransmissionDequeueErrorTransmission:
 
-		_transmission_dequeue_error_transmission_guid = str(uuid.uuid4()).upper()
-		_row_created_datetime = datetime.utcnow()
+		self.__connection_semaphore.acquire()
 
-		_insert_cursor = self.__connection.cursor()
-		_insert_cursor.execute('''
-			INSERT INTO transmission_dequeue_error_transmission
-			(
-				transmission_dequeue_error_transmission_guid,
-				request_client_guid,
-				transmission_dequeue_guid,
-				error_message_json_string,
-				row_created_datetime,
-				is_retry_ready
-			)
-			VALUES (?, ?, ?, ?, ?, ?)
-		''', (_transmission_dequeue_error_transmission_guid, client_guid, transmission_dequeue_guid, error_message_json_string, _row_created_datetime, None))
+		try:
+			_transmission_dequeue_error_transmission_guid = str(uuid.uuid4()).upper()
+			_row_created_datetime = datetime.utcnow()
+
+			_insert_cursor = self.__connection.cursor()
+			_insert_cursor.execute('''
+				INSERT INTO transmission_dequeue_error_transmission
+				(
+					transmission_dequeue_error_transmission_guid,
+					request_client_guid,
+					transmission_dequeue_guid,
+					error_message_json_string,
+					row_created_datetime,
+					is_retry_ready
+				)
+				VALUES (?, ?, ?, ?, ?, ?)
+			''', (_transmission_dequeue_error_transmission_guid, client_guid, transmission_dequeue_guid, error_message_json_string, _row_created_datetime, None))
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
 
 		_is_successful, _transmission_dequeue_error_transmission = self.try_get_transmission_dequeue_error_transmission(
 			transmission_dequeue_error_transmission_guid=_transmission_dequeue_error_transmission_guid
@@ -1167,20 +1299,29 @@ class Database():
 
 	def try_get_transmission_dequeue_error_transmission_dequeue(self, *, transmission_dequeue_error_transmission_dequeue_guid: str) -> Tuple[bool, TransmissionDequeueErrorTransmissionDequeue]:
 
-		_get_cursor = self.__connection.cursor()
-		_get_result = _get_cursor.execute('''
-			SELECT
-				transmission_dequeue_error_transmission_dequeue_guid,
-				transmission_dequeue_error_transmission_guid,
-				request_client_guid,
-				destination_client_guid,
-				row_created_datetime
-			FROM transmission_dequeue_error_transmission_dequeue
-			WHERE
-				transmission_dequeue_error_transmission_dequeue_guid = ?
-		''', (transmission_dequeue_error_transmission_dequeue_guid,))
+		self.__connection_semaphore.acquire()
 
-		_rows = _get_result.fetchall()
+		try:
+			_get_cursor = self.__connection.cursor()
+			_get_result = _get_cursor.execute('''
+				SELECT
+					transmission_dequeue_error_transmission_dequeue_guid,
+					transmission_dequeue_error_transmission_guid,
+					request_client_guid,
+					destination_client_guid,
+					row_created_datetime
+				FROM transmission_dequeue_error_transmission_dequeue
+				WHERE
+					transmission_dequeue_error_transmission_dequeue_guid = ?
+			''', (transmission_dequeue_error_transmission_dequeue_guid,))
+
+			_rows = _get_result.fetchall()
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
+
 		if len(_rows) == 0:
 			_transmission_dequeue_error_transmission_dequeue = None
 		elif len(_rows) > 1:
@@ -1220,21 +1361,30 @@ class Database():
 
 	def try_get_transmission_dequeue_error_transmission(self, *, transmission_dequeue_error_transmission_guid: str) -> Tuple[bool, TransmissionDequeueErrorTransmission]:
 
-		_get_cursor = self.__connection.cursor()
-		_get_result = _get_cursor.execute('''
-			SELECT
-				transmission_dequeue_error_transmission_guid,
-				request_client_guid,
-				transmission_dequeue_guid,
-				error_message_json_string,
-				row_created_datetime,
-				is_retry_ready
-			FROM transmission_dequeue_error_transmission
-			WHERE
-				transmission_dequeue_error_transmission_guid = ?
-		''', (transmission_dequeue_error_transmission_guid,))
+		self.__connection_semaphore.acquire()
 
-		_rows = _get_result.fetchall()
+		try:
+			_get_cursor = self.__connection.cursor()
+			_get_result = _get_cursor.execute('''
+				SELECT
+					transmission_dequeue_error_transmission_guid,
+					request_client_guid,
+					transmission_dequeue_guid,
+					error_message_json_string,
+					row_created_datetime,
+					is_retry_ready
+				FROM transmission_dequeue_error_transmission
+				WHERE
+					transmission_dequeue_error_transmission_guid = ?
+			''', (transmission_dequeue_error_transmission_guid,))
+
+			_rows = _get_result.fetchall()
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
+
 		if len(_rows) == 0:
 			_transmission_dequeue_error_transmission = None
 		elif len(_rows) > 1:
@@ -1262,215 +1412,257 @@ class Database():
 
 	def get_next_failed_transmission_dequeue(self, *, client_guid: str) -> TransmissionDequeueErrorTransmissionDequeue:
 
-		_transmission_dequeue_error_transmission_dequeue_guid = str(uuid.uuid4()).upper()
-		_row_created_datetime = datetime.utcnow()
+		self.__connection_semaphore.acquire()
 
-		_insert_cursor = self.__connection.cursor()
+		try:
+			_transmission_dequeue_error_transmission_dequeue_guid = str(uuid.uuid4()).upper()
+			_row_created_datetime = datetime.utcnow()
 
-		_insert_cursor.execute('''
-			BEGIN
-		''')
+			_insert_cursor = self.__connection.cursor()
 
-		_insert_cursor.execute('''
-			INSERT INTO transmission_dequeue_error_transmission_dequeue
-			(
-				transmission_dequeue_error_transmission_dequeue_guid,
-				transmission_dequeue_error_transmission_guid,
-				request_client_guid,
-				destination_client_guid,
-				row_created_datetime
-			)
-			SELECT
-				?,
-				tdet.transmission_dequeue_error_transmission_guid,
-				?,
-				d.last_known_client_guid,
-				?
-			FROM transmission_dequeue_error_transmission AS tdet
-			INNER JOIN transmission_dequeue AS td
-			ON
-				td.transmission_dequeue_guid = tdet.transmission_dequeue_guid
-			INNER JOIN transmission AS t
-			ON
-				t.transmission_guid = td.transmission_guid
-			INNER JOIN device AS d 
-			ON 
-				d.device_guid = t.source_device_guid
-			WHERE
+			_insert_cursor.execute('''
+				BEGIN
+			''')
+
+			_insert_cursor.execute('''
+				INSERT INTO transmission_dequeue_error_transmission_dequeue
 				(
-					NOT EXISTS ( -- there does not exist an active transmission
-						SELECT 1
-						FROM transmission_dequeue_error_transmission_dequeue AS tdetd_inner
-						WHERE
-							tdetd_inner.transmission_dequeue_error_transmission_guid = tdet.transmission_dequeue_error_transmission_guid
-					)
-					OR
+					transmission_dequeue_error_transmission_dequeue_guid,
+					transmission_dequeue_error_transmission_guid,
+					request_client_guid,
+					destination_client_guid,
+					row_created_datetime
+				)
+				SELECT
+					?,
+					tdet.transmission_dequeue_error_transmission_guid,
+					?,
+					d.last_known_client_guid,
+					?
+				FROM transmission_dequeue_error_transmission AS tdet
+				INNER JOIN transmission_dequeue AS td
+				ON
+					td.transmission_dequeue_guid = tdet.transmission_dequeue_guid
+				INNER JOIN transmission AS t
+				ON
+					t.transmission_guid = td.transmission_guid
+				INNER JOIN device AS d 
+				ON 
+					d.device_guid = t.source_device_guid
+				WHERE
 					(
-						tdet.is_retry_ready = 1
+						NOT EXISTS ( -- there does not exist an active transmission
+							SELECT 1
+							FROM transmission_dequeue_error_transmission_dequeue AS tdetd_inner
+							WHERE
+								tdetd_inner.transmission_dequeue_error_transmission_guid = tdet.transmission_dequeue_error_transmission_guid
+						)
+						OR
+						(
+							tdet.is_retry_ready = 1
+						)
 					)
-				)
-				AND
-				(  -- there does not exist an earlier failed transmission not yet in a terminal state
-					NOT EXISTS (
-						SELECT 1
-						FROM transmission_dequeue_error_transmission AS tdet_earlier
-						INNER JOIN transmission_dequeue AS td_earlier
-						ON
-							td_earlier.transmission_dequeue_guid = tdet_earlier.transmission_dequeue_guid
-						INNER JOIN transmission AS t_earlier
-						ON
-							t_earlier.transmission_guid = td_earlier.transmission_guid
-						WHERE
-							t_earlier.source_device_guid = t.source_device_guid
-							AND tdet_earlier.row_created_datetime < tdet.row_created_datetime
-							AND
-							( -- the failed transmission is not in a terminal state
-								NOT EXISTS ( -- not in a failed transaction complete state
-									SELECT 1
-									FROM transmission_dequeue_error_transmission_dequeue AS tdetd_earlier
-									INNER JOIN transmission_dequeue_error_transmission_complete AS tdetc_earlier
-									ON
-										tdetc_earlier.transmission_dequeue_error_transmission_dequeue_guid = tdetd_earlier.transmission_dequeue_error_transmission_dequeue_guid
-									WHERE
-										tdetd_earlier.transmission_dequeue_error_transmission_guid = tdet_earlier.transmission_dequeue_error_transmission_guid
+					AND
+					(  -- there does not exist an earlier failed transmission not yet in a terminal state
+						NOT EXISTS (
+							SELECT 1
+							FROM transmission_dequeue_error_transmission AS tdet_earlier
+							INNER JOIN transmission_dequeue AS td_earlier
+							ON
+								td_earlier.transmission_dequeue_guid = tdet_earlier.transmission_dequeue_guid
+							INNER JOIN transmission AS t_earlier
+							ON
+								t_earlier.transmission_guid = td_earlier.transmission_guid
+							WHERE
+								t_earlier.source_device_guid = t.source_device_guid
+								AND tdet_earlier.row_created_datetime < tdet.row_created_datetime
+								AND
+								( -- the failed transmission is not in a terminal state
+									NOT EXISTS ( -- not in a failed transaction complete state
+										SELECT 1
+										FROM transmission_dequeue_error_transmission_dequeue AS tdetd_earlier
+										INNER JOIN transmission_dequeue_error_transmission_complete AS tdetc_earlier
+										ON
+											tdetc_earlier.transmission_dequeue_error_transmission_dequeue_guid = tdetd_earlier.transmission_dequeue_error_transmission_dequeue_guid
+										WHERE
+											tdetd_earlier.transmission_dequeue_error_transmission_guid = tdet_earlier.transmission_dequeue_error_transmission_guid
+									)
+									-- an entry in transmission_dequeue_error_transmission_error can occur multiple times and will not stop retrying until it succeeds
+									--AND NOT EXISTS ( -- not in a failed transaction that failed state
+									--	SELECT 1
+									--	FROM transmission_dequeue_error_transmission_dequeue AS tdetd_earlier
+									--	INNER JOIN transmission_dequeue_error_transmission_error AS tdete_earlier
+									--	ON
+									--		tdete_earlier.transmission_dequeue_error_transmission_dequeue_guid = tdetd_earlier.transmission_dequeue_error_transmission_dequeue_guid
+									--	WHERE
+									--		tdetd_earlier.transmission_dequeue_error_transmission_guid = tdet_earlier.transmission_dequeue_error_transmission_guid
+									--)
 								)
-								-- an entry in transmission_dequeue_error_transmission_error can occur multiple times and will not stop retrying until it succeeds
-								--AND NOT EXISTS ( -- not in a failed transaction that failed state
-								--	SELECT 1
-								--	FROM transmission_dequeue_error_transmission_dequeue AS tdetd_earlier
-								--	INNER JOIN transmission_dequeue_error_transmission_error AS tdete_earlier
-								--	ON
-								--		tdete_earlier.transmission_dequeue_error_transmission_dequeue_guid = tdetd_earlier.transmission_dequeue_error_transmission_dequeue_guid
-								--	WHERE
-								--		tdetd_earlier.transmission_dequeue_error_transmission_guid = tdet_earlier.transmission_dequeue_error_transmission_guid
-								--)
-							)
+						)
 					)
-				)
-			ORDER BY
-				t.row_created_datetime
-			LIMIT 1
-		''', (_transmission_dequeue_error_transmission_dequeue_guid, client_guid, _row_created_datetime))
+				ORDER BY
+					t.row_created_datetime
+				LIMIT 1
+			''', (_transmission_dequeue_error_transmission_dequeue_guid, client_guid, _row_created_datetime))
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
 
 		_is_successful, _transmission_dequeue_error_transmission_dequeue = self.try_get_transmission_dequeue_error_transmission_dequeue(
 			transmission_dequeue_error_transmission_dequeue_guid=_transmission_dequeue_error_transmission_dequeue_guid
 		)
 
-		if _is_successful:
+		self.__connection_semaphore.acquire()
 
-			if _transmission_dequeue_error_transmission_dequeue.get_transmission_dequeue_error_transmission().get_is_retry_ready():
+		try:
+			if _is_successful:
 
-				_insert_cursor.execute('''
-					UPDATE transmission_dequeue_error_transmission
-					SET
-						is_retry_ready = NULL
-					WHERE
-						transmission_dequeue_error_transmission_guid = ?
-				''', (_transmission_dequeue_error_transmission_dequeue.get_transmission_dequeue_error_transmission_guid(),))
+				if _transmission_dequeue_error_transmission_dequeue.get_transmission_dequeue_error_transmission().get_is_retry_ready():
 
-		_insert_cursor.execute('''
-			COMMIT
-		''')
+					_insert_cursor.execute('''
+						UPDATE transmission_dequeue_error_transmission
+						SET
+							is_retry_ready = NULL
+						WHERE
+							transmission_dequeue_error_transmission_guid = ?
+					''', (_transmission_dequeue_error_transmission_dequeue.get_transmission_dequeue_error_transmission_guid(),))
+
+			_insert_cursor.execute('''
+				COMMIT
+			''')
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
 
 		return _transmission_dequeue_error_transmission_dequeue
 
 	def failed_transmission_completed(self, *, client_guid: str, transmission_dequeue_error_transmission_dequeue_guid: str, is_retry_requested: bool):
 
-		_transmission_dequeue_error_transmission_complete_guid = str(uuid.uuid4()).upper()
-		_row_created_datetime = datetime.utcnow()
+		self.__connection_semaphore.acquire()
 
-		_insert_cursor = self.__connection.cursor()
-		_insert_cursor.execute('''
-			BEGIN
-		''')
-		_insert_cursor.execute('''
-			INSERT INTO transmission_dequeue_error_transmission_complete
-			(
-				transmission_dequeue_error_transmission_complete_guid,
-				transmission_dequeue_error_transmission_dequeue_guid,
-				request_client_guid,
-				is_retry_requested,
-				row_created_datetime
-			)
-			VALUES (?, ?, ?, ?, ?)
-		''', (_transmission_dequeue_error_transmission_complete_guid, transmission_dequeue_error_transmission_dequeue_guid, client_guid, is_retry_requested, _row_created_datetime))
-		_insert_cursor.execute('''
-			UPDATE transmission
-			SET
-				is_retry_ready = 0
-			WHERE
-				? = 1
-				AND EXISTS (
-					SELECT 1
-					FROM transmission_dequeue AS td
-					INNER JOIN transmission_dequeue_error_transmission AS tdet
-					ON
-						tdet.transmission_dequeue_guid = td.transmission_dequeue_guid
-					INNER JOIN transmission_dequeue_error_transmission_dequeue tdetd
-					ON
-						tdetd.transmission_dequeue_error_transmission_guid = tdet.transmission_dequeue_error_transmission_guid
-					WHERE
-						td.transmission_guid = transmission.transmission_guid
-						AND tdetd.transmission_dequeue_error_transmission_dequeue_guid = ?
+		try:
+			_transmission_dequeue_error_transmission_complete_guid = str(uuid.uuid4()).upper()
+			_row_created_datetime = datetime.utcnow()
+
+			_insert_cursor = self.__connection.cursor()
+			_insert_cursor.execute('''
+				BEGIN
+			''')
+			_insert_cursor.execute('''
+				INSERT INTO transmission_dequeue_error_transmission_complete
+				(
+					transmission_dequeue_error_transmission_complete_guid,
+					transmission_dequeue_error_transmission_dequeue_guid,
+					request_client_guid,
+					is_retry_requested,
+					row_created_datetime
 				)
-		''', (is_retry_requested, transmission_dequeue_error_transmission_dequeue_guid))
-		_insert_cursor.execute('''
-			COMMIT
-		''')
+				VALUES (?, ?, ?, ?, ?)
+			''', (_transmission_dequeue_error_transmission_complete_guid, transmission_dequeue_error_transmission_dequeue_guid, client_guid, is_retry_requested, _row_created_datetime))
+			_insert_cursor.execute('''
+				UPDATE transmission
+				SET
+					is_retry_ready = 0
+				WHERE
+					? = 1
+					AND EXISTS (
+						SELECT 1
+						FROM transmission_dequeue AS td
+						INNER JOIN transmission_dequeue_error_transmission AS tdet
+						ON
+							tdet.transmission_dequeue_guid = td.transmission_dequeue_guid
+						INNER JOIN transmission_dequeue_error_transmission_dequeue tdetd
+						ON
+							tdetd.transmission_dequeue_error_transmission_guid = tdet.transmission_dequeue_error_transmission_guid
+						WHERE
+							td.transmission_guid = transmission.transmission_guid
+							AND tdetd.transmission_dequeue_error_transmission_dequeue_guid = ?
+					)
+			''', (is_retry_requested, transmission_dequeue_error_transmission_dequeue_guid))
+			_insert_cursor.execute('''
+				COMMIT
+			''')
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
 
 	def failed_transmission_failed(self, *, client_guid: str, transmission_dequeue_error_transmission_dequeue_guid: str, error_message_json_string: str):
 
-		_transmission_dequeue_error_transmission_error_guid = str(uuid.uuid4()).upper()
-		_row_created_datetime = datetime.utcnow()
+		self.__connection_semaphore.acquire()
 
-		_insert_cursor = self.__connection.cursor()
-		_insert_cursor.execute('''
-			BEGIN
-		''')
-		_insert_cursor.execute('''
-			INSERT INTO transmission_dequeue_error_transmission_error
-			(
-				transmission_dequeue_error_transmission_error_guid,
-				transmission_dequeue_error_transmission_dequeue_guid,
-				request_client_guid,
-				error_message_json_string,
-				row_created_datetime
-			)
-			VALUES (?, ?, ?, ?, ?);
-		''', (_transmission_dequeue_error_transmission_error_guid, transmission_dequeue_error_transmission_dequeue_guid, client_guid, error_message_json_string, _row_created_datetime))
-		_insert_cursor.execute('''
-			UPDATE transmission_dequeue_error_transmission
-			SET 
-				is_retry_ready = 0
-			WHERE
-				EXISTS (
-					SELECT 1
-					FROM transmission_dequeue_error_transmission_dequeue tdetd
-					WHERE
-						tdetd.transmission_dequeue_error_transmission_guid = transmission_dequeue_error_transmission.transmission_dequeue_error_transmission_guid
-						AND tdetd.transmission_dequeue_error_transmission_dequeue_guid = ?
+		try:
+			_transmission_dequeue_error_transmission_error_guid = str(uuid.uuid4()).upper()
+			_row_created_datetime = datetime.utcnow()
+
+			_insert_cursor = self.__connection.cursor()
+			_insert_cursor.execute('''
+				BEGIN
+			''')
+			_insert_cursor.execute('''
+				INSERT INTO transmission_dequeue_error_transmission_error
+				(
+					transmission_dequeue_error_transmission_error_guid,
+					transmission_dequeue_error_transmission_dequeue_guid,
+					request_client_guid,
+					error_message_json_string,
+					row_created_datetime
 				)
-		''', (transmission_dequeue_error_transmission_dequeue_guid,))
-		_insert_cursor.execute('''
-			COMMIT
-		''')
+				VALUES (?, ?, ?, ?, ?);
+			''', (_transmission_dequeue_error_transmission_error_guid, transmission_dequeue_error_transmission_dequeue_guid, client_guid, error_message_json_string, _row_created_datetime))
+			_insert_cursor.execute('''
+				UPDATE transmission_dequeue_error_transmission
+				SET 
+					is_retry_ready = 0
+				WHERE
+					EXISTS (
+						SELECT 1
+						FROM transmission_dequeue_error_transmission_dequeue tdetd
+						WHERE
+							tdetd.transmission_dequeue_error_transmission_guid = transmission_dequeue_error_transmission.transmission_dequeue_error_transmission_guid
+							AND tdetd.transmission_dequeue_error_transmission_dequeue_guid = ?
+					)
+			''', (transmission_dequeue_error_transmission_dequeue_guid,))
+			_insert_cursor.execute('''
+				COMMIT
+			''')
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
 
 	def get_devices_by_purpose(self, *, purpose_guid: str) -> List[Device]:
 
-		_get_cursor = self.__connection.cursor()
-		_get_result = _get_cursor.execute('''
-			SELECT
-				d.device_guid,
-				d.purpose_guid,
-				d.socket_port,
-				d.last_known_client_guid,
-				d.last_known_datetime
-			FROM device AS d
-			WHERE
-				d.purpose_guid = ?
-		''', (purpose_guid,))
+		self.__connection_semaphore.acquire()
+
+		try:
+			_get_cursor = self.__connection.cursor()
+			_get_result = _get_cursor.execute('''
+				SELECT
+					d.device_guid,
+					d.purpose_guid,
+					d.socket_port,
+					d.last_known_client_guid,
+					d.last_known_datetime
+				FROM device AS d
+				WHERE
+					d.purpose_guid = ?
+			''', (purpose_guid,))
+
+			_rows = _get_result.fetchall()
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
+
 		_devices = []  # type: List[Device]
-		_rows = _get_result.fetchall()
 		for _row in _rows:
 			_device = Device.parse_row(
 				row=_row
@@ -1489,21 +1681,30 @@ class Database():
 
 	def get_api_entrypoint_logs(self, *, inclusive_start_row_created_datetime: datetime, exclusive_end_row_created_datetime: datetime) -> List[ApiEntrypointLog]:
 
-		_select_cursor = self.__connection.cursor()
-		_select_result = _select_cursor.execute('''
-			SELECT
-				ael.api_entrypoint_log_id,
-				ael.api_entrypoint_id,
-				ael.request_client_guid,
-				ael.input_json_string,
-				ael.row_created_datetime
-			FROM api_entrypoint_log AS ael
-			WHERE
-				ael.row_created_datetime >= ?
-				AND ael.row_created_datetime < ?
-		''', (inclusive_start_row_created_datetime, exclusive_end_row_created_datetime))
+		self.__connection_semaphore.acquire()
 
-		_rows = _select_result.fetchall()
+		try:
+			_select_cursor = self.__connection.cursor()
+			_select_result = _select_cursor.execute('''
+				SELECT
+					ael.api_entrypoint_log_id,
+					ael.api_entrypoint_id,
+					ael.request_client_guid,
+					ael.input_json_string,
+					ael.row_created_datetime
+				FROM api_entrypoint_log AS ael
+				WHERE
+					ael.row_created_datetime >= ?
+					AND ael.row_created_datetime < ?
+			''', (inclusive_start_row_created_datetime, exclusive_end_row_created_datetime))
+
+			_rows = _select_result.fetchall()
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
+
 		_api_entrypoint_logs = []  # type: List[ApiEntrypointLog]
 		for _row in _rows:
 			_api_entrypoint_log = ApiEntrypointLog.parse_row(
@@ -1514,17 +1715,26 @@ class Database():
 
 	def try_get_client(self, *, client_guid: str) -> Tuple[bool, Client]:
 
-		_get_cursor = self.__connection.cursor()
-		_get_result = _get_cursor.execute('''
-			SELECT
-				client_guid,
-				ip_address
-			FROM client
-			WHERE
-				client_guid = ?
-		''', (client_guid,))
+		self.__connection_semaphore.acquire()
 
-		_rows = _get_result.fetchall()
+		try:
+			_get_cursor = self.__connection.cursor()
+			_get_result = _get_cursor.execute('''
+				SELECT
+					client_guid,
+					ip_address
+				FROM client
+				WHERE
+					client_guid = ?
+			''', (client_guid,))
+
+			_rows = _get_result.fetchall()
+		except Exception as ex:
+			self.__connection_semaphore.release()
+			raise ex
+
+		self.__connection_semaphore.release()
+
 		if len(_rows) == 0:
 			_client = None
 		elif len(_rows) > 1:
@@ -1542,7 +1752,9 @@ class Database():
 class DatabaseFactory():
 
 	def __init__(self):
-		pass
+		self.__database = None
 
 	def get_database(self):
-		return Database()
+		if self.__database is None:
+			self.__database = Database()
+		return self.__database

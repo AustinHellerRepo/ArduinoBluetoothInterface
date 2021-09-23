@@ -133,13 +133,15 @@ class MainTest(unittest.TestCase):
 		_dequeuer_json_string = None
 		_reporter_json_string = None
 
-		_database.insert_transmission(
+		_transmission = _database.insert_transmission(
 			queue_guid=_queue.get_queue_guid(),
 			source_device_guid=_source_device.get_device_guid(),
 			client_guid=_client.get_client_guid(),
 			transmission_json_string=_expected_json_string,
 			destination_device_guid=_destination_device.get_device_guid()
 		)
+		self.assertIsNotNone(_transmission)
+		print("test_dequeuer: inserted transmission")
 
 		_server_socket_factory = ServerSocketFactory(
 			to_client_packet_bytes_length=4096,

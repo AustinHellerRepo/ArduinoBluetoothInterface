@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from app.database import Database, ApiEntrypoint
+from app.database import DatabaseFactory, Database, ApiEntrypoint
 import traceback
 from typing import List, Tuple, Dict
 import json
@@ -7,7 +7,8 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 import asyncio
 from pydantic import BaseModel
-from austin_heller_repo.socket_client_factory import ClientSocketFactory, ClientSocket
+from austin_heller_repo.socket import ClientSocketFactory, ClientSocket
+from app.dequeuer import Dequeuer
 
 
 try:
@@ -20,14 +21,23 @@ except:
 app = FastAPI()
 
 
-__singleton_database = None
+__database_factory = DatabaseFactory()
+__client_socket_factory = ClientSocketFactory(
+	to_server_packet_bytes_length=4096,
+	server_read_failed_delay_seconds=0.1
+)
+
+__dequeuer = Dequeuer(
+	database_factory=__database_factory,
+	client_socket_factory=__client_socket_factory,
+	polling_thread_delay_seconds=60.0
+)
+__dequeuer.add_dequeuer()
 
 
 def get_database() -> Database:
-	global __singleton_database
-	if __singleton_database is None:
-		__singleton_database = Database()
-	return __singleton_database
+	global __database_factory
+	return __database_factory.get_database()
 
 
 def log_api_entrypoint(*, api_entrypoint: ApiEntrypoint, args_json: Dict, request: Request):
@@ -159,6 +169,9 @@ def v1_receive_device_announcement(receive_device_announcement_base_model: Recei
 			purpose_guid=receive_device_announcement_base_model.purpose_guid,
 			socket_port=receive_device_announcement_base_model.socket_port
 		)
+
+		__dequeuer.
+
 		_response_json = {
 			"device": _device.to_json()
 		}

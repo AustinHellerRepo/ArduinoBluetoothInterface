@@ -30,9 +30,11 @@ class Dequeuer():
 		def _dequeue_thread_method():
 			try:
 				_database = self.__database_factory.get_database()
+				print(f"dequeuer: inserting client")
 				_client = _database.insert_client(
 					ip_address="0.0.0.0"
 				)
+				print(f"dequeuer: inserted client")
 				while _is_running_boolean_reference.get():
 					_transmission_dequeue = None  # type: TransmissionDequeue
 					try:
@@ -40,6 +42,7 @@ class Dequeuer():
 							client_guid=_client.get_client_guid()
 						)
 						if _transmission_dequeue is not None:
+							print("dequeuer: _transmission_dequeue is not None")
 							_client_socket = self.__client_socket_factory.get_client_socket()
 							_client_socket.connect_to_server(
 								ip_address=_transmission_dequeue.get_transmission().get_destination_device().get_last_known_client().get_ip_address(),
@@ -53,6 +56,8 @@ class Dequeuer():
 								client_guid=_client.get_client_guid(),
 								transmission_dequeue_guid=_transmission_dequeue.get_transmission_dequeue_guid()
 							)
+						else:
+							print("dequeuer: _transmission_dequeue is None")
 					except Exception as ex:
 						print(f"dequeuer: {ex}")
 						if _transmission_dequeue is None:
@@ -69,9 +74,10 @@ class Dequeuer():
 								_error_string_reference.set(str(ex))
 								_is_running_boolean_reference.set(False)
 					if _is_running_boolean_reference.get():
-						_polling_thread_delay.try_sleep(
-							seconds=self.__polling_thread_delay_seconds
-						)
+						if _transmission_dequeue is None:
+							_polling_thread_delay.try_sleep(
+								seconds=self.__polling_thread_delay_seconds
+							)
 			except Exception as ex:
 				print(f"dequeuer: {ex}")
 				_error_string_reference.set(str(ex))
@@ -106,3 +112,5 @@ class Dequeuer():
 
 	def get_errors(self) -> List[str]:
 		return self.__dequeue_errors.copy()
+
+	def trigger_

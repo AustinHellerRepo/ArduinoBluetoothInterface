@@ -14,14 +14,18 @@ class DatabaseTest(unittest.TestCase):
 		with Database() as _database:
 			_device = None
 			with self.assertRaises(sqlite3.IntegrityError):
+				print(f"test_insert_device_0: before")
 				_device = _database.insert_device(
 					device_guid="1202BF8A-D185-4C32-8931-C4315B0B87D9",
 					client_guid="8D825258-C1A3-43AF-A354-6C2EA7561F53",
 					purpose_guid="27C61F73-9436-4416-AD48-7329B899C212",
 					socket_port=24576
 				)
+				print(f"test_insert_device_0: after")
 			self.assertIsNone(_device)
+			print(f"test_insert_device_0: again")
 			_all_devices = _database.get_all_devices()
+			print(f"test_insert_device_0: done")
 			self.assertEqual(0, len(_all_devices))
 
 	def test_insert_device_1(self):
@@ -2344,68 +2348,23 @@ class DatabaseTest(unittest.TestCase):
 			)
 			_database.insert_api_entrypoint_log(
 				client_guid=_client.get_client_guid(),
-				api_entrypoint=ApiEntrypoint.V1DequeueNextTransmission,
+				api_entrypoint=ApiEntrypoint.V1GetUuid,
 				input_json_string="{ \"test\": true }"
 			)
 			_database.insert_api_entrypoint_log(
 				client_guid=_client.get_client_guid(),
-				api_entrypoint=ApiEntrypoint.V1CompleteTransmission,
+				api_entrypoint=ApiEntrypoint.TestPost,
 				input_json_string="{ \"transmission_dequeue_guid\": \"7F496997-57D1-4803-8DD5-57ECFC858DE9\" }"
 			)
 			_database.insert_api_entrypoint_log(
 				client_guid=_client.get_client_guid(),
-				api_entrypoint=ApiEntrypoint.V1FailedTransmission,
+				api_entrypoint=ApiEntrypoint.TestJson,
 				input_json_string="{ \"first\": 1, \"second\": 2 }"
 			)
 			_database.insert_api_entrypoint_log(
 				client_guid=_client.get_client_guid(),
-				api_entrypoint=ApiEntrypoint.V1DequeueFailureTransmission,
-				input_json_string=f"{{ \"size_test\": \"{'1234567890' * 10**5}\" }}"
-			)
-			_database.insert_api_entrypoint_log(
-				client_guid=_client.get_client_guid(),
-				api_entrypoint=ApiEntrypoint.V1CompleteFailureTransmission,
-				input_json_string=f"{{ \"size_test\": \"{'1234567890' * 10**6}\" }}"
-			)
-			_database.insert_api_entrypoint_log(
-				client_guid=_client.get_client_guid(),
-				api_entrypoint=ApiEntrypoint.V1FailedFailureTransmission,
+				api_entrypoint=ApiEntrypoint.V1ListDevices,
 				input_json_string=f"{{ \"size_test\": \"{'1234567890' * 10**7}\" }}"
-			)
-			_database.insert_api_entrypoint_log(
-				client_guid=_client.get_client_guid(),
-				api_entrypoint=ApiEntrypoint.V1ReceiveDequeuerAnnouncement,
-				input_json_string=None
-			)
-			_database.insert_api_entrypoint_log(
-				client_guid=_client.get_client_guid(),
-				api_entrypoint=ApiEntrypoint.V1ReceiveReporterAnnouncement,
-				input_json_string=None
-			)
-			_database.insert_api_entrypoint_log(
-				client_guid=_client.get_client_guid(),
-				api_entrypoint=ApiEntrypoint.V1DequeueFailureTransmission,
-				input_json_string=None
-			)
-			_database.insert_api_entrypoint_log(
-				client_guid=_client.get_client_guid(),
-				api_entrypoint=ApiEntrypoint.V1GetUuid,
-				input_json_string=None
-			)
-			_database.insert_api_entrypoint_log(
-				client_guid=_client.get_client_guid(),
-				api_entrypoint=ApiEntrypoint.TestPost,
-				input_json_string=None
-			)
-			_database.insert_api_entrypoint_log(
-				client_guid=_client.get_client_guid(),
-				api_entrypoint=ApiEntrypoint.TestJson,
-				input_json_string=None
-			)
-			_database.insert_api_entrypoint_log(
-				client_guid=_client.get_client_guid(),
-				api_entrypoint=ApiEntrypoint.V1VerifyClientForDevice,
-				input_json_string=None
 			)
 
 			_end_datetime = datetime.utcnow()
@@ -2422,9 +2381,7 @@ class DatabaseTest(unittest.TestCase):
 			self.assertEqual("{ \"test\": true }", _api_entrypoint_logs[3].get_input_json_string())
 			self.assertEqual("{ \"transmission_dequeue_guid\": \"7F496997-57D1-4803-8DD5-57ECFC858DE9\" }", _api_entrypoint_logs[4].get_input_json_string())
 			self.assertEqual("{ \"first\": 1, \"second\": 2 }", _api_entrypoint_logs[5].get_input_json_string())
-			self.assertEqual(f"{{ \"size_test\": \"{'1234567890' * 10**5}\" }}", _api_entrypoint_logs[6].get_input_json_string())
-			self.assertEqual(f"{{ \"size_test\": \"{'1234567890' * 10**6}\" }}", _api_entrypoint_logs[7].get_input_json_string())
-			self.assertEqual(f"{{ \"size_test\": \"{'1234567890' * 10**7}\" }}", _api_entrypoint_logs[8].get_input_json_string())
+			self.assertEqual(f"{{ \"size_test\": \"{'1234567890' * 10**7}\" }}", _api_entrypoint_logs[6].get_input_json_string())
 
 	def test_different_queues_2(self):
 		# insert transmission into different queue, two transmissions and two dequeuers and two reporters, same source and destination so second dequeuer must wait for earlier transmission for first dequeuer

@@ -1,0 +1,6 @@
+pyproject.toml
+setup.cfg
+src/test_device_austinhellerrepo.egg-info/PKG-INFO
+src/test_device_austinhellerrepo.egg-info/SOURCES.txt
+src/test_device_austinhellerrepo.egg-info/dependency_links.txt
+src/test_device_austinhellerrepo.egg-info/top_level.txt

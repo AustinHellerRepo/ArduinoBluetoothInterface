@@ -1,4 +1,4 @@
-from esp32_processor_factory import ServerSocketFactory, Esp32ProcessorFactory, Esp32Processor, time
+from esp32_processor_factory import ServerSocketFactory, Esp32ProcessorFactory, Esp32Processor, time, ApiInterfaceFactory
 
 
 _ip_address = "0.0.0.0"
@@ -17,12 +17,17 @@ _server_socket_factory = ServerSocketFactory(
 	client_read_failed_delay_seconds=_client_read_failed_delay_seconds
 )
 
+_api_interface_factory = ApiInterfaceFactory(
+	api_base_url="0.0.0.0:80"
+)
+
 _processor_factory = Esp32ProcessorFactory(
 	host_ip_address=_ip_address,
 	host_port=_port,
 	server_socket_factory=_server_socket_factory,
 	accepting_connections_total=_connections_total,
-	wifi_settings_json_file_path=_wifi_settings_file_path
+	wifi_settings_json_file_path=_wifi_settings_file_path,
+	api_interface_factory=_api_interface_factory
 )
 
 _processor = _processor_factory.get_esp32_processor()

@@ -1,4 +1,4 @@
-from austin_heller_repo.socket import ServerSocketFactory, ServerSocket, ClientSocket, json, time, start_thread, os
+from austin_heller_repo.socket import ServerSocketFactory, ServerSocket, ClientSocket, json, time, start_thread, os, get_machine_guid
 from austin_heller_repo.api_interface import ApiInterface, ApiInterfaceFactory
 import network
 
@@ -15,6 +15,11 @@ class Esp32Processor():
 		self.__api_interface_factory = api_interface_factory
 
 		self.__server_socket = None  # type: ServerSocket
+		self.__device_guid = None  # type: str
+
+	def __initialize(self):
+
+		self.__device_guid = get_machine_guid()
 
 	def start(self):
 
@@ -106,18 +111,22 @@ class Esp32Processor():
 
 			_api_interface = self.__api_interface_factory.get_api_interface()
 
-			# TODO
+			#_api_interface.send_device_announcement(
+			#	device_guid=self.__device_guid,
+			#	purpose_guid=
+			#)
 
 
 class Esp32ProcessorFactory():
 
-	def __init__(self, *, host_ip_address: str, host_port: int, server_socket_factory: ServerSocketFactory, accepting_connections_total: int, wifi_settings_json_file_path: str):
+	def __init__(self, *, host_ip_address: str, host_port: int, server_socket_factory: ServerSocketFactory, accepting_connections_total: int, wifi_settings_json_file_path: str, api_interface_factory: ApiInterfaceFactory):
 
 		self.__host_ip_address = host_ip_address
 		self.__host_port = host_port
 		self.__server_socket_factory = server_socket_factory
 		self.__accepting_connections_total = accepting_connections_total
 		self.__wifi_settings_json_file_path = wifi_settings_json_file_path
+		self.__api_interface_factory = api_interface_factory
 
 	def get_esp32_processor(self) -> Esp32Processor:
 
@@ -126,5 +135,6 @@ class Esp32ProcessorFactory():
 			host_port=self.__host_port,
 			server_socket_factory=self.__server_socket_factory,
 			accepting_connections_total=self.__accepting_connections_total,
-			wifi_settings_json_file_path=self.__wifi_settings_json_file_path
+			wifi_settings_json_file_path=self.__wifi_settings_json_file_path,
+			api_interface_factory=self.__api_interface_factory
 		)

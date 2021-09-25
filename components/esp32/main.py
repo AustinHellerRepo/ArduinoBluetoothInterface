@@ -1,4 +1,4 @@
-from esp32_processor_factory import ServerSocketFactory, Esp32ProcessorFactory, Esp32Processor, time, ApiInterfaceFactory
+from esp32_processor_factory import ServerSocketFactory, Esp32ProcessorFactory, Esp32Processor, time, ApiInterfaceFactory, ModuleLoader
 
 
 _ip_address = "0.0.0.0"
@@ -9,6 +9,7 @@ _listening_limit_total = 10
 _accept_timeout_seconds = 1.0
 _client_read_failed_delay_seconds = 0.1
 _wifi_settings_file_path = "/wifi_settings.json"
+_git_clone_directory_path = "/devices"
 
 _server_socket_factory = ServerSocketFactory(
 	to_client_packet_bytes_length=_to_dequeuer_or_reporter_packet_bytes_length,
@@ -21,14 +22,21 @@ _api_interface_factory = ApiInterfaceFactory(
 	api_base_url="0.0.0.0:80"
 )
 
+_module_loader = ModuleLoader(
+	git_clone_directory_path=_git_clone_directory_path
+)
+
 _processor_factory = Esp32ProcessorFactory(
 	host_ip_address=_ip_address,
 	host_port=_port,
 	server_socket_factory=_server_socket_factory,
 	accepting_connections_total=_connections_total,
 	wifi_settings_json_file_path=_wifi_settings_file_path,
-	api_interface_factory=_api_interface_factory
+	api_interface_factory=_api_interface_factory,
+	module_loader=_module_loader
 )
 
 _processor = _processor_factory.get_esp32_processor()
 _processor.start()
+
+

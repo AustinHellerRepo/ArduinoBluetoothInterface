@@ -109,32 +109,6 @@ class ApiInterface():
 			}
 		)
 
-	def send_dequeuer_announcement(self, *, dequeuer_guid: str, is_informed_of_enqueue: bool, listening_port: int) -> dict:
-
-		return self._get_json_result_from_url(
-			method_type=MethodTypeEnum.Post,
-			url=self._get_formatted_url(
-				url_part="/v1/dequeuer/announce"
-			),
-			arguments_json_object={
-				"dequeuer_guid": dequeuer_guid,
-				"is_informed_of_enqueue": is_informed_of_enqueue,
-				"listening_port": listening_port
-			}
-		)
-
-	def send_reporter_announcement(self, *, reporter_guid: str) -> dict:
-
-		return self._get_json_result_from_url(
-			method_type=MethodTypeEnum.Post,
-			url=self._get_formatted_url(
-				url_part="/v1/reporter/announce"
-			),
-			arguments_json_object={
-				"reporter_guid": reporter_guid
-			}
-		)
-
 	def send_transmission(self, *, queue_guid: str, source_device_guid: str, transmission_json: dict, destination_device_guid: str) -> dict:
 
 		return self._get_json_result_from_url(
@@ -147,83 +121,6 @@ class ApiInterface():
 				"source_device_guid": source_device_guid,
 				"transmission_json_string": json.dumps(transmission_json),
 				"destination_device_guid": destination_device_guid
-			}
-		)
-
-	def dequeue_next_transmission(self, *, dequeuer_guid: str, queue_guid: str) -> dict:
-
-		return self._get_json_result_from_url(
-			method_type=MethodTypeEnum.Post,
-			url=self._get_formatted_url(
-				url_part="/v1/transmission/dequeue"
-			),
-			arguments_json_object={
-				"dequeuer_guid": dequeuer_guid,
-				"queue_guid": queue_guid
-			}
-		)
-
-	def update_transmission_as_completed(self, *, transmission_dequeue_guid: str) -> dict:
-
-		return self._get_json_result_from_url(
-			method_type=MethodTypeEnum.Post,
-			url=self._get_formatted_url(
-				url_part="/v1/transmission/complete"
-			),
-			arguments_json_object={
-				"transmission_dequeue_guid": transmission_dequeue_guid
-			}
-		)
-
-	def update_transmission_as_failed(self, *, transmission_dequeue_guid: str, error_message_json: dict) -> dict:
-
-		return self._get_json_result_from_url(
-			method_type=MethodTypeEnum.Post,
-			url=self._get_formatted_url(
-				url_part="/v1/transmission/failure"
-			),
-			arguments_json_object={
-				"transmission_dequeue_guid": transmission_dequeue_guid,
-				"error_message_json_string": json.dumps(error_message_json)
-			}
-		)
-
-	def dequeue_next_failed_transmission(self, *, reporter_guid: str, queue_guid: str) -> dict:
-
-		return self._get_json_result_from_url(
-			method_type=MethodTypeEnum.Post,
-			url=self._get_formatted_url(
-				url_part="/v1/failure/dequeue"
-			),
-			arguments_json_object={
-				"reporter_guid": reporter_guid,
-				"queue_guid": queue_guid
-			}
-		)
-
-	def update_failed_transmission_as_completed(self, *, transmission_dequeue_error_transmission_dequeue_guid: str, is_retry_requested: bool) -> dict:
-
-		return self._get_json_result_from_url(
-			method_type=MethodTypeEnum.Post,
-			url=self._get_formatted_url(
-				url_part="/v1/failure/complete"
-			),
-			arguments_json_object={
-				"transmission_dequeue_error_transmission_dequeue_guid": transmission_dequeue_error_transmission_dequeue_guid,
-				"is_retry_requested": is_retry_requested
-			}
-		)
-
-	def update_failed_transmission_as_failed(self, *, transmission_dequeue_error_transmission_dequeue_guid: str, error_message_json: dict) -> dict:
-
-		return self._get_json_result_from_url(
-			method_type=MethodTypeEnum.Post,
-			url=self._get_formatted_url(
-				url_part="/v1/failure/failure"
-			),
-			arguments_json_object={
-				"transmission_dequeue_error_transmission_dequeue_guid": transmission_dequeue_error_transmission_dequeue_guid,
-				"error_message_json_string": json.dumps(error_message_json)
 			}
 		)
 

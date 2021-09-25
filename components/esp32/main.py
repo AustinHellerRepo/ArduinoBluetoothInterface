@@ -11,8 +11,6 @@ _client_read_failed_delay_seconds = 0.1
 _wifi_settings_file_path = "/wifi_settings.json"
 
 _server_socket_factory = ServerSocketFactory(
-	ip_address=_ip_address,
-	port=_port,
 	to_client_packet_bytes_length=_to_dequeuer_or_reporter_packet_bytes_length,
 	listening_limit_total=_listening_limit_total,
 	accept_timeout_seconds=_accept_timeout_seconds,
@@ -20,6 +18,8 @@ _server_socket_factory = ServerSocketFactory(
 )
 
 _processor_factory = Esp32ProcessorFactory(
+	host_ip_address=_ip_address,
+	host_port=_port,
 	server_socket_factory=_server_socket_factory,
 	accepting_connections_total=_connections_total,
 	wifi_settings_json_file_path=_wifi_settings_file_path

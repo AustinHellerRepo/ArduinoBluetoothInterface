@@ -10,6 +10,7 @@ _accept_timeout_seconds = 1.0
 _client_read_failed_delay_seconds = 0.1
 _wifi_settings_file_path = "/wifi_settings.json"
 _git_clone_directory_path = "/devices"
+_initial_purpose_settings_file_path = "/initial_purpose_settings.json"
 
 _server_socket_factory = ServerSocketFactory(
 	to_client_packet_bytes_length=_to_dequeuer_or_reporter_packet_bytes_length,
@@ -33,7 +34,8 @@ _processor_factory = Esp32ProcessorFactory(
 	accepting_connections_total=_connections_total,
 	wifi_settings_json_file_path=_wifi_settings_file_path,
 	api_interface_factory=_api_interface_factory,
-	module_loader=_module_loader
+	module_loader=_module_loader,
+	initial_purpose_settings_file_path=_initial_purpose_settings_file_path
 )
 
 _processor = _processor_factory.get_esp32_processor()

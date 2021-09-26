@@ -5,7 +5,7 @@ import network
 
 class Esp32Processor():
 
-	def __init__(self, *, host_ip_address: str, host_port: int, server_socket_factory: ServerSocketFactory, accepting_connections_total: int, wifi_settings_json_file_path: str, api_interface_factory: ApiInterfaceFactory, module_loader: ModuleLoader):
+	def __init__(self, *, host_ip_address: str, host_port: int, server_socket_factory: ServerSocketFactory, accepting_connections_total: int, wifi_settings_json_file_path: str, api_interface_factory: ApiInterfaceFactory, module_loader: ModuleLoader, initial_purpose_settings_file_path: str):
 
 		self.__host_ip_address = host_ip_address
 		self.__host_port = host_port
@@ -14,6 +14,7 @@ class Esp32Processor():
 		self.__wifi_settings_json_file_path = wifi_settings_json_file_path
 		self.__api_interface_factory = api_interface_factory
 		self.__module_loader = module_loader
+		self.__initial_purpose_settings_file_path = initial_purpose_settings_file_path
 
 		self.__server_socket = None  # type: ServerSocket
 		self.__device_guid = None  # type: str
@@ -122,6 +123,23 @@ class Esp32Processor():
 
 			_waiting_for_termination_thread = start_thread(_waiting_for_termination_thread_method)
 
+			# load initial purpose
+
+			with open(self.__initial_purpose_settings_file_path, "r") as _initial_purpose_settings_file_handle:
+				_initial_purpose_settings_json_string = _initial_purpose_settings_file_handle.read()
+			_initial_purpose_settings_json = json.loads(_initial_purpose_settings_json_string)
+
+			if "implemented_module_git_repo_url" not in _initial_purpose_settings_json:
+				_error = "\"implemented_module_git_repo_url\" missing from initial purpose settings json file at \"" + self.__initial_purpose_settings_file_path + "\""
+				print(_error)
+				raise Exception(_error)
+			else:
+				_implemented_module_git_repo_url = _initial_purpose_settings_json["implemented_module_git_repo_url"]
+
+			self.set_purpose(
+				implemented_module_git_repo_url=_implemented_module_git_repo_url
+			)
+
 	def stop(self):
 
 		if self.__module is not None:
@@ -168,7 +186,7 @@ class Esp32Processor():
 
 class Esp32ProcessorFactory():
 
-	def __init__(self, *, host_ip_address: str, host_port: int, server_socket_factory: ServerSocketFactory, accepting_connections_total: int, wifi_settings_json_file_path: str, api_interface_factory: ApiInterfaceFactory, module_loader: ModuleLoader):
+	def __init__(self, *, host_ip_address: str, host_port: int, server_socket_factory: ServerSocketFactory, accepting_connections_total: int, wifi_settings_json_file_path: str, api_interface_factory: ApiInterfaceFactory, module_loader: ModuleLoader, initial_purpose_settings_file_path: str):
 
 		self.__host_ip_address = host_ip_address
 		self.__host_port = host_port
@@ -177,6 +195,7 @@ class Esp32ProcessorFactory():
 		self.__wifi_settings_json_file_path = wifi_settings_json_file_path
 		self.__api_interface_factory = api_interface_factory
 		self.__module_loader = module_loader
+		self.__initial_purpose_settings_file_path = initial_purpose_settings_file_path
 
 	def get_esp32_processor(self) -> Esp32Processor:
 
@@ -187,5 +206,6 @@ class Esp32ProcessorFactory():
 			accepting_connections_total=self.__accepting_connections_total,
 			wifi_settings_json_file_path=self.__wifi_settings_json_file_path,
 			api_interface_factory=self.__api_interface_factory,
-			module_loader=self.__module_loader
+			module_loader=self.__module_loader,
+			initial_purpose_settings_file_path=self.__initial_purpose_settings_file_path
 		)

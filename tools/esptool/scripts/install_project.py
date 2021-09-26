@@ -82,108 +82,126 @@ else:
 				_ssid_connection_timeout_seconds = input("Wifi connection timeout seconds: ")
 				if _ssid_connection_timeout_seconds != "":
 
-					_baud_rates = [921600, 460800, 230400, 115200]
+					_implemented_module_git_repo_url = input("initial purpose git repo URL: ")
+					if _implemented_module_git_repo_url != "":
 
-					# remove existing project
+						_baud_rates = [921600, 460800, 230400, 115200]
 
-					_subprocess = subprocess.Popen(["ampy", "--port", _device_name, "ls"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-					_standard_output, _standard_error = _subprocess.communicate()
-					if _standard_error != b"":
-						print(_standard_error)
-					_output_lines = _standard_output.decode().split("\n")
-					for _output_line in _output_lines:
-						if _output_line != "" and _output_line != "/boot.py":
-							print(f"Removing \"{_output_line}\"...")
-							if "." in _output_line:
-								_remove_subprocess = subprocess.Popen(["ampy", "--port", _device_name, "rm", _output_line], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-							else:
-								_remove_subprocess = subprocess.Popen(["ampy", "--port", _device_name, "rmdir", _output_line], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-							_standard_output, _standard_error = _remove_subprocess.communicate()
+						# remove existing project
+
+						_subprocess = subprocess.Popen(["ampy", "--port", _device_name, "ls"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+						_standard_output, _standard_error = _subprocess.communicate()
+						if _standard_error != b"":
+							print(_standard_error)
+						_output_lines = _standard_output.decode().split("\n")
+						for _output_line in _output_lines:
+							if _output_line != "" and _output_line != "/boot.py":
+								print(f"Removing \"{_output_line}\"...")
+								if "." in _output_line:
+									_remove_subprocess = subprocess.Popen(["ampy", "--port", _device_name, "rm", _output_line], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+								else:
+									_remove_subprocess = subprocess.Popen(["ampy", "--port", _device_name, "rmdir", _output_line], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+								_standard_output, _standard_error = _remove_subprocess.communicate()
+								if _standard_error != b"":
+									print(_standard_error)
+								_remove_output_lines = _standard_output.decode().split("\n")
+								for _remove_output_line in _remove_output_lines:
+									if _remove_output_line != "":
+										print(f"Output: {_remove_output_line}")
+
+						# copy over project
+
+						def _copy_directory_to_device(*, source_directory_path: str, destination_directory_name: str):
+							_subprocess = subprocess.Popen(["ampy", "--port", _device_name, "put", source_directory_path, destination_directory_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+							_standard_output, _standard_error = _subprocess.communicate()
 							if _standard_error != b"":
 								print(_standard_error)
-							_remove_output_lines = _standard_output.decode().split("\n")
-							for _remove_output_line in _remove_output_lines:
-								if _remove_output_line != "":
-									print(f"Output: {_remove_output_line}")
+							_output_lines = _standard_output.decode().split("\n")
+							for _output_line in _output_lines:
+								if _output_line != "":
+									print(f"Output: {_output_line}")
 
-					# copy over project
+						def _copy_file_to_device(*, source_file_path: str, destination_file_path: str):
+							_subprocess = subprocess.Popen(["ampy", "--port", _device_name, "put", source_file_path, destination_file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+							_standard_output, _standard_error = _subprocess.communicate()
+							if _standard_error != b"":
+								print(_standard_error)
+							_output_lines = _standard_output.decode().split("\n")
+							for _output_line in _output_lines:
+								if _output_line != "":
+									print(f"Output: {_output_line}")
 
-					def _copy_directory_to_device(*, source_directory_path: str, destination_directory_name: str):
-						_subprocess = subprocess.Popen(["ampy", "--port", _device_name, "put", source_directory_path, destination_directory_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-						_standard_output, _standard_error = _subprocess.communicate()
-						if _standard_error != b"":
-							print(_standard_error)
-						_output_lines = _standard_output.decode().split("\n")
-						for _output_line in _output_lines:
-							if _output_line != "":
-								print(f"Output: {_output_line}")
+						for _file_name in os.listdir(_project_directory):
+							if _file_name != "venv" and not _file_name.startswith("."):
+								_file_path = os.path.join(_project_directory, _file_name)
+								if os.path.isfile(_file_path):
+									print(f"Copying \"{_file_path}\"...")
+									_copy_directory_to_device(
+										source_directory_path=_file_path,
+										destination_directory_name=_file_name
+									)
+								elif os.path.isdir(_file_path):
+									print(f"Copying \"{_file_path}\"...")
+									_copy_directory_to_device(
+										source_directory_path=_file_path,
+										destination_directory_name=_file_name
+									)
 
-					def _copy_file_to_device(*, source_file_path: str, destination_file_path: str):
-						_subprocess = subprocess.Popen(["ampy", "--port", _device_name, "put", source_file_path, destination_file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-						_standard_output, _standard_error = _subprocess.communicate()
-						if _standard_error != b"":
-							print(_standard_error)
-						_output_lines = _standard_output.decode().split("\n")
-						for _output_line in _output_lines:
-							if _output_line != "":
-								print(f"Output: {_output_line}")
+						# copy over venv library modules of interest
 
-					for _file_name in os.listdir(_project_directory):
-						if _file_name != "venv" and not _file_name.startswith("."):
-							_file_path = os.path.join(_project_directory, _file_name)
-							if os.path.isfile(_file_path):
-								print(f"Copying \"{_file_path}\"...")
-								_copy_directory_to_device(
-									source_directory_path=_file_path,
-									destination_directory_name=_file_name
-								)
-							elif os.path.isdir(_file_path):
-								print(f"Copying \"{_file_path}\"...")
-								_copy_directory_to_device(
-									source_directory_path=_file_path,
-									destination_directory_name=_file_name
-								)
+						_useful_modules = [
+							"austin_heller_repo"
+						]
 
-					# copy over venv library modules of interest
+						_venv_directory_path = os.path.join(_project_directory, "venv")
+						if not os.path.exists(_venv_directory_path):
+							print(f"Cannot pull venv libraries due to missing venv directory at \"{_venv_directory_path}\".")
+						else:
+							_lib_directory_path = os.path.join(_venv_directory_path, "lib")
+							_python_regex = re.compile("^python\d\.\d+(\.\d+)?$")
+							for _file_name in os.listdir(_lib_directory_path):
+								if _python_regex.search(_file_name) is not None:
+									_python_directory_path = os.path.join(_lib_directory_path, _file_name)
+									_site_packages_directory_path = os.path.join(_python_directory_path, "site-packages")
 
-					_useful_modules = [
-						"austin_heller_repo"
-					]
+									for _useful_module in _useful_modules:
+										_useful_module_directory_path = os.path.join(_site_packages_directory_path, _useful_module)
+										if os.path.exists(_useful_module_directory_path):
+											print(f"Copying \"{_useful_module_directory_path}\"...")
+											_copy_directory_to_device(
+												source_directory_path=_useful_module_directory_path,
+												destination_directory_name=_useful_module
+											)
+									break
 
-					_venv_directory_path = os.path.join(_project_directory, "venv")
-					if not os.path.exists(_venv_directory_path):
-						print(f"Cannot pull venv libraries due to missing venv directory at \"{_venv_directory_path}\".")
-					else:
-						_lib_directory_path = os.path.join(_venv_directory_path, "lib")
-						_python_regex = re.compile("^python\d\.\d+(\.\d+)?$")
-						for _file_name in os.listdir(_lib_directory_path):
-							if _python_regex.search(_file_name) is not None:
-								_python_directory_path = os.path.join(_lib_directory_path, _file_name)
-								_site_packages_directory_path = os.path.join(_python_directory_path, "site-packages")
+						# create and send over wifi settings file
 
-								for _useful_module in _useful_modules:
-									_useful_module_directory_path = os.path.join(_site_packages_directory_path, _useful_module)
-									if os.path.exists(_useful_module_directory_path):
-										print(f"Copying \"{_useful_module_directory_path}\"...")
-										_copy_directory_to_device(
-											source_directory_path=_useful_module_directory_path,
-											destination_directory_name=_useful_module
-										)
-								break
+						_local_wifi_settings_file_object = tempfile.NamedTemporaryFile(delete=False)
+						with open(_local_wifi_settings_file_object.name, "w") as _wifi_settings_file_handle:
+							_wifi_settings_file_handle.write(json.dumps({
+								"ssid": _ssid_name,
+								"password": _ssid_password,
+								"connection_timeout_seconds": _ssid_connection_timeout_seconds
+							}))
+						_local_wifi_settings_file_object.close()
+						print(f"Copying \"wifi_settings.json\"...")
+						_copy_file_to_device(
+							source_file_path=_local_wifi_settings_file_object.name,
+							destination_file_path="wifi_settings.json"
+						)
+						os.unlink(_local_wifi_settings_file_object.name)
 
-					# create and send over wifi settings file
+						# create initial purpose settings file
 
-					_local_wifi_settings_file_object = tempfile.NamedTemporaryFile(delete=False)
-					with open(_local_wifi_settings_file_object.name, "w") as _wifi_setting_file_handle:
-						_wifi_setting_file_handle.write(json.dumps({
-							"ssid": _ssid_name,
-							"password": _ssid_password,
-							"connection_timeout_seconds": _ssid_connection_timeout_seconds
-						}))
-					_local_wifi_settings_file_object.close()
-					print(f"Copying \"wifi_settings.json\"...")
-					_copy_file_to_device(
-						source_file_path=_local_wifi_settings_file_object.name,
-						destination_file_path="wifi_settings.json"
-					)
-					os.unlink(_local_wifi_settings_file_object.name)
+						_local_initial_purpose_settings_file_object = tempfile.NamedTemporaryFile(delete=False)
+						with open(_local_initial_purpose_settings_file_object, "w") as _initial_purpose_settings_file_handle:
+							_initial_purpose_settings_file_handle.write(json.dumps({
+								"implemented_module_git_repo_url": _implemented_module_git_repo_url
+							}))
+						_local_initial_purpose_settings_file_object.close()
+						print(f"Copying \"initial_purpose_settings.json\"...")
+						_copy_file_to_device(
+							source_file_path=_local_initial_purpose_settings_file_object.name,
+							destination_file_path="initial_purpose_settings.json"
+						)
+						os.unlink(_local_initial_purpose_settings_file_object.name)

@@ -109,7 +109,7 @@ class ApiInterface():
 			}
 		)
 
-	def send_transmission(self, *, queue_guid: str, source_device_guid: str, transmission_json: dict, destination_device_guid: str) -> dict:
+	def send_transmission(self, *, queue_guid: str, source_device_guid: str, source_device_instance_guid: str, destination_device_guid: str, destination_device_instance_guid: str, transmission_json: dict) -> dict:
 
 		return self._get_json_result_from_url(
 			method_type=MethodTypeEnum.Post,
@@ -119,8 +119,10 @@ class ApiInterface():
 			arguments_json_object={
 				"queue_guid": queue_guid,
 				"source_device_guid": source_device_guid,
-				"transmission_json_string": json.dumps(transmission_json),
-				"destination_device_guid": destination_device_guid
+				"source_device_instance_guid": source_device_instance_guid,
+				"destination_device_guid": destination_device_guid,
+				"destination_device_instance_guid": destination_device_instance_guid,
+				"transmission_json_string": json.dumps(transmission_json)
 			}
 		)
 
@@ -132,6 +134,23 @@ class ApiInterface():
 				url_part="/v1/uuid"
 			),
 			arguments_json_object={}
+		)
+
+	def change_purpose(self, *, queue_guid: str, source_device_guid: str, source_device_instance_guid: str, destination_device_guid: str, destination_device_instance_guid: str, git_repository_url: str) -> dict:
+
+		return self._get_json_result_from_url(
+			method_type=MethodTypeEnum.Post,
+			url=self._get_formatted_url(
+				url_part="/v1/transmission/enqueue"
+			),
+			arguments_json_object={
+				"queue_guid": queue_guid,
+				"source_device_guid": source_device_guid,
+				"source_device_instance_guid": source_device_instance_guid,
+				"destination_device_guid": destination_device_guid,
+				"destination_device_instance_guid": destination_device_instance_guid,
+				"git_repository_url": git_repository_url
+			}
 		)
 
 

@@ -44,6 +44,26 @@ class DatabaseTest(unittest.TestCase):
 			_all_devices = _database.get_all_devices()
 			self.assertEqual(1, len(_all_devices))
 
+	def test_insert_device_2(self):
+		# null purpose (new device)
+		with Database() as _database:
+			_client = _database.insert_client(
+				ip_address="127.0.0.1"
+			)
+			_device = _database.insert_device(
+				device_guid="1202BF8A-D185-4C32-8931-C4315B0B87D9",
+				client_guid=_client.get_client_guid(),
+				purpose_guid=None,
+				socket_port=24576
+			)
+			self.assertIsNotNone(_device)
+			_all_devices = _database.get_all_devices()
+			self.assertEqual(0, len(_all_devices))
+			_purposeless_devices = _database.get_devices_by_purpose(
+				purpose_guid=None
+			)
+			self.assertEqual(0, len(_purposeless_devices))
+
 	def test_insert_device_twice_0(self):
 		# nothing different
 		with Database() as _database:
@@ -321,9 +341,11 @@ class DatabaseTest(unittest.TestCase):
 				_transmission = _database.insert_transmission(
 					queue_guid="93DDD4A2-DEB1-4475-9038-258010B6B476",
 					source_device_guid="6B9C16F6-56B2-495F-9D89-98415C71EB7E",
+					source_device_instance_guid="2A106908-90D9-4C7E-BDC1-123B8765D7C7",
 					client_guid="DDF8DAE4-D0C1-4761-A3D5-6C481D669576",
-					transmission_json_string="{ \"test\": true }",
-					destination_device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B"
+					stored_transmission_json_string="{ \"test\": true }",
+					destination_device_guid="2D2EA5D3-95E3-4B71-AE7A-DDD0ED5AA40B",
+					destination_device_instance_guid="027C4A4D-8ACF-4053-9AB0-27F5D564BB1B"
 				)
 		self.assertIsNone(_transmission)
 
@@ -362,9 +384,11 @@ class DatabaseTest(unittest.TestCase):
 			_transmission = _database.insert_transmission(
 				queue_guid="6E05F5AD-803E-422F-954B-6FBF0F791E12",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_transmission)
 
@@ -403,9 +427,11 @@ class DatabaseTest(unittest.TestCase):
 			_transmission = _database.insert_transmission(
 				queue_guid="8487777E-E70C-42E7-BC40-202CED41A441",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_transmission)
 			_get_next_client = _database.insert_client(
@@ -453,17 +479,21 @@ class DatabaseTest(unittest.TestCase):
 			_first_transmission = _database.insert_transmission(
 				queue_guid=_queue.get_queue_guid(),
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_first_transmission)
 			_second_transmission = _database.insert_transmission(
 				queue_guid=_queue.get_queue_guid(),
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"other\": 1 }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"other\": 1 }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_second_transmission)
 			_get_next_client = _database.insert_client(
@@ -526,17 +556,21 @@ class DatabaseTest(unittest.TestCase):
 			_first_transmission = _database.insert_transmission(
 				queue_guid=_queue.get_queue_guid(),
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_first_transmission)
 			_second_transmission = _database.insert_transmission(
 				queue_guid=_queue.get_queue_guid(),
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"other\": 1 }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"other\": 1 }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_second_transmission)
 			_first_get_next_client = _database.insert_client(
@@ -603,17 +637,21 @@ class DatabaseTest(unittest.TestCase):
 			_first_transmission = _database.insert_transmission(
 				queue_guid="F132BEB3-C25B-41A4-AC40-AE4C60FA23BE",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_first_transmission)
 			_second_transmission = _database.insert_transmission(
 				queue_guid="F132BEB3-C25B-41A4-AC40-AE4C60FA23BE",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"other\": 1 }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"other\": 1 }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_second_transmission)
 			_first_get_next_client = _database.insert_client(
@@ -674,9 +712,11 @@ class DatabaseTest(unittest.TestCase):
 			_transmission = _database.insert_transmission(
 				queue_guid=_queue.get_queue_guid(),
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_transmission)
 			_get_next_client = _database.insert_client(
@@ -729,9 +769,11 @@ class DatabaseTest(unittest.TestCase):
 			_transmission = _database.insert_transmission(
 				queue_guid=_second_queue.get_queue_guid(),
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_transmission)
 			_get_next_client = _database.insert_client(
@@ -779,9 +821,11 @@ class DatabaseTest(unittest.TestCase):
 			_transmission = _database.insert_transmission(
 				queue_guid="3B373B25-2CFB-4CCC-AE1A-4610BF100BE7",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_transmission)
 			_get_next_client = _database.insert_client(
@@ -833,9 +877,11 @@ class DatabaseTest(unittest.TestCase):
 			_transmission = _database.insert_transmission(
 				queue_guid="AD483656-A2E1-4061-BD4B-D4604DB72958",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_transmission)
 			_get_next_client = _database.insert_client(
@@ -891,9 +937,11 @@ class DatabaseTest(unittest.TestCase):
 			_transmission = _database.insert_transmission(
 				queue_guid="A5543D66-0897-4A1C-A232-7617BC70E251",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_transmission)
 			_get_next_client = _database.insert_client(
@@ -946,9 +994,11 @@ class DatabaseTest(unittest.TestCase):
 			_first_transmission = _database.insert_transmission(
 				queue_guid="200D4210-E037-4D9E-A8AE-0CF4899E4AC2",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_first_transmission)
 			_get_next_client = _database.insert_client(
@@ -968,9 +1018,11 @@ class DatabaseTest(unittest.TestCase):
 			_second_transmission = _database.insert_transmission(
 				queue_guid="200D4210-E037-4D9E-A8AE-0CF4899E4AC2",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_source_client.get_client_guid(),
-				transmission_json_string="{ \"second\": \"transmission\" }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"second\": \"transmission\" }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			_second_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
 				client_guid=_get_next_client.get_client_guid()
@@ -1012,9 +1064,11 @@ class DatabaseTest(unittest.TestCase):
 			_first_transmission = _database.insert_transmission(
 				queue_guid="A3E2A6FE-551C-4413-BF3E-0CDD137912EA",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_first_transmission)
 			_get_next_client = _database.insert_client(
@@ -1029,9 +1083,11 @@ class DatabaseTest(unittest.TestCase):
 			_second_transmission = _database.insert_transmission(
 				queue_guid="A3E2A6FE-551C-4413-BF3E-0CDD137912EA",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_source_client.get_client_guid(),
-				transmission_json_string="{ \"second\": \"transmission\" }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"second\": \"transmission\" }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			_database.transmission_failed(
 				client_guid=_get_next_client.get_client_guid(),
@@ -1099,17 +1155,21 @@ class DatabaseTest(unittest.TestCase):
 			_first_transmission = _database.insert_transmission(
 				queue_guid="05130566-0898-4C62-A1A5-5AC4A484CE02",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_first_transmission)
 			_second_transmission = _database.insert_transmission(
 				queue_guid="05130566-0898-4C62-A1A5-5AC4A484CE02",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_source_client.get_client_guid(),
-				transmission_json_string="{ \"second\": \"transmission\" }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"second\": \"transmission\" }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			_get_next_client = _database.insert_client(
 				ip_address="127.0.0.4"
@@ -1185,9 +1245,11 @@ class DatabaseTest(unittest.TestCase):
 			_first_transmission = _database.insert_transmission(
 				queue_guid="4CFE0AB5-DAA5-48C0-9DB8-F3F26E2C39AA",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_first_transmission)
 			_get_next_client = _database.insert_client(
@@ -1223,9 +1285,11 @@ class DatabaseTest(unittest.TestCase):
 			_second_transmission = _database.insert_transmission(
 				queue_guid="4CFE0AB5-DAA5-48C0-9DB8-F3F26E2C39AA",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_source_client.get_client_guid(),
-				transmission_json_string="{ \"second\": \"transmission\" }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"second\": \"transmission\" }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			_second_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
 				client_guid=_get_next_client.get_client_guid()
@@ -1272,9 +1336,11 @@ class DatabaseTest(unittest.TestCase):
 			_first_transmission = _database.insert_transmission(
 				queue_guid="0DD4ACB8-C069-4925-84E7-34017F515891",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_first_transmission)
 			_get_next_client = _database.insert_client(
@@ -1311,9 +1377,11 @@ class DatabaseTest(unittest.TestCase):
 			_second_transmission = _database.insert_transmission(
 				queue_guid="0DD4ACB8-C069-4925-84E7-34017F515891",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_source_client.get_client_guid(),
-				transmission_json_string="{ \"second\": \"transmission\" }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"second\": \"transmission\" }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			_second_get_next_transmission_dequeue = _database.get_next_transmission_dequeue(
 				client_guid=_get_next_client.get_client_guid()
@@ -1355,9 +1423,11 @@ class DatabaseTest(unittest.TestCase):
 			_transmission = _database.insert_transmission(
 				queue_guid="F240877A-E460-474B-B97D-DF5A49698E5C",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_transmission)
 			_get_next_client = _database.insert_client(
@@ -1447,9 +1517,11 @@ class DatabaseTest(unittest.TestCase):
 			_transmission = _database.insert_transmission(
 				queue_guid="455BB049-BA72-464D-BD0E-00E71C921A0F",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_transmission)
 			_get_next_client = _database.insert_client(
@@ -1540,9 +1612,11 @@ class DatabaseTest(unittest.TestCase):
 			_transmission = _database.insert_transmission(
 				queue_guid="F91A3C4A-917D-4D3A-ADF8-61DA3973F6EC",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_transmission)
 			_get_next_client = _database.insert_client(
@@ -1576,9 +1650,11 @@ class DatabaseTest(unittest.TestCase):
 			_second_transmission = _database.insert_transmission(
 				queue_guid="F91A3C4A-917D-4D3A-ADF8-61DA3973F6EC",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_source_client.get_client_guid(),
-				transmission_json_string="{ \"after_failure\": \"yup\" }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"after_failure\": \"yup\" }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_second_transmission)
 
@@ -1659,9 +1735,11 @@ class DatabaseTest(unittest.TestCase):
 				_transmission = _database.insert_transmission(
 					queue_guid="74D37EC1-43EF-4B9D-8BEB-D6966762BC11",
 					source_device_guid=_devices[_source_index].get_device_guid(),
+					source_device_instance_guid=_devices[_source_index].get_instance_guid(),
 					client_guid=_clients[_source_index].get_client_guid(),
-					transmission_json_string=f"{{ \"transmission\": {_index} }}",
-					destination_device_guid=_devices[_destination_index].get_device_guid()
+					stored_transmission_json_string=f"{{ \"transmission\": {_index} }}",
+					destination_device_guid=_devices[_destination_index].get_device_guid(),
+					destination_device_instance_guid=_devices[_destination_index].get_instance_guid()
 				)
 				_transmissions.append(_transmission)
 			_dequeue_client = _database.insert_client(
@@ -1796,17 +1874,21 @@ class DatabaseTest(unittest.TestCase):
 			_first_transmission = _database.insert_transmission(
 				queue_guid="DA970F61-77D6-4FB9-BDAA-4D24A902DD90",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_source_client.get_client_guid(),
-				transmission_json_string="{ \"first\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"first\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 
 			_second_transmission = _database.insert_transmission(
 				queue_guid="DA970F61-77D6-4FB9-BDAA-4D24A902DD90",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_source_client.get_client_guid(),
-				transmission_json_string="{ \"first\": false }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"first\": false }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 
 			_dequeue_client = _database.insert_client(
@@ -1894,9 +1976,11 @@ class DatabaseTest(unittest.TestCase):
 			_transmission = _database.insert_transmission(
 				queue_guid="D6809C07-A05B-4233-B8CA-6D033B56BC30",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_source_client.get_client_guid(),
-				transmission_json_string="{ \"first\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"first\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 
 			_get_next_client = _database.insert_client(
@@ -1983,9 +2067,11 @@ class DatabaseTest(unittest.TestCase):
 			_transmission = _database.insert_transmission(
 				queue_guid="D6809C07-A05B-4233-B8CA-6D033B56BC30",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_source_client.get_client_guid(),
-				transmission_json_string="{ \"first\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"first\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 
 			_get_next_client = _database.insert_client(
@@ -2060,17 +2146,21 @@ class DatabaseTest(unittest.TestCase):
 			_first_transmission = _database.insert_transmission(
 				queue_guid=_queue.get_queue_guid(),
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_source_client.get_client_guid(),
-				transmission_json_string="{ \"test\": \"first\" }",
-				destination_device_guid=_first_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": \"first\" }",
+				destination_device_guid=_first_destination_device.get_device_guid(),
+				destination_device_instance_guid=_first_destination_device.get_instance_guid()
 			)
 
 			_second_transmission = _database.insert_transmission(
 				queue_guid=_queue.get_queue_guid(),
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_source_client.get_client_guid(),
-				transmission_json_string="{ \"test\": \"second\" }",
-				destination_device_guid=_second_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": \"second\" }",
+				destination_device_guid=_second_destination_device.get_device_guid(),
+				destination_device_instance_guid=_second_destination_device.get_instance_guid()
 			)
 
 			_dequeue_client = _database.insert_client(
@@ -2178,17 +2268,21 @@ class DatabaseTest(unittest.TestCase):
 			_first_transmission = _database.insert_transmission(
 				queue_guid=_first_queue.get_queue_guid(),
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_source_client.get_client_guid(),
-				transmission_json_string="{ \"test\": \"first\" }",
-				destination_device_guid=_first_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": \"first\" }",
+				destination_device_guid=_first_destination_device.get_device_guid(),
+				destination_device_instance_guid=_first_destination_device.get_instance_guid()
 			)
 
 			_second_transmission = _database.insert_transmission(
 				queue_guid=_second_queue.get_queue_guid(),
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_source_client.get_client_guid(),
-				transmission_json_string="{ \"test\": \"second\" }",
-				destination_device_guid=_second_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": \"second\" }",
+				destination_device_guid=_second_destination_device.get_device_guid(),
+				destination_device_instance_guid=_second_destination_device.get_instance_guid()
 			)
 
 			_dequeue_client = _database.insert_client(
@@ -2305,9 +2399,11 @@ class DatabaseTest(unittest.TestCase):
 			_transmission = _database.insert_transmission(
 				queue_guid="E7FCC183-D1B4-4F3B-9BE7-A54CF25FA78F",
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid(),
 			)
 			self.assertIsNotNone(_transmission)
 			_dequeue_client = _database.insert_client(
@@ -2366,6 +2462,11 @@ class DatabaseTest(unittest.TestCase):
 				api_entrypoint=ApiEntrypoint.V1ListDevices,
 				input_json_string=f"{{ \"size_test\": \"{'1234567890' * 10**7}\" }}"
 			)
+			_database.insert_api_entrypoint_log(
+				client_guid=_client.get_client_guid(),
+				api_entrypoint=ApiEntrypoint.V1DownloadGitRepository,
+				input_json_string=None
+			)
 
 			_end_datetime = datetime.utcnow()
 
@@ -2421,17 +2522,21 @@ class DatabaseTest(unittest.TestCase):
 			_first_transmission = _database.insert_transmission(
 				queue_guid=_first_queue.get_queue_guid(),
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": true }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid(),
 			)
 			self.assertIsNotNone(_first_transmission)
 			_second_transmission = _database.insert_transmission(
 				queue_guid=_second_queue.get_queue_guid(),
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": false }",
-				destination_device_guid=_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": false }",
+				destination_device_guid=_destination_device.get_device_guid(),
+				destination_device_instance_guid=_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_second_transmission)
 			_dequeue_client = _database.insert_client(
@@ -2582,17 +2687,21 @@ class DatabaseTest(unittest.TestCase):
 			_first_transmission = _database.insert_transmission(
 				queue_guid=_first_queue.get_queue_guid(),
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": true }",
-				destination_device_guid=_first_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": true }",
+				destination_device_guid=_first_destination_device.get_device_guid(),
+				destination_device_instance_guid=_first_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_first_transmission)
 			_second_transmission = _database.insert_transmission(
 				queue_guid=_second_queue.get_queue_guid(),
 				source_device_guid=_source_device.get_device_guid(),
+				source_device_instance_guid=_source_device.get_instance_guid(),
 				client_guid=_transmission_client.get_client_guid(),
-				transmission_json_string="{ \"test\": false }",
-				destination_device_guid=_second_destination_device.get_device_guid()
+				stored_transmission_json_string="{ \"test\": false }",
+				destination_device_guid=_second_destination_device.get_device_guid(),
+				destination_device_instance_guid=_second_destination_device.get_instance_guid()
 			)
 			self.assertIsNotNone(_second_transmission)
 			_dequeue_client = _database.insert_client(

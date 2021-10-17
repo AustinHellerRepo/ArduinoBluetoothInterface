@@ -21,7 +21,8 @@ class ApiEntrypoint(IntEnum):
 	V1ReceiveDeviceAnnouncement = 4,
 	V1ReceiveDeviceTransmission = 5,
 	V1ListDevices = 6,
-	V1GetUuid = 7
+	V1GetUuid = 7,
+	V1DownloadGitRepository = 8
 
 
 class Client():
@@ -95,9 +96,10 @@ class ApiEntrypointLog():
 
 class Device():
 
-	def __init__(self, *, device_guid: str, purpose_guid: str, socket_port: int, last_known_client_guid: str, last_known_datetime: datetime):
+	def __init__(self, *, device_guid: str, instance_guid: str, purpose_guid: str, socket_port: int, last_known_client_guid: str, last_known_datetime: datetime):
 
 		self.__device_guid = device_guid
+		self.__instance_guid = instance_guid
 		self.__purpose_guid = purpose_guid
 		self.__socket_port = socket_port
 		self.__last_known_client_guid = last_known_client_guid
@@ -107,6 +109,9 @@ class Device():
 
 	def get_device_guid(self) -> str:
 		return self.__device_guid
+
+	def get_instance_guid(self) -> str:
+		return self.__instance_guid
 
 	def get_purpose_guid(self) -> str:
 		return self.__purpose_guid
@@ -129,6 +134,7 @@ class Device():
 	def to_json(self) -> object:
 		return {
 			"device_guid": self.__device_guid,
+			"instance_guid": self.__instance_guid,
 			"purpose_guid": self.__purpose_guid,
 			"socket_port": self.__socket_port,
 			"last_known_client_guid": self.__last_known_client_guid,
@@ -138,15 +144,16 @@ class Device():
 
 	@staticmethod
 	def parse_row(*, row: Dict) -> Device:
-		if len(row) != 5:
-			raise Exception(f"Unexpected number of columns in row. Expected 5, found {len(row)}.")
+		if len(row) != 6:
+			raise Exception(f"Unexpected number of columns in row. Expected 6, found {len(row)}.")
 		else:
 			return Device(
 				device_guid=row[0],
-				purpose_guid=row[1],
-				socket_port=int(row[2]),
-				last_known_client_guid=row[3],
-				last_known_datetime=datetime.strptime(row[4], "%Y-%m-%d %H:%M:%S.%f"),
+				instance_guid=row[1],
+				purpose_guid=row[2],
+				socket_port=int(row[3]),
+				last_known_client_guid=row[4],
+				last_known_datetime=datetime.strptime(row[5], "%Y-%m-%d %H:%M:%S.%f"),
 			)
 
 
@@ -180,18 +187,22 @@ class Transmission():
 				 transmission_guid: str,
 				 queue_guid: str,
 				 source_device_guid: str,
+				 source_device_instance_guid: str,
 				 request_client_guid: str,
-				 transmission_json_string: str,
+				 stored_transmission_json_string: str,
 				 destination_device_guid: str,
+				 destination_device_instance_guid: str,
 				 row_created_datetime: datetime,
 				 is_retry_ready: bool
 	):
 		self.__transmission_guid = transmission_guid
 		self.__queue_guid = queue_guid
 		self.__source_device_guid = source_device_guid
+		self.__source_device_instance_guid = source_device_instance_guid
 		self.__request_client_guid = request_client_guid
-		self.__transmission_json_string = transmission_json_string
+		self.__stored_transmission_json_string = stored_transmission_json_string
 		self.__destination_device_guid = destination_device_guid
+		self.__destination_device_instance_guid = destination_device_instance_guid
 		self.__row_created_datetime = row_created_datetime
 		self.__is_retry_ready = is_retry_ready
 
@@ -210,11 +221,14 @@ class Transmission():
 	def get_request_client_guid(self) -> str:
 		return self.__request_client_guid
 
-	def get_transmission_json_string(self) -> str:
-		return self.__transmission_json_string
+	def get_stored_transmission_json_string(self) -> str:
+		return self.__stored_transmission_json_string
 
 	def get_destination_device_guid(self) -> str:
 		return self.__destination_device_guid
+
+	def get_destination_device_instance_guid(self) -> str:
+		return self.__destination_device_instance_guid
 
 	def get_row_created_datetime(self) -> datetime:
 		return self.__row_created_datetime
@@ -239,9 +253,11 @@ class Transmission():
 			"transmission_guid": self.__transmission_guid,
 			"queue_guid": self.__queue_guid,
 			"source_device_guid": self.__source_device_guid,
+			"source_device_instance_guid": self.__source_device_instance_guid,
 			"request_client_guid": self.__request_client_guid,
-			"transmission_json_string": self.__transmission_json_string,
+			"stored_transmission_json_string": self.__stored_transmission_json_string,
 			"destination_device_guid": self.__destination_device_guid,
+			"destination_device_instance_guid": self.__destination_device_instance_guid,
 			"row_created_datetime": self.__row_created_datetime.strftime("%Y-%m-%d %H:%M:%S.%f") if self.__row_created_datetime is not None else None,
 			"is_retry_ready": self.__is_retry_ready,
 			"source_device": None if self.__source_device is None else self.__source_device.to_json(),
@@ -250,18 +266,20 @@ class Transmission():
 
 	@staticmethod
 	def parse_row(*, row: Dict) -> Transmission:
-		if len(row) != 8:
-			raise Exception(f"Unexpected number of columns in row. Expected 8, found {len(row)}.")
+		if len(row) != 10:
+			raise Exception(f"Unexpected number of columns in row. Expected 10, found {len(row)}.")
 		else:
 			return Transmission(
 				transmission_guid=row[0],
 				queue_guid=row[1],
 				source_device_guid=row[2],
-				request_client_guid=row[3],
-				transmission_json_string=row[4],
-				destination_device_guid=row[5],
-				row_created_datetime=datetime.strptime(row[6], "%Y-%m-%d %H:%M:%S.%f"),
-				is_retry_ready=row[7]
+				source_device_instance_guid=row[3],
+				request_client_guid=row[4],
+				stored_transmission_json_string=row[5],
+				destination_device_guid=row[6],
+				destination_device_instance_guid=row[7],
+				row_created_datetime=datetime.strptime(row[8], "%Y-%m-%d %H:%M:%S.%f"),
+				is_retry_ready=row[9]
 			)
 
 
@@ -517,6 +535,7 @@ class Database():
 			CREATE TABLE device
 			(
 				device_guid GUID PRIMARY KEY,
+				instance_guid GUID,
 				purpose_guid GUID,
 				socket_port INTEGER,
 				last_known_client_guid GUID,
@@ -533,9 +552,11 @@ class Database():
 				transmission_guid GUID PRIMARY KEY,
 				queue_guid GUID,
 				source_device_guid GUID,
+				source_device_instance_guid GUID,
 				request_client_guid GUID,
-				transmission_json_string TEXT,
+				stored_transmission_json_string TEXT,
 				destination_device_guid GUID,
+				destination_device_instance_guid GUID,
 				row_created_datetime TIMESTAMP,
 				is_retry_ready INTEGER,
 				FOREIGN KEY (queue_guid) REFERENCES queue(queue_guid),
@@ -748,30 +769,35 @@ class Database():
 		self.__connection_semaphore.acquire()
 
 		try:
+
+			_instance_guid = str(uuid.uuid4()).upper()
+
 			_insert_cursor = self.__connection.cursor()
 			_insert_cursor.execute('''
 				INSERT OR IGNORE INTO device
 				(
 					device_guid,
+					instance_guid,
 					purpose_guid,
 					socket_port,
 					last_known_client_guid,
 					last_known_datetime
 				)
-				VALUES (?, ?, ?, ?, ?)
-			''', (device_guid, purpose_guid, socket_port, client_guid, datetime.utcnow()))
+				VALUES (?, ?, ?, ?, ?, ?)
+			''', (device_guid, _instance_guid, purpose_guid, socket_port, client_guid, datetime.utcnow()))
 
 			_update_known_datetime_cursor = self.__connection.cursor()
 			_update_known_datetime_cursor.execute('''
 				UPDATE device
 				SET
+					instance_guid = ?,
 					purpose_guid = ?,
 					socket_port = ?,
 					last_known_client_guid = ?,
 					last_known_datetime = ?
 				WHERE
 					device_guid = ?
-			''', (purpose_guid, socket_port, client_guid, datetime.utcnow(), device_guid))
+			''', (_instance_guid, purpose_guid, socket_port, client_guid, datetime.utcnow(), device_guid))
 
 			_transmission_retry_cursor = self.__connection.cursor()
 			_transmission_retry_cursor.execute('''
@@ -885,11 +911,14 @@ class Database():
 			_get_result = _get_cursor.execute('''
 				SELECT
 					d.device_guid,
+					d.instance_guid,
 					d.purpose_guid,
 					d.socket_port,
 					d.last_known_client_guid,
 					d.last_known_datetime
 				FROM device AS d
+				WHERE
+					d.purpose_guid IS NOT NULL
 			''')
 
 			_rows = _get_result.fetchall()
@@ -922,7 +951,7 @@ class Database():
 
 		return _devices
 
-	def insert_transmission(self, *, queue_guid: str, source_device_guid: str, client_guid: str, transmission_json_string: str, destination_device_guid: str) -> Transmission:
+	def insert_transmission(self, *, queue_guid: str, source_device_guid: str, source_device_instance_guid: str, client_guid: str, stored_transmission_json_string: str, destination_device_guid: str, destination_device_instance_guid: str) -> Transmission:
 
 		self.__connection_semaphore.acquire()
 
@@ -937,13 +966,15 @@ class Database():
 					transmission_guid,
 					queue_guid,
 					source_device_guid,
+					source_device_instance_guid,
 					request_client_guid,
-					transmission_json_string,
+					stored_transmission_json_string,
 					destination_device_guid,
+					destination_device_instance_guid,
 					row_created_datetime,
 					is_retry_ready
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-			''', (_transmission_guid, queue_guid, source_device_guid, client_guid, transmission_json_string, destination_device_guid, _row_created_datetime, None))
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			''', (_transmission_guid, queue_guid, source_device_guid, source_device_instance_guid, client_guid, stored_transmission_json_string, destination_device_guid, destination_device_instance_guid, _row_created_datetime, None))
 		except Exception as ex:
 			self.__connection_semaphore.release()
 			raise ex
@@ -970,9 +1001,11 @@ class Database():
 					transmission_guid,
 					queue_guid,
 					source_device_guid,
+					source_device_instance_guid,
 					request_client_guid,
-					transmission_json_string,
+					stored_transmission_json_string,
 					destination_device_guid,
+					destination_device_instance_guid,
 					row_created_datetime,
 					is_retry_ready
 				FROM transmission
@@ -1021,6 +1054,7 @@ class Database():
 			_get_result = _get_cursor.execute('''
 				SELECT
 					d.device_guid,
+					d.instance_guid,
 					d.purpose_guid,
 					d.socket_port,
 					d.last_known_client_guid,
@@ -1646,6 +1680,7 @@ class Database():
 			_get_result = _get_cursor.execute('''
 				SELECT
 					d.device_guid,
+					d.instance_guid,
 					d.purpose_guid,
 					d.socket_port,
 					d.last_known_client_guid,

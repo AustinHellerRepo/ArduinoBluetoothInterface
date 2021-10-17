@@ -7,6 +7,7 @@ import json
 import re
 from datetime import datetime
 import time
+from austin_heller_repo.socket import ServerSocket, ClientSocket
 
 
 class MainTest(unittest.TestCase):
@@ -30,6 +31,7 @@ class MainTest(unittest.TestCase):
 		self.assertEqual({"is_successful": True, "response": {"test": "hello"}, "error": None}, _response.json())
 
 	def test_announce_device_0(self):
+		# normal
 		_app = TestClient(app)
 		_response = _app.post("/v1/device/announce", json={"device_guid": "2061BABC-9CCE-4E48-9C7C-C09D92342678", "purpose_guid": "866FB619-E643-46CB-B508-1377EF43CEBC", "socket_port": 25866})
 		self.assertEqual(200, _response.status_code)
@@ -41,6 +43,19 @@ class MainTest(unittest.TestCase):
 		self.assertEqual("2061BABC-9CCE-4E48-9C7C-C09D92342678", _response_json["response"]["device"]["device_guid"])
 		self.assertEqual("866FB619-E643-46CB-B508-1377EF43CEBC", _response_json["response"]["device"]["purpose_guid"])
 
+	def test_announce_device_1(self):
+		# no purpose
+		_app = TestClient(app)
+		_response = _app.post("/v1/device/announce", json={"device_guid": "2061BABC-9CCE-4E48-9C7C-C09D92342678", "purpose_guid": None, "socket_port": 25866})
+		self.assertEqual(200, _response.status_code)
+		_response_json = _response.json()
+		self.assertIsNone(_response_json["error"])
+		self.assertTrue(_response_json["is_successful"])
+		self.assertIsNotNone(_response_json["response"])
+		self.assertIsNotNone(_response_json["response"]["device"])
+		self.assertEqual("2061BABC-9CCE-4E48-9C7C-C09D92342678", _response_json["response"]["device"]["device_guid"])
+		self.assertEqual(None, _response_json["response"]["device"]["purpose_guid"])
+
 	def test_full_transmission_path_0(self):
 		# create transmission, dequeuer asks again, fails, reporter asks again, complete with retry, dequeuer fails, report completes without retry, dequeuer finds nothing
 
@@ -48,26 +63,66 @@ class MainTest(unittest.TestCase):
 
 		# introduce source device
 
+		_first_device_socket_port = 27544
+
+		_first_received_transmission = None
+
+		def _first_on_accepted_client_method(client_socket: ClientSocket):
+			_json = client_socket.read()
+			print(f"_json: {_json}")
+
+		_first_server_socket = ServerSocket(
+			to_client_packet_bytes_length=4096,
+			listening_limit_total=10,
+			accept_timeout_seconds=0.1,
+			client_read_failed_delay_seconds=0.1
+		)
+		_first_server_socket.start_accepting_clients(
+			host_ip_address="0.0.0.0",
+			host_port=_first_device_socket_port,
+			on_accepted_client_method=_first_on_accepted_client_method
+		)
+
 		_first_device_guid = "805FC328-943D-42BA-A81D-8486ADE0C4A1"
 		_first_device_purpose_guid = "71779DF6-B7AB-4815-9308-CD688B3F2F0D"
-		_first_device_socket_port = 27544
 		_response = _app.post("/v1/device/announce", json={"device_guid": _first_device_guid, "purpose_guid": _first_device_purpose_guid, "socket_port": _first_device_socket_port})
 		self.assertEqual(200, _response.status_code)
 		_first_device = _response.json()["response"]["device"]
 		self.assertIsNotNone(_first_device)
 		self.assertEqual(_first_device_guid, _first_device["device_guid"])
+		self.assertIsNotNone(_first_device["instance_guid"])
 		self.assertEqual(_first_device_purpose_guid, _first_device["purpose_guid"])
 
 		# introduce destination device
 
+		_second_device_socket_port = 23221
+
+		_second_received_transmission = None
+
+		def _second_on_accepted_client_method(client_socket: ClientSocket):
+			_json = client_socket.read()
+			print(f"_json: {_json}")
+
+		_second_server_socket = ServerSocket(
+			to_client_packet_bytes_length=4096,
+			listening_limit_total=10,
+			accept_timeout_seconds=0.1,
+			client_read_failed_delay_seconds=0.1
+		)
+		_second_server_socket.start_accepting_clients(
+			host_ip_address="0.0.0.0",
+			host_port=_second_device_socket_port,
+			on_accepted_client_method=_second_on_accepted_client_method
+		)
+
 		_second_device_guid = "FB144F0B-8A53-49E4-85A5-5349EAB4FBF1"
 		_second_device_purpose_guid = "B5155325-C1D6-4ED8-A7B4-BF52601D326C"
-		_second_device_socket_port = 23221
 		_response = _app.post("/v1/device/announce", json={"device_guid": _second_device_guid, "purpose_guid": _second_device_purpose_guid, "socket_port": _second_device_socket_port})
 		self.assertEqual(200, _response.status_code)
 		_second_device = _response.json()["response"]["device"]
 		self.assertIsNotNone(_second_device)
 		self.assertEqual(_second_device_guid, _second_device["device_guid"])
+		self.assertIsNotNone(_second_device["instance_guid"])
 		self.assertEqual(_second_device_purpose_guid, _second_device["purpose_guid"])
 
 		# pretend that the source device does not know about the destination device
@@ -86,16 +141,20 @@ class MainTest(unittest.TestCase):
 		})
 		_first_transmission_enqueue_post_params = {
 			"queue_guid": _queue_guid,
-			"source_device_guid": _first_device_guid,
+			"source_device_guid": _first_device["device_guid"],
+			"source_device_instance_guid": _first_device["instance_guid"],
 			"transmission_json_string": _first_transmission_json_string,
-			"destination_device_guid": _discovered_destination_devices[0]["device_guid"]
+			"destination_device_guid": _discovered_destination_devices[0]["device_guid"],
+			"destination_device_instance_guid": _discovered_destination_devices[0]["instance_guid"]
 		}
-		_response = _app.post("/v1/transmission/enqueue", json=_first_transmission_enqueue_post_params)
+		_response = _app.post("/v1/transmission/send_json", json=_first_transmission_enqueue_post_params)
 		self.assertEqual(200, _response.status_code)
-		_first_transmission = _response.json()["response"]["transmission"]
+		_response_json = _response.json()
+		self.assertIsNone(_response_json["error"])
+		self.assertTrue(_response_json["is_successful"])
+		_first_transmission = _response_json["response"]["transmission"]
 		self.assertEqual(_first_transmission_enqueue_post_params["queue_guid"], _first_transmission["queue_guid"])
 		self.assertEqual(_first_transmission_enqueue_post_params["source_device_guid"], _first_transmission["source_device_guid"])
-		self.assertEqual(_first_transmission_enqueue_post_params["transmission_json_string"], _first_transmission["transmission_json_string"])
 		self.assertEqual(_first_transmission_enqueue_post_params["destination_device_guid"], _first_transmission["destination_device_guid"])
 
 		_second_transmission_json_string = json.dumps({
@@ -103,187 +162,24 @@ class MainTest(unittest.TestCase):
 		})
 		_second_transmission_enqueue_post_params = {
 			"queue_guid": _queue_guid,
-			"source_device_guid": _first_device_guid,
+			"source_device_guid": _first_device["device_guid"],
+			"source_device_instance_guid": _first_device["instance_guid"],
 			"transmission_json_string": _second_transmission_json_string,
-			"destination_device_guid": _discovered_destination_devices[0]["device_guid"]
+			"destination_device_guid": _discovered_destination_devices[0]["device_guid"],
+			"destination_device_instance_guid": _discovered_destination_devices[0]["instance_guid"]
 		}
-		_response = _app.post("/v1/transmission/enqueue", json=_second_transmission_enqueue_post_params)
+		_response = _app.post("/v1/transmission/send_json", json=_second_transmission_enqueue_post_params)
 		self.assertEqual(200, _response.status_code)
 		_second_transmission = _response.json()["response"]["transmission"]
 		self.assertEqual(_second_transmission_enqueue_post_params["queue_guid"], _second_transmission["queue_guid"])
 		self.assertEqual(_second_transmission_enqueue_post_params["source_device_guid"], _second_transmission["source_device_guid"])
-		self.assertEqual(_second_transmission_enqueue_post_params["transmission_json_string"], _second_transmission["transmission_json_string"])
 		self.assertEqual(_second_transmission_enqueue_post_params["destination_device_guid"], _second_transmission["destination_device_guid"])
 
-		# setup dequeuer
+		# ensure that the first transmission was received
 
-		_dequeuer_guid = "20E5EF95-2D4C-44D7-B750-98A413A6613B"
+		time.sleep(5)
 
-		_dequeuer_before_datetime = datetime.utcnow()
-		_response = _app.post("/v1/dequeuer/announce", json={"dequeuer_guid": _dequeuer_guid, "is_informed_of_enqueue": False, "listening_port": None})
-		_dequeuer_after_datetime = datetime.utcnow()
-		self.assertEqual(200, _response.status_code)
-		_dequeuer = _response.json()["response"]["dequeuer"]
-		self.assertEqual(_dequeuer_guid, _dequeuer["dequeuer_guid"])
-		self.assertEqual(True, _dequeuer["is_responsive"])
-		self.assertLess(_dequeuer_before_datetime, datetime.strptime(_dequeuer["responsive_update_datetime"], "%Y-%m-%d %H:%M:%S.%f"))
-		self.assertGreater(_dequeuer_after_datetime, datetime.strptime(_dequeuer["responsive_update_datetime"], "%Y-%m-%d %H:%M:%S.%f"))
-
-		# pull first transmission
-
-		_response = _app.post("/v1/transmission/dequeue", json={"dequeuer_guid": _dequeuer_guid, "queue_guid": _queue_guid})  # TODO
-		self.assertEqual(200, _response.status_code)
-		_first_transmission_dequeue = _response.json()["response"]["transmission_dequeue"]
-		self.assertEqual(_dequeuer_guid, _first_transmission_dequeue["dequeuer_guid"])
-		self.assertEqual(_first_transmission["transmission_guid"], _first_transmission_dequeue["transmission_guid"])
-
-		# try to pull again, but receive the same transmission
-
-		_response = _app.post("/v1/transmission/dequeue", json={"dequeuer_guid": _dequeuer_guid, "queue_guid": _queue_guid})
-		self.assertEqual(200, _response.status_code)
-		_first_again_transmission_dequeue = _response.json()["response"]["transmission_dequeue"]
-		self.assertEqual(_dequeuer_guid, _first_again_transmission_dequeue["dequeuer_guid"])
-		self.assertEqual(_first_transmission["transmission_guid"], _first_again_transmission_dequeue["transmission_guid"])
-		self.assertEqual(_first_transmission_dequeue["transmission_dequeue_guid"], _first_again_transmission_dequeue["transmission_dequeue_guid"])
-
-		# fail dequeue
-
-		_response = _app.post("/v1/transmission/failure", json={"transmission_dequeue_guid": _first_transmission_dequeue["transmission_dequeue_guid"], "error_message_json_string": json.dumps({"error": "first"})})
-		self.assertEqual(200, _response.status_code)
-		_transmission_dequeue_error_transmission = _response.json()["response"]["transmission_dequeue_error_transmission"]
-		self.assertEqual(_first_transmission_dequeue["transmission_dequeue_guid"], _transmission_dequeue_error_transmission["transmission_dequeue_guid"])
-		self.assertEqual(json.dumps({"error": "first"}), _transmission_dequeue_error_transmission["error_message_json_string"], )
-
-		# setup reporter
-
-		_reporter_guid = "CF56EBB0-0BC1-4122-822D-C8BE6A2E6D63"
-
-		_reporter_before_datetime = datetime.utcnow()
-		_response = _app.post("/v1/reporter/announce", json={"reporter_guid": _reporter_guid})
-		_reporter_after_datetime = datetime.utcnow()
-		self.assertEqual(200, _response.status_code)
-		_reporter = _response.json()["response"]["reporter"]
-		self.assertEqual(_reporter_guid, _reporter["reporter_guid"])
-		self.assertEqual(True, _reporter["is_responsive"])
-		self.assertLess(_reporter_before_datetime, datetime.strptime(_reporter["responsive_update_datetime"], "%Y-%m-%d %H:%M:%S.%f"))
-		self.assertGreater(_reporter_after_datetime, datetime.strptime(_reporter["responsive_update_datetime"], "%Y-%m-%d %H:%M:%S.%f"))
-
-		# pull first failure
-
-		_response = _app.post("/v1/failure/dequeue", json={"reporter_guid": _reporter_guid, "queue_guid": _queue_guid})
-		self.assertEqual(200, _response.status_code)
-		_first_transmission_dequeue_error_transmission_dequeue = _response.json()["response"]["transmission_dequeue_error_transmission_dequeue"]
-		self.assertIsNotNone(_first_transmission_dequeue_error_transmission_dequeue)
-		self.assertEqual(_transmission_dequeue_error_transmission["transmission_dequeue_error_transmission_guid"], _first_transmission_dequeue_error_transmission_dequeue["transmission_dequeue_error_transmission_guid"])
-		self.assertEqual("testclient", _first_transmission_dequeue_error_transmission_dequeue["destination_client"]["ip_address"])
-
-		_response = _app.post("/v1/failure/dequeue", json={"reporter_guid": _reporter_guid, "queue_guid": _queue_guid})
-		self.assertEqual(200, _response.status_code)
-		_first_again_transmission_dequeue_error_transmission_dequeue = _response.json()["response"]["transmission_dequeue_error_transmission_dequeue"]
-		self.assertIsNotNone(_first_again_transmission_dequeue_error_transmission_dequeue)
-		self.assertEqual(_first_transmission_dequeue_error_transmission_dequeue["transmission_dequeue_error_transmission_dequeue_guid"], _first_again_transmission_dequeue_error_transmission_dequeue["transmission_dequeue_error_transmission_dequeue_guid"])
-
-		# complete the failed transaction and setup for retry
-
-		_response = _app.post("/v1/failure/complete", json={"transmission_dequeue_error_transmission_dequeue_guid": _first_transmission_dequeue_error_transmission_dequeue["transmission_dequeue_error_transmission_dequeue_guid"], "is_retry_requested": True})
-		self.assertEqual(200, _response.status_code)
-
-		# pull the first transaction again, but the destination needs to announce itself first
-
-		_response = _app.post("/v1/transmission/dequeue", json={"dequeuer_guid": _dequeuer_guid, "queue_guid": _queue_guid})
-		self.assertEqual(200, _response.status_code)
-		_first_again_transmission_dequeue = _response.json()["response"]["transmission_dequeue"]
-		self.assertIsNone(_first_again_transmission_dequeue)
-
-		# reannounce destination device
-
-		_response = _app.post("/v1/device/announce", json={"device_guid": _second_device_guid, "purpose_guid": _second_device_purpose_guid, "socket_port": _second_device_socket_port})
-		self.assertEqual(200, _response.status_code)
-		_second_device = _response.json()["response"]["device"]
-		self.assertIsNotNone(_second_device)
-		self.assertEqual(_second_device_guid, _second_device["device_guid"])
-		self.assertEqual(_second_device_purpose_guid, _second_device["purpose_guid"])
-
-		# dequeue first transaction again
-
-		_response = _app.post("/v1/transmission/dequeue", json={"dequeuer_guid": _dequeuer_guid, "queue_guid": _queue_guid})
-		self.assertEqual(200, _response.status_code)
-		_first_again_transmission_dequeue = _response.json()["response"]["transmission_dequeue"]
-		self.assertEqual(_dequeuer_guid, _first_again_transmission_dequeue["dequeuer_guid"])
-		self.assertEqual(_first_transmission["transmission_guid"], _first_again_transmission_dequeue["transmission_guid"])
-		self.assertNotEqual(_first_transmission_dequeue["transmission_dequeue_guid"], _first_again_transmission_dequeue["transmission_dequeue_guid"])
-
-		# fail dequeue
-
-		_response = _app.post("/v1/transmission/failure", json={"transmission_dequeue_guid": _first_again_transmission_dequeue["transmission_dequeue_guid"], "error_message_json_string": json.dumps({"error": "first"})})
-		self.assertEqual(200, _response.status_code)
-		_transmission_dequeue_error_transmission = _response.json()["response"]["transmission_dequeue_error_transmission"]
-		self.assertEqual(_first_again_transmission_dequeue["transmission_dequeue_guid"], _transmission_dequeue_error_transmission["transmission_dequeue_guid"])
-		self.assertEqual(json.dumps({"error": "first"}), _transmission_dequeue_error_transmission["error_message_json_string"], )
-
-		# pull first failure
-
-		_response = _app.post("/v1/failure/dequeue", json={"reporter_guid": _reporter_guid, "queue_guid": _queue_guid})
-		self.assertEqual(200, _response.status_code)
-		_first_transmission_dequeue_error_transmission_dequeue = _response.json()["response"]["transmission_dequeue_error_transmission_dequeue"]
-		self.assertIsNotNone(_first_transmission_dequeue_error_transmission_dequeue)
-		self.assertEqual(_transmission_dequeue_error_transmission["transmission_dequeue_error_transmission_guid"], _first_transmission_dequeue_error_transmission_dequeue["transmission_dequeue_error_transmission_guid"])
-		self.assertEqual("testclient", _first_transmission_dequeue_error_transmission_dequeue["destination_client"]["ip_address"])
-
-		# fail the failed transaction
-
-		_response = _app.post("/v1/failure/failure", json={"transmission_dequeue_error_transmission_dequeue_guid": _first_transmission_dequeue_error_transmission_dequeue["transmission_dequeue_error_transmission_dequeue_guid"], "error_message_json_string": json.dumps({"something": "here"})})
-		self.assertEqual(200, _response.status_code)
-
-		# try to pull a transmission, but the failed failure still needs to be addressed
-
-		_response = _app.post("/v1/transmission/dequeue", json={"dequeuer_guid": _dequeuer_guid, "queue_guid": _queue_guid})  # TODO
-		self.assertEqual(200, _response.status_code)
-		_first_transmission_dequeue = _response.json()["response"]["transmission_dequeue"]
-		self.assertIsNone(_first_transmission_dequeue)
-
-		# try to dequeue failed transmission, but nothing to find since existing transmission is still in failed state
-
-		_response = _app.post("/v1/failure/dequeue", json={"reporter_guid": _reporter_guid, "queue_guid": _queue_guid})
-		self.assertEqual(200, _response.status_code)
-		_first_transmission_dequeue_error_transmission_dequeue = _response.json()["response"]["transmission_dequeue_error_transmission_dequeue"]
-		self.assertIsNone(_first_transmission_dequeue_error_transmission_dequeue)
-
-		# reannounce source device
-
-		_response = _app.post("/v1/device/announce", json={"device_guid": _first_device_guid, "purpose_guid": _first_device_purpose_guid, "socket_port": _first_device_socket_port})
-		self.assertEqual(200, _response.status_code)
-		_first_again_device = _response.json()["response"]["device"]
-		self.assertIsNotNone(_first_again_device)
-		self.assertEqual(_first_device["device_guid"], _first_again_device["device_guid"])
-		self.assertEqual(_first_device["purpose_guid"], _first_again_device["purpose_guid"])
-
-		# pull first failure again so that it can be completed
-
-		_response = _app.post("/v1/failure/dequeue", json={"reporter_guid": _reporter_guid, "queue_guid": _queue_guid})
-		self.assertEqual(200, _response.status_code)
-		_first_transmission_dequeue_error_transmission_dequeue = _response.json()["response"]["transmission_dequeue_error_transmission_dequeue"]
-		self.assertIsNotNone(_first_transmission_dequeue_error_transmission_dequeue)
-		self.assertEqual(_transmission_dequeue_error_transmission["transmission_dequeue_error_transmission_guid"], _first_transmission_dequeue_error_transmission_dequeue["transmission_dequeue_error_transmission_guid"])
-		self.assertEqual("testclient", _first_transmission_dequeue_error_transmission_dequeue["destination_client"]["ip_address"])
-
-		# complete the failed transaction and cancel
-
-		_response = _app.post("/v1/failure/complete", json={"transmission_dequeue_error_transmission_dequeue_guid": _first_transmission_dequeue_error_transmission_dequeue["transmission_dequeue_error_transmission_dequeue_guid"], "is_retry_requested": False})
-		self.assertEqual(200, _response.status_code)
-
-		# try to pull a transmission
-
-		_response = _app.post("/v1/transmission/dequeue", json={"dequeuer_guid": _dequeuer_guid, "queue_guid": _queue_guid})  # TODO
-		self.assertEqual(200, _response.status_code)
-		_first_transmission_dequeue = _response.json()["response"]["transmission_dequeue"]
-		self.assertIsNotNone(_first_transmission_dequeue)
-		self.assertNotEqual(_first_again_transmission_dequeue["transmission_guid"], _first_transmission_dequeue["transmission_guid"])
-
-		# complete transmission
-
-		_response = _app.post("/v1/transmission/complete", json={"transmission_dequeue_guid": _first_transmission_dequeue["transmission_dequeue_guid"]})
-		self.assertEqual(200, _response.status_code)
+		raise NotImplementedError()
 
 	def test_get_uuid_0(self):
 		_app = TestClient(app)

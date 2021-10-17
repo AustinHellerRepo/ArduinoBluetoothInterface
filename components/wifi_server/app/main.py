@@ -8,7 +8,8 @@ from concurrent.futures import ThreadPoolExecutor
 import asyncio
 from pydantic import BaseModel
 from austin_heller_repo.socket import ClientSocketFactory, ClientSocket
-from app.dequeuer import Dequeuer
+from app.transmitter import Transmitter, TransmissionDequeueCyclingUnitOfWork
+from app.transmission_parser import SendJsonTransmissionParser, ChangePurposeTransmissionParser, SendJsonTransmissionParserFactory, ChangePurposeTransmissionParserFactory
 
 
 try:
@@ -21,18 +22,31 @@ except:
 app = FastAPI()
 
 
+# setup Transmitter
 __database_factory = DatabaseFactory()
 __client_socket_factory = ClientSocketFactory(
 	to_server_packet_bytes_length=4096,
 	server_read_failed_delay_seconds=0.1
 )
 
-__dequeuer = Dequeuer(
-	database_factory=__database_factory,
-	client_socket_factory=__client_socket_factory,
-	polling_thread_delay_seconds=60.0
+
+def __on_exception(ex: Exception):
+	print(f"Error: Transmitter: {ex}")
+
+
+_send_json_transmission_parser_factory = SendJsonTransmissionParserFactory()
+
+_change_purpose_transmission_parser_factory = ChangePurposeTransmissionParserFactory()
+
+__transmitter = Transmitter(
+	transmission_dequeue_cycling_unit_of_work=TransmissionDequeueCyclingUnitOfWork(
+		database_factory=__database_factory,
+		client_socket_factory=__client_socket_factory,
+		send_json_transmission_parser_factory=_send_json_transmission_parser_factory,
+		change_purpose_transmission_parser_factory=_change_purpose_transmission_parser_factory
+	),
+	on_exception=__on_exception
 )
-__dequeuer.add_dequeuer()
 
 
 def get_database() -> Database:
@@ -169,9 +183,6 @@ def v1_receive_device_announcement(receive_device_announcement_base_model: Recei
 			purpose_guid=receive_device_announcement_base_model.purpose_guid,
 			socket_port=receive_device_announcement_base_model.socket_port
 		)
-
-		__dequeuer.
-
 		_response_json = {
 			"device": _device.to_json()
 		}
@@ -228,19 +239,21 @@ def v1_list_available_devices(list_available_devices_base_model: ListAvailableDe
 	}
 
 
-class ReceiveDeviceTransmissionBaseModel(BaseModel):
+class SendJsonTransmissionBaseModel(BaseModel):
 	queue_guid: str
 	source_device_guid: str
-	transmission_json_string: str
+	source_device_instance_guid: str
 	destination_device_guid: str
+	destination_device_instance_guid: str
+	transmission_json_string: str
 
 
-@app.post("/v1/transmission/enqueue")
-def v1_receive_device_transmission(receive_device_transmission_base_model: ReceiveDeviceTransmissionBaseModel, request: Request):
+@app.post("/v1/transmission/send_json")
+def v1_send_json_transmission(send_json_transmission_base_model: SendJsonTransmissionBaseModel, request: Request):
 
 	log_api_entrypoint(
 		api_entrypoint=ApiEntrypoint.V1ReceiveDeviceTransmission,
-		args_json=json.loads(receive_device_transmission_base_model.json()),
+		args_json=json.loads(send_json_transmission_base_model.json()),
 		request=request
 	)
 
@@ -254,40 +267,28 @@ def v1_receive_device_transmission(receive_device_transmission_base_model: Recei
 			ip_address=request.client.host
 		)
 		_queue = _database.insert_queue(
-			queue_guid=receive_device_transmission_base_model.queue_guid
+			queue_guid=send_json_transmission_base_model.queue_guid
 		)
+
+		_transmission_parser = SendJsonTransmissionParser()
+		_encapsulated_json_string = _transmission_parser.store_transmission(
+			json_string=json.dumps({
+				"message": send_json_transmission_base_model.transmission_json_string
+			})
+		)
+
 		_transmission = _database.insert_transmission(
 			queue_guid=_queue.get_queue_guid(),
-			source_device_guid=receive_device_transmission_base_model.source_device_guid,
+			source_device_guid=send_json_transmission_base_model.source_device_guid,
+			source_device_instance_guid=send_json_transmission_base_model.source_device_instance_guid,
 			client_guid=_client.get_client_guid(),
-			transmission_json_string=receive_device_transmission_base_model.transmission_json_string,
-			destination_device_guid=receive_device_transmission_base_model.destination_device_guid
+			stored_transmission_json_string=_encapsulated_json_string,
+			destination_device_guid=send_json_transmission_base_model.destination_device_guid,
+			destination_device_instance_guid=send_json_transmission_base_model.destination_device_instance_guid
 		)
 
-		_responsive_dequeuers = _database.get_all_responsive_dequeuers(
-			queue_guid=_transmission.get_queue_guid()
-		)
-
-		if len(_responsive_dequeuers) != 0:
-
-			_to_dequeuer_packet_bytes_length = 4096
-			_dequeuer_read_failed_delay_seconds = 0.1
-
-			_client_socket_factory = ClientSocketFactory(
-				to_server_packet_bytes_length=_to_dequeuer_packet_bytes_length,
-				server_read_failed_delay_seconds=_dequeuer_read_failed_delay_seconds
-			)
-
-			for _responsive_dequeuer in _responsive_dequeuers:
-				_client_socket = _client_socket_factory.get_client_socket()
-				_client_socket.connect_to_server(
-					ip_address=_responsive_dequeuer.get_last_known_client().get_ip_address(),
-					port=_responsive_dequeuer.get_listening_port()
-				)
-				_client_socket.write(json.dumps({
-					"queue_guid": _transmission.get_queue_guid()
-				}))
-				_client_socket.close()
+		# trigger transmitter, potentially adding a processing thread
+		__transmitter.trigger_transmission_dequeue()
 
 		_response_json = {
 			"transmission": _transmission.to_json()
@@ -320,6 +321,73 @@ def v1_get_uuid(request: Request):
 	try:
 		_response_json = {
 			"uuid": str(uuid.uuid4()).upper()
+		}
+		_is_successful = True
+	except Exception as ex:
+		_error_message = str(ex)
+		traceback.print_exc()
+
+	return {
+		"is_successful": _is_successful,
+		"response": _response_json,
+		"error": _error_message
+	}
+
+
+class DownloadGitRepositoryBaseModel(BaseModel):
+	queue_guid: str
+	source_device_guid: str
+	source_device_instance_guid: str
+	destination_device_guid: str
+	destination_device_instance_guid: str
+	git_repository_url: str
+
+
+@app.post("/v1/transmission/change_purpose")
+def v1_download_git_repository(download_git_repository_base_model: DownloadGitRepositoryBaseModel, request: Request):
+
+	log_api_entrypoint(
+		api_entrypoint=ApiEntrypoint.V1DownloadGitRepository,
+		args_json=json.loads(download_git_repository_base_model.json()),
+		request=request
+	)
+
+	_is_successful = False
+	_response_json = None
+	_error_message = None
+
+	try:
+
+		_database = get_database()
+		_client = _database.insert_client(
+			ip_address=request.client.host
+		)
+		_queue = _database.insert_queue(
+			queue_guid=download_git_repository_base_model.queue_guid
+		)
+
+		_transmission_parser = ChangePurposeTransmissionParser()
+		_encapsulated_json_string = _transmission_parser.store_transmission(
+			json_string=json.dumps({
+				"git_repository_url": download_git_repository_base_model.git_repository_url
+			})
+		)
+
+		_transmission = _database.insert_transmission(
+			queue_guid=_queue.get_queue_guid(),
+			source_device_guid=download_git_repository_base_model.source_device_guid,
+			source_device_instance_guid=download_git_repository_base_model.source_device_instance_guid,
+			client_guid=_client.get_client_guid(),
+			stored_transmission_json_string=_encapsulated_json_string,
+			destination_device_guid=download_git_repository_base_model.destination_device_guid,
+			destination_device_instance_guid=download_git_repository_base_model.destination_device_instance_guid
+		)
+
+		# trigger transmitter, potentially adding a processing thread
+		__transmitter.trigger_transmission_dequeue()
+
+		_response_json = {
+			"transmission": _transmission.to_json()
 		}
 		_is_successful = True
 	except Exception as ex:

@@ -194,7 +194,7 @@ else:
 						# create initial purpose settings file
 
 						_local_initial_purpose_settings_file_object = tempfile.NamedTemporaryFile(delete=False)
-						with open(_local_initial_purpose_settings_file_object, "w") as _initial_purpose_settings_file_handle:
+						with open(_local_initial_purpose_settings_file_object.name, "w") as _initial_purpose_settings_file_handle:
 							_initial_purpose_settings_file_handle.write(json.dumps({
 								"implemented_module_git_repo_url": _implemented_module_git_repo_url
 							}))

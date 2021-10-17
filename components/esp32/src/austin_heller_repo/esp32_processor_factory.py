@@ -1,11 +1,13 @@
-from austin_heller_repo.socket import ServerSocketFactory, ServerSocket, ClientSocket, json, time, start_thread, os, get_machine_guid, ModuleLoader, Module, Semaphore
-from austin_heller_repo.api_interface import ApiInterface, ApiInterfaceFactory
+from austin_heller_repo.socket import ServerSocketFactory, ServerSocket, ClientSocket, json, time, start_thread, os, get_machine_guid, get_module_from_file_path, try_mkdir
+from austin_heller_repo.api_interface import ApiInterfaceFactory
 import network
+from src.austin_heller_repo.transmission_parser import ReceiveJsonTransmissionParser, ChangePurposeTransmissionParser
+from austin_heller_repo.module import ModuleReference, ModuleMessage
 
 
 class Esp32Processor():
 
-	def __init__(self, *, host_ip_address: str, host_port: int, server_socket_factory: ServerSocketFactory, accepting_connections_total: int, wifi_settings_json_file_path: str, api_interface_factory: ApiInterfaceFactory, module_loader: ModuleLoader, initial_purpose_settings_file_path: str):
+	def __init__(self, *, host_ip_address: str, host_port: int, server_socket_factory: ServerSocketFactory, accepting_connections_total: int, wifi_settings_json_file_path: str, api_interface_factory: ApiInterfaceFactory, purpose_git_clone_directory_path: str, initial_purpose_settings_file_path: str):
 
 		self.__host_ip_address = host_ip_address
 		self.__host_port = host_port
@@ -13,16 +15,25 @@ class Esp32Processor():
 		self.__accepting_connections_total = accepting_connections_total
 		self.__wifi_settings_json_file_path = wifi_settings_json_file_path
 		self.__api_interface_factory = api_interface_factory
-		self.__module_loader = module_loader
+		self.__purpose_git_clone_directory_path = purpose_git_clone_directory_path
 		self.__initial_purpose_settings_file_path = initial_purpose_settings_file_path
 
 		self.__server_socket = None  # type: ServerSocket
 		self.__device_guid = None  # type: str
-		self.__module = None  # type: Module
+		self.__module_reference = None  # type: ModuleReference
+		self.__processor_guid = None  # type: str
+
+		self.__initialize()
 
 	def __initialize(self):
 
 		self.__device_guid = get_machine_guid()
+
+		try_mkdir(self.__purpose_git_clone_directory_path)
+
+		_api_interface = self.__api_interface_factory.get_api_interface()
+
+		self.__processor_guid = _api_interface.get_uuid()["response"]["uuid"]
 
 	def start(self):
 
@@ -77,35 +88,48 @@ class Esp32Processor():
 
 			# start the listening socket
 
-			_processing_semaphore = Semaphore()
-
-			def _process_purpose_change(*, routed_json: dict):
-				print(f"_process_purpose_change: routed_json: {routed_json}")
-				_processing_semaphore.acquire()
-				self.set_purpose(
-					implemented_module_git_repo_url=routed_json["implemented_module_git_repo_url"]
+			def _send_message_method(module_message: ModuleMessage):
+				_api_interface = self.__api_interface_factory.get_api_interface()
+				_api_interface.send_transmission(
+					queue_guid=module_message.get_queue_guid(),
+					source_device_guid=module_message.get_source_device_guid(),
+					source_device_instance_guid=module_message.get_source_device_instance_guid(),
+					destination_device_guid=module_message.get_destination_device_guid(),
+					destination_device_instance_guid=module_message.get_destination_device_instance_guid(),
+					transmission_json=module_message.get_transmission_json()
 				)
-				_processing_semaphore.release()
 
-			def _process_device_message(*, routed_json: dict):
-				print(f"_process_device_message: routed_json: {routed_json}")
-				_processing_semaphore.acquire()
-				if routed_json["purpose_guid"] == self.__module.get_purpose_guid():
-					self.__module.receive(
-						data=routed_json["transmission_json_string"]
-					)
-				_processing_semaphore.release()
+			def _get_devices_by_purpose_method(purpose_guid: str):
+				_api_interface = self.__api_interface_factory.get_api_interface()
+				_devices = _api_interface.get_available_devices(
+					purpose_guid=purpose_guid
+				)
+				return _devices
+
+			def _on_ready_method(purpose_guid: str) -> str:
+				_api_interface = self.__api_interface_factory.get_api_interface()
+				_device = _api_interface.send_device_announcement(
+					device_guid=self.__device_guid,
+					purpose_guid=purpose_guid,
+					socket_port=self.__host_port
+				)
+				return _device["device"]["instance_guid"]
 
 			def _process_client_socket(client_socket: ClientSocket):
-				_source_json_string = client_socket.read()
-				_source_json = json.loads(_source_json_string)
-				if _source_json["purpose"] == "load":
-					_process_purpose_change(
-						routed_json=_source_json["router_data"]
+				_header_json_string = client_socket.read()
+				_header_json = json.loads(_header_json_string)
+				if _header_json["type"] == "send message":
+					_transmission_parser = ReceiveJsonTransmissionParser(
+						module_reference=self.__module_reference
 					)
-				elif _source_json["purpose"] == "message":
-					_process_device_message(
-						routed_json=_source_json["router_data"]
+				elif _header_json["type"] == "change_purpose":
+					_transmission_parser = ChangePurposeTransmissionParser(
+						module_reference=self.__module_reference,
+						git_clone_directory_path=self.__purpose_git_clone_directory_path,
+						device_guid=self.__device_guid,
+						send_message_method=_send_message_method,
+						get_devices_by_purpose_method=_get_devices_by_purpose_method,
+						on_ready_method=_on_ready_method
 					)
 				client_socket.close()
 
@@ -136,57 +160,34 @@ class Esp32Processor():
 			else:
 				_implemented_module_git_repo_url = _initial_purpose_settings_json["implemented_module_git_repo_url"]
 
-			self.set_purpose(
-				implemented_module_git_repo_url=_implemented_module_git_repo_url
+			_api_interface = self.__api_interface_factory.get_api_interface()
+
+			_device_announcement_response = _api_interface.send_device_announcement(
+				device_guid=self.__device_guid,
+				purpose_guid=None,
+				socket_port=self.__host_port
+			)
+
+			_device = _device_announcement_response["device"]
+
+			_api_interface.change_purpose(
+				queue_guid=self.__processor_guid,
+				source_device_guid=self.__device_guid,
+				source_device_instance_guid=_device["device_instance_guid"],
+				destination_device_guid=self.__device_guid,
+				destination_device_instance_guid=_device["device_instance_guid"],
+				git_repository_url=_implemented_module_git_repo_url
 			)
 
 	def stop(self):
 
-		if self.__module is not None:
-			self.__module.stop()
-
-	def set_purpose(self, *, implemented_module_git_repo_url: str):
-
-		if self.__module is not None:
-			self.__module.stop()
-
-		self.__module_loader.load_module(
-			git_clone_url=implemented_module_git_repo_url
-		)
-
-		_module_class = self.__module_loader.get_module(
-			git_clone_url=implemented_module_git_repo_url,
-			module_file_name="module.py",
-			module_name=implemented_module_git_repo_url.split("/")[-1]
-		)
-
-		self.__module = _module_class.ImplementedModule()  # type: Module
-
-		_api_interface = self.__api_interface_factory.get_api_interface()
-
-		def _on_module_sent_message(json_string: str):
-			_json_object = json.loads(json_string)
-			_api_interface.send_transmission(
-				queue_guid=_json_object["queue_guid"],
-				source_device_guid=self.__device_guid,
-				transmission_json=_json_object["transmission_json"],
-				destination_device_guid=_json_object["destination_device_guid"]
-			)
-
-		# announce presence to wifi server
-
-		_api_interface.send_device_announcement(
-			device_guid=self.__device_guid,
-			purpose_guid=self.__module.get_purpose_guid(),
-			socket_port=self.__host_port
-		)
-
-		self.__module.start()
+		if self.__module_reference.get() is not None:
+			self.__module_reference.get().stop()
 
 
 class Esp32ProcessorFactory():
 
-	def __init__(self, *, host_ip_address: str, host_port: int, server_socket_factory: ServerSocketFactory, accepting_connections_total: int, wifi_settings_json_file_path: str, api_interface_factory: ApiInterfaceFactory, module_loader: ModuleLoader, initial_purpose_settings_file_path: str):
+	def __init__(self, *, host_ip_address: str, host_port: int, server_socket_factory: ServerSocketFactory, accepting_connections_total: int, wifi_settings_json_file_path: str, api_interface_factory: ApiInterfaceFactory, purpose_git_clone_directory_path: str, initial_purpose_settings_file_path: str):
 
 		self.__host_ip_address = host_ip_address
 		self.__host_port = host_port
@@ -194,7 +195,7 @@ class Esp32ProcessorFactory():
 		self.__accepting_connections_total = accepting_connections_total
 		self.__wifi_settings_json_file_path = wifi_settings_json_file_path
 		self.__api_interface_factory = api_interface_factory
-		self.__module_loader = module_loader
+		self.__purpose_git_clone_directory_path = purpose_git_clone_directory_path
 		self.__initial_purpose_settings_file_path = initial_purpose_settings_file_path
 
 	def get_esp32_processor(self) -> Esp32Processor:
@@ -206,6 +207,6 @@ class Esp32ProcessorFactory():
 			accepting_connections_total=self.__accepting_connections_total,
 			wifi_settings_json_file_path=self.__wifi_settings_json_file_path,
 			api_interface_factory=self.__api_interface_factory,
-			module_loader=self.__module_loader,
+			purpose_git_clone_directory_path=self.__purpose_git_clone_directory_path,
 			initial_purpose_settings_file_path=self.__initial_purpose_settings_file_path
 		)

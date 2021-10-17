@@ -1,4 +1,4 @@
-from esp32_processor_factory import ServerSocketFactory, Esp32ProcessorFactory, Esp32Processor, time, ApiInterfaceFactory, ModuleLoader
+from src.austin_heller_repo.esp32_processor_factory import ServerSocketFactory, Esp32ProcessorFactory, ApiInterfaceFactory
 
 
 _ip_address = "0.0.0.0"
@@ -23,10 +23,6 @@ _api_interface_factory = ApiInterfaceFactory(
 	api_base_url="0.0.0.0:80"
 )
 
-_module_loader = ModuleLoader(
-	git_clone_directory_path=_git_clone_directory_path
-)
-
 _processor_factory = Esp32ProcessorFactory(
 	host_ip_address=_ip_address,
 	host_port=_port,
@@ -34,11 +30,9 @@ _processor_factory = Esp32ProcessorFactory(
 	accepting_connections_total=_connections_total,
 	wifi_settings_json_file_path=_wifi_settings_file_path,
 	api_interface_factory=_api_interface_factory,
-	module_loader=_module_loader,
+	purpose_git_clone_directory_path=_git_clone_directory_path,
 	initial_purpose_settings_file_path=_initial_purpose_settings_file_path
 )
 
 _processor = _processor_factory.get_esp32_processor()
 _processor.start()
-
-
